@@ -39,9 +39,18 @@ Chaque affirmation est étiquetée :
   premier spike) ou confirmé par toi de façon répétée.
 - **NOT TESTED** — non vérifié du tout, hypothèse ou fonctionnalité non
   exercée.
+- **RELAYED** — rapporté par toi depuis TA propre exécution locale de
+  l'outil, mais **je (l'assistant) n'ai pas vu `report-sanitized.json`** :
+  ni fichier commité, ni pièce jointe accessible dans cette session. Je n'ai
+  aucun moyen de vérifier ces affirmations moi-même — elles restent ta
+  parole, pas une observation que je peux recouper. Traité comme une
+  information de conception fiable (le code ci-dessous s'appuie dessus),
+  mais jamais présenté comme "j'ai vu que...".
 
-À ce stade, absolument tout ce qui concerne le contenu réel de FBI est
-**NOT TESTED**. Ce document sera complété après ta première exécution.
+À ce stade, tout ce qui concerne le contenu réel de FBI est soit
+**RELAYED** (voir §6/§7) soit **NOT TESTED**. Ce document sera mis à jour en
+**CONFIRMED** dès qu'un `report-sanitized.json` réel sera commité ou
+transmis en pièce jointe dans une session Claude.
 
 ## 3. Sécurité — comment les identifiants et la session sont protégés
 
@@ -124,19 +133,45 @@ d'origine (qui pourrait, en théorie, contenir une donnée personnelle).
 
 ## 6. Résultat live
 
-**NOT TESTED — À EXÉCUTER LOCALEMENT.**
+Aucun appel n'a été fait contre le vrai FBI depuis CET environnement
+(réseau bloqué, voir §2) — ce qui suit n'est donc pas **CONFIRMED**, c'est
+**RELAYED** (voir la légende du §2) : rapporté verbalement par toi depuis ta
+propre exécution locale, sans fichier `report-sanitized.json` fourni dans
+cette session pour recoupement indépendant.
 
-Aucun appel n'a été fait contre le vrai FBI depuis cet environnement (réseau
-bloqué, voir §2). Aucune donnée n'est inventée ici. Cette section sera
-complétée avec le contenu de `report-sanitized.json` une fois que tu l'auras
-généré et transmis (voir §8).
+Ce qui a été rapporté :
+
+- Le login FBI fonctionne dans Chromium avec un compte club réel.
+- FBI utilise une session authentifiée classique (cookie).
+- Plusieurs documents (PDF) ont été téléchargés depuis un compte connecté.
+- Un export XLSX des dérogations a pu être récupéré.
+- Des requêtes AJAX en POST existent pour de la simple consultation
+  (lecture), l'exemple donné étant une route de type
+  `afficherLicenceStatistiqueAjax.fbi`.
+
+**Conséquence pour ce dépôt** : `HttpFbiClient.findEmarqueDocuments` (voir
+`../src/lib/fbi/http-client.ts`) continue d'échouer explicitement avec
+`EMARQUE_DOWNLOAD_ENDPOINT_NOT_CONFIRMED` — on ne devine jamais une route à
+partir d'une description verbale (§58 du brief FBI). La voie choisie est
+`BrowserFbiClient` (`../worker/src/fbi/browser-client.ts`) : il reproduit
+les actions autorisées d'un compte club dans un vrai navigateur plutôt que
+de fabriquer un endpoint HTTP non observé. Voir aussi
+`../docs/FBI_WORKER.md` pour la classification lecture/écriture des actions
+FBI (§6 du brief FBI, y compris l'exemple `afficherLicenceStatistiqueAjax.fbi`
+ci-dessus, classé READ_ONLY par `src/lib/fbi/action-classification.ts`), et
+la note sur les dérogations en §11 ci-dessous (extension point préparée,
+module non développé).
+
+Cette section restera étiquetée RELAYED tant qu'aucun
+`report-sanitized.json` réel n'aura été observé directement dans une
+session Claude (commité, ou transmis en pièce jointe).
 
 ## 7. Grille d'observation à remplir après exécution
 
 Une fois `report-sanitized.json` généré, voici ce qu'il permettra de
 répondre (à compléter, PAS avant) :
 
-| Question | Statut avant exécution |
+| Question | Statut |
 |---|---|
 | URL réelle du formulaire de connexion | NOT TESTED |
 | Méthode et champs du formulaire de connexion | NOT TESTED |
@@ -147,13 +182,14 @@ répondre (à compléter, PAS avant) :
 | Colonnes de cet export (si trouvé) | NOT TESTED |
 | Identifiant interne FBI d'une rencontre | NOT TESTED |
 | Rapprochement avec l'identifiant de l'API publique (`rencontres.id`/`uniqueKey`/`gsId`, voir le premier spike) | NOT TESTED |
-| Accès à une feuille de marque (PDF ou autre format) | NOT TESTED |
+| Accès à une feuille de marque (PDF ou autre format) | RELAYED — plusieurs PDF téléchargés depuis un compte connecté (voir §6) |
 | Donnée structurée derrière le PDF (JSON/XML avant génération) | NOT TESTED |
 | Identification des OTM sur la feuille | NOT TESTED |
 | Statistiques joueurs disponibles (voir tableau ci-dessous) | NOT TESTED |
-| Écrans/URLs du module Dérogations | NOT TESTED |
+| Écrans/URLs du module Dérogations | RELAYED — un export XLSX des dérogations a pu être récupéré (voir §6) ; route exacte non fournie, donc toujours NOT TESTED côté implémentation (`listDerogations()` non développé, voir §11) |
+| Existence d'appels AJAX en POST pour de la simple consultation | RELAYED — exemple donné : route de type `afficherLicenceStatistiqueAjax.fbi` (voir §6) ; classée READ_ONLY par `src/lib/fbi/action-classification.ts` |
 | Durée de vie observée de la session | NOT TESTED |
-| Faisabilité d'un client HTTP direct (sans navigateur) | NOT TESTED |
+| Faisabilité d'un client HTTP direct (sans navigateur) | RELAYED pour le LOGIN uniquement (voir §6) — reste NOT CONFIRMED pour la découverte/le téléchargement de documents, d'où `BrowserFbiClient` comme voie fonctionnelle (`../worker/src/fbi/browser-client.ts`) |
 
 ### Tableau statistiques (à remplir après exécution, ne pas déduire avant)
 
@@ -230,11 +266,21 @@ Supprime tout `spikes/fbi-auth/.local/` (session, rapports, téléchargements).
 
 ## 11. Ce qui n'est PAS fait dans ce spike (rappel)
 
-- Pas de `FBIProvider` de production, pas de synchronisation licenciés,
-  feuilles, OTM ou statistiques.
-- Pas d'envoi de dérogation (observation uniquement, si ton compte en a une
-  à consulter).
-- Pas de stockage de mot de passe FBI en production.
-- Pas de cron.
-- Aucune écriture vers FBI (bloquée par défaut par l'outil lui-même, voir
-  §3).
+Ce spike lui-même (`spikes/fbi-auth/`) reste un outil de diagnostic
+ponctuel, distinct du code de production — voir `docs/FBI_WORKER.md` pour
+ce qui EST fait en production (`HttpFbiClient` + `BrowserFbiClient`, le
+worker, `match_documents`) :
+
+- Ce spike n'envoie jamais de dérogation (observation uniquement). Le
+  module dérogations lui-même n'est PAS développé en production : seul un
+  point d'extension (`listDerogations()` sur `FbiAutomationClient`, à
+  ajouter quand la route XLSX relayée en §6 sera confirmée précisément) est
+  prévu, jamais persisté en base pour l'instant (§40 du brief FBI).
+- Aucun export licenciés FBI n'est synchronisé en production au-delà de ce
+  qui est nécessaire au rapprochement e-Marque (§41 du brief FBI) — pas de
+  module licenciés FBI complet.
+- Aucune écriture vers FBI, en production comme dans ce spike :
+  `HttpFbiClient`/`BrowserFbiClient` restent strictement en lecture, et
+  `isFbiRequestAllowed` (`../src/lib/fbi/action-classification.ts`)
+  n'autorise jamais un appel non-GET dont l'action n'est pas classée
+  READ_ONLY (§6 du brief FBI).

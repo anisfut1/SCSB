@@ -62,3 +62,15 @@ insert into public.match_participants (id, club_id, match_id, emarque_import_id,
 insert into public.player_match_stats (id, club_id, match_id, participant_id, points) values
   ('aaaaaaaa-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000000', 'aaaaaaaa-0000-0000-0000-000000000006', 'aaaaaaaa-0000-0000-0000-000000000009', 12),
   ('bbbbbbbb-0000-0000-0000-00000000000a', 'bbbbbbbb-0000-0000-0000-000000000000', 'bbbbbbbb-0000-0000-0000-000000000006', 'bbbbbbbb-0000-0000-0000-000000000009', 20);
+
+-- fbi_jobs (worker FBI, voir docs/FBI_WORKER.md) : un job discover_emarque
+-- par club, sur le match de CE club uniquement.
+insert into public.fbi_jobs (id, club_id, match_id, type) values
+  ('aaaaaaaa-0000-0000-0000-00000000000b', 'aaaaaaaa-0000-0000-0000-000000000000', 'aaaaaaaa-0000-0000-0000-000000000006', 'discover_emarque'),
+  ('bbbbbbbb-0000-0000-0000-00000000000b', 'bbbbbbbb-0000-0000-0000-000000000000', 'bbbbbbbb-0000-0000-0000-000000000006', 'discover_emarque');
+
+-- match_documents : un ZIP déposé pour chaque club, chemin de storage
+-- distinct (jamais partagé entre clubs, §22/§56 du brief FBI).
+insert into public.match_documents (id, club_id, match_id, type, filename, sha256, storage_path) values
+  ('aaaaaaaa-0000-0000-0000-00000000000c', 'aaaaaaaa-0000-0000-0000-000000000000', 'aaaaaaaa-0000-0000-0000-000000000006', 'emarque_zip', '9001.zip', 'sha256-a', 'private/emarque/aaaaaaaa-0000-0000-0000-000000000000/2025-2026/aaaaaaaa-0000-0000-0000-000000000006/original.zip'),
+  ('bbbbbbbb-0000-0000-0000-00000000000c', 'bbbbbbbb-0000-0000-0000-000000000000', 'bbbbbbbb-0000-0000-0000-000000000006', 'emarque_zip', '9001.zip', 'sha256-b', 'private/emarque/bbbbbbbb-0000-0000-0000-000000000000/2025-2026/bbbbbbbb-0000-0000-0000-000000000006/original.zip');

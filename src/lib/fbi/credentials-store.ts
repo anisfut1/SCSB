@@ -2,13 +2,11 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { decryptSecret, encryptSecret } from "@/lib/security/crypto";
+import type { FbiCredentialsInput } from "./types";
 
 type Client = SupabaseClient<Database>;
 
-export interface FbiCredentialsInput {
-  username: string;
-  password: string;
-}
+export type { FbiCredentialsInput };
 
 /**
  * Enregistre les identifiants FBI, chiffrés (voir src/lib/security/crypto.ts).

@@ -2,7 +2,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { serverEnv } from "@/config/env.server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import { discoverEmarqueForAllClubs } from "@/lib/domain/emarque/discover-emarque";
+import { enqueueEmarqueDiscoveryJobsForAllClubs } from "@/lib/domain/emarque/discover-emarque";
 import { logError } from "@/lib/logger";
 
 /**
@@ -10,15 +10,14 @@ import { logError } from "@/lib/logger";
  * d'authentification que /api/internal/sync-ffbb (en-tête
  * `Authorization: Bearer $CRON_SECRET`).
  *
- * Multi-tenant (§28 du brief SaaS) : traite tous les clubs ayant FBI
- * configuré, un par un, avec verrou (voir discover-emarque.ts).
- *
- * Le pipeline OCR (rendu de page + reconnaissance) peut être lent sur
- * plusieurs matchs de plusieurs clubs : durée maximale alignée sur la
- * limite la plus haute disponible côté Vercel plutôt que sur le défaut de 10s.
+ * Empile des jobs `fbi_jobs` (type discover_emarque) pour tous les clubs
+ * actifs ayant FBI configuré et la récupération automatique activée — c'est
+ * TOUT ce que fait cette route désormais (§9/§11 du brief FBI : Playwright
+ * ne peut pas tourner dans une Vercel Function, donc le login/téléchargement
+ * FBI se fait dans le worker séparé, voir worker/README.md, qui consomme
+ * cette file via `claim_next_fbi_job`). Rapide et léger, la durée par
+ * défaut de la route suffit.
  */
-export const maxDuration = 300;
-
 function isAuthorized(request: Request): boolean {
   return request.headers.get("authorization") === `Bearer ${serverEnv.CRON_SECRET}`;
 }
@@ -30,7 +29,7 @@ export async function GET(request: Request) {
 
   try {
     const supabase = createAdminSupabaseClient();
-    const result = await discoverEmarqueForAllClubs(supabase);
+    const result = await enqueueEmarqueDiscoveryJobsForAllClubs(supabase);
     return NextResponse.json(result);
   } catch (error) {
     logError("Route /api/internal/discover-emarque en erreur", error);

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { FbiError, FbiProvider } from "./provider";
+import { FbiError } from "./errors";
+import { HttpFbiClient } from "./http-client";
 
 const BASE_URL = "https://fbi.test.local/fbi";
 
@@ -23,7 +24,7 @@ function makeResponse(body: string, init: { status?: number; headers?: Record<st
   return response;
 }
 
-describe("FbiProvider.login", () => {
+describe("HttpFbiClient.login", () => {
   it("réussit une connexion avec un formulaire HTML simulé et une session valide", async () => {
     const calls: string[] = [];
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
@@ -42,7 +43,7 @@ describe("FbiProvider.login", () => {
       throw new Error(`URL inattendue dans le test : ${url}`);
     });
 
-    const provider = new FbiProvider({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
+    const provider = new HttpFbiClient({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
     const session = await provider.login({ username: "club1234", password: "secret" });
 
     expect(session.cookieJar.has("JSESSIONID")).toBe(true);
@@ -67,7 +68,7 @@ describe("FbiProvider.login", () => {
       return makeResponse(AUTHENTICATED_PAGE_HTML);
     });
 
-    const provider = new FbiProvider({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
+    const provider = new HttpFbiClient({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
     await provider.login({ username: "club1234", password: "s3cret" });
 
     const params = new URLSearchParams(capturedBody);
@@ -78,7 +79,7 @@ describe("FbiProvider.login", () => {
 
   it("lève LOGIN_FORM_NOT_RECOGNIZED si aucun champ mot de passe n'est trouvé", async () => {
     const fetchImpl = vi.fn(async () => makeResponse("<html><body>Page inattendue</body></html>"));
-    const provider = new FbiProvider({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
+    const provider = new HttpFbiClient({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
 
     await expect(provider.login({ username: "x", password: "y" })).rejects.toMatchObject({
       code: "LOGIN_FORM_NOT_RECOGNIZED",
@@ -95,7 +96,7 @@ describe("FbiProvider.login", () => {
       return makeResponse(LOGIN_PAGE_HTML);
     });
 
-    const provider = new FbiProvider({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
+    const provider = new HttpFbiClient({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
 
     await expect(provider.login({ username: "x", password: "mauvais" })).rejects.toBeInstanceOf(FbiError);
     await expect(provider.login({ username: "x", password: "mauvais" })).rejects.toMatchObject({ code: "LOGIN_FAILED" });
@@ -105,7 +106,7 @@ describe("FbiProvider.login", () => {
     const fetchImpl = vi.fn(async () => {
       throw new Error("network down");
     });
-    const provider = new FbiProvider({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
+    const provider = new HttpFbiClient({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
 
     await expect(provider.login({ username: "x", password: "y" })).rejects.toMatchObject({
       code: "LOGIN_PAGE_UNREACHABLE",
@@ -113,10 +114,10 @@ describe("FbiProvider.login", () => {
   });
 });
 
-describe("FbiProvider.isSessionValid", () => {
+describe("HttpFbiClient.isSessionValid", () => {
   it("retourne true quand la page ne contient pas de formulaire de connexion", async () => {
     const fetchImpl = vi.fn(async () => makeResponse(AUTHENTICATED_PAGE_HTML));
-    const provider = new FbiProvider({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
+    const provider = new HttpFbiClient({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
 
     const { SimpleCookieJar } = await import("./cookie-jar");
     const valid = await provider.isSessionValid({ cookieJar: new SimpleCookieJar() });
@@ -125,7 +126,7 @@ describe("FbiProvider.isSessionValid", () => {
 
   it("retourne false quand la session a expiré (page de connexion renvoyée)", async () => {
     const fetchImpl = vi.fn(async () => makeResponse(LOGIN_PAGE_HTML));
-    const provider = new FbiProvider({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
+    const provider = new HttpFbiClient({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
 
     const { SimpleCookieJar } = await import("./cookie-jar");
     const valid = await provider.isSessionValid({ cookieJar: new SimpleCookieJar() });
@@ -133,9 +134,9 @@ describe("FbiProvider.isSessionValid", () => {
   });
 });
 
-describe("FbiProvider.findEmarqueDocuments", () => {
+describe("HttpFbiClient.findEmarqueDocuments", () => {
   it("échoue explicitement avec EMARQUE_DOWNLOAD_ENDPOINT_NOT_CONFIRMED (jamais un faux succès)", async () => {
-    const provider = new FbiProvider({ baseUrl: BASE_URL });
+    const provider = new HttpFbiClient({ baseUrl: BASE_URL });
     const { SimpleCookieJar } = await import("./cookie-jar");
 
     await expect(provider.findEmarqueDocuments({ cookieJar: new SimpleCookieJar() }, "2813")).rejects.toMatchObject({
@@ -144,10 +145,10 @@ describe("FbiProvider.findEmarqueDocuments", () => {
   });
 });
 
-describe("FbiProvider.downloadDocument", () => {
+describe("HttpFbiClient.downloadDocument", () => {
   it("retourne le contenu téléchargé sous forme de Buffer", async () => {
     const fetchImpl = vi.fn(async () => new Response(new Uint8Array([1, 2, 3, 4]), { status: 200 }));
-    const provider = new FbiProvider({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
+    const provider = new HttpFbiClient({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
     const { SimpleCookieJar } = await import("./cookie-jar");
 
     const buffer = await provider.downloadDocument({ cookieJar: new SimpleCookieJar() }, `${BASE_URL}/export.zip`);
@@ -157,7 +158,7 @@ describe("FbiProvider.downloadDocument", () => {
 
   it("lève REQUEST_FAILED sur une réponse HTTP en erreur", async () => {
     const fetchImpl = vi.fn(async () => new Response("not found", { status: 404 }));
-    const provider = new FbiProvider({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
+    const provider = new HttpFbiClient({ baseUrl: BASE_URL, fetchImpl: fetchImpl as unknown as typeof fetch });
     const { SimpleCookieJar } = await import("./cookie-jar");
 
     await expect(provider.downloadDocument({ cookieJar: new SimpleCookieJar() }, `${BASE_URL}/missing.zip`)).rejects.toMatchObject({

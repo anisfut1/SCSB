@@ -5,7 +5,8 @@ import { requireClubAdminContext } from "@/lib/tenancy/club-context";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getFbiCredentials, saveFbiCredentials } from "@/lib/fbi/credentials-store";
-import { FbiError, FbiProvider, type FbiErrorCode } from "@/lib/fbi/provider";
+import { FbiError, type FbiErrorCode } from "@/lib/fbi/errors";
+import { HttpFbiClient } from "@/lib/fbi/http-client";
 import { logError } from "@/lib/logger";
 
 export interface FbiActionResult {
@@ -92,7 +93,7 @@ export async function testFbiConnectionAction(clubSlug: string): Promise<FbiActi
   }
 
   const testedAt = new Date().toISOString();
-  const provider = new FbiProvider();
+  const provider = new HttpFbiClient();
 
   try {
     await provider.login(credentials);
@@ -136,4 +137,22 @@ export async function testFbiConnectionAction(clubSlug: string): Promise<FbiActi
     revalidatePath(`/c/${clubSlug}/admin/integrations`);
     return { success: false, message };
   }
+}
+
+/**
+ * Active/désactive la récupération automatique e-Marque DU CLUB `clubSlug`
+ * (§29 du brief FBI : un seul interrupteur, pas 50 options). Désactivée,
+ * `enqueueEmarqueDiscoveryJobsForClub` ne crée plus aucun job pour ce club
+ * — sans jamais toucher au calendrier FFBB.
+ */
+export async function setAutoImportEmarqueAction(clubSlug: string, enabled: boolean): Promise<void> {
+  const { club } = await requireClubAdminContext(clubSlug);
+  const supabase = createAdminSupabaseClient();
+
+  await supabase
+    .from("fbi_integration_status")
+    .upsert({ club_id: club.id, configured: true, auto_import_emarque: enabled, updated_at: new Date().toISOString() }, { onConflict: "club_id" });
+
+  revalidatePath(`/c/${clubSlug}/admin/integrations/fbi`);
+  revalidatePath(`/c/${clubSlug}/admin/integrations`);
 }

@@ -483,6 +483,13 @@ Principe : **un dossier `domain/<module>` par module métier**, avec sa logique 
 
 Pas de worker séparé au départ : tout tient dans des routes API Next.js déclenchées par Vercel Cron. Si la volumétrie augmente fortement (plusieurs clubs, beaucoup plus de matchs), on pourra extraire le sync vers une Supabase Edge Function ou un petit worker dédié — l'isolation en `/lib/ffbb` et `/lib/domain` rend cette migration peu coûteuse le jour venu.
 
+> **Mise à jour** : ce cas s'est présenté pour FBI/e-Marque — l'automatisation
+> nécessite un navigateur headless (Playwright), incompatible avec une Vercel
+> Function. Un worker séparé (`worker/`) a été extrait précisément comme
+> anticipé ci-dessus, tandis que la synchronisation FFBB elle-même reste une
+> route Vercel classique. Voir `docs/FBI_WORKER.md` pour l'architecture
+> complète (jobs, isolation multi-tenant, déploiement).
+
 ---
 
 ## 15. Points techniques à sécuriser dès le début

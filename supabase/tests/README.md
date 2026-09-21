@@ -10,12 +10,14 @@ que tous les tests sont passés.**
 
 ## Statut
 
-Cette suite a été écrite et **exécutée avec succès** (26/26 assertions,
-0 échec) contre une instance PostgreSQL 16 locale lors du développement de
-la migration multi-tenant, en utilisant le shim ci-dessous (pas de Docker
-disponible dans cet environnement de développement). Elle n'a pas encore
-été rejouée via la stack Supabase CLI complète (`supabase test db`) — les
-deux chemins d'exécution sont documentés ci-dessous.
+Cette suite a été écrite et **exécutée avec succès** (38/38 assertions,
+0 échec) contre une instance PostgreSQL 16 locale, en utilisant le shim
+ci-dessous (pas de Docker disponible dans cet environnement de
+développement) — d'abord 26 assertions lors de la migration multi-tenant,
+puis 12 de plus lors de l'intégration FBI/e-Marque (`fbi_jobs`,
+`match_documents`, voir `docs/FBI_WORKER.md`). Elle n'a pas encore été
+rejouée via la stack Supabase CLI complète (`supabase test db`) — les deux
+chemins d'exécution sont documentés ci-dessous.
 
 ## Scénarios couverts
 
@@ -33,6 +35,18 @@ deux chemins d'exécution sont documentés ci-dessous.
 - Un visiteur anonyme (rôle `anon`, non authentifié) ne voit rien.
 - `fbi_credentials` reste invisible même pour l'admin de son propre club
   (aucune policy `authenticated`, accès service role uniquement).
+- `fbi_jobs`/`match_documents` (worker FBI) : un club_admin ne voit et ne
+  peut modifier QUE les lignes de son propre club — jamais celles d'un
+  autre, y compris en tentant un `UPDATE` direct.
+- `claim_next_fbi_job` (fonction `SECURITY DEFINER` utilisée par le
+  worker) est refusée avec une erreur de permission pour `authenticated`
+  ET `anon` — sans ce verrou (un correctif appliqué pendant cette suite de
+  tests, voir `20260921110040_fbi_jobs_execute_lockdown.sql`), n'importe
+  quel utilisateur authentifié aurait pu réclamer et lire le `fbi_jobs`
+  d'un club dont il n'est même pas membre, contournant totalement la RLS.
+- Le `service_role` (le worker), lui, peut réclamer les jobs des DEUX
+  clubs sans jamais les mélanger (deux appels successifs réclament bien
+  deux jobs différents, un par club).
 
 ## Option A — Via Supabase CLI (stack locale complète, recommandé)
 

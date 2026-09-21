@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireClubContext } from "@/lib/tenancy/club-context";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { isClubAdmin } from "@/lib/permissions/roles";
+import { EMARQUE_BUCKET } from "@/lib/storage/emarque-storage";
 import { Card } from "@/components/ui/Card";
 
 type Tab = "informations" | "composition" | "statistiques" | "officiels" | "emarque";
@@ -53,7 +56,8 @@ export default async function MatchDetailPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { clubSlug, id } = await params;
-  const { club } = await requireClubContext(clubSlug);
+  const { club, roles } = await requireClubContext(clubSlug);
+  const isAdmin = isClubAdmin(roles);
   const resolvedSearchParams = await searchParams;
   const tab: Tab = TABS.some((t) => t.value === resolvedSearchParams.tab) ? (resolvedSearchParams.tab as Tab) : "informations";
 
@@ -108,7 +112,7 @@ export default async function MatchDetailPage({
       {tab === "composition" ? <CompositionTab supabase={supabase} clubId={club.id} matchId={id} /> : null}
       {tab === "statistiques" ? <StatistiquesTab supabase={supabase} clubId={club.id} matchId={id} /> : null}
       {tab === "officiels" ? <OfficielsTab supabase={supabase} clubId={club.id} matchId={id} /> : null}
-      {tab === "emarque" ? <EmarqueTab supabase={supabase} clubId={club.id} matchId={id} /> : null}
+      {tab === "emarque" ? <EmarqueTab supabase={supabase} clubId={club.id} matchId={id} isAdmin={isAdmin} /> : null}
     </div>
   );
 }
@@ -335,16 +339,68 @@ async function OfficielsTab({ supabase, clubId, matchId }: { supabase: ServerSup
   );
 }
 
-async function EmarqueTab({ supabase, clubId, matchId }: { supabase: ServerSupabase; clubId: string; matchId: string }) {
-  const { data: match } = await supabase.from("matches").select("emarque_status").eq("id", matchId).eq("club_id", clubId).maybeSingle();
-  const { data: latestImport } = await supabase
-    .from("emarque_imports")
-    .select("status, discovered_at, imported_at, quality_warnings")
-    .eq("match_id", matchId)
-    .eq("club_id", clubId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  emarque_zip: "Export e-Marque complet",
+  match_sheet: "Feuille de match",
+  summary: "Résumé",
+  shot_chart: "Positions de tirs",
+  other: "Autre document",
+};
+
+/** Durée de validité courte (§34 du brief FBI) : jamais d'URL publique/permanente vers un document e-Marque. */
+const SIGNED_URL_TTL_SECONDS = 60;
+
+interface MatchDocumentRow {
+  id: string;
+  type: string;
+  source: string;
+  filename: string | null;
+  storage_path: string;
+  status: string;
+  downloaded_at: string | null;
+}
+
+async function EmarqueTab({ supabase, clubId, matchId, isAdmin }: { supabase: ServerSupabase; clubId: string; matchId: string; isAdmin: boolean }) {
+  const [{ data: match }, { data: latestImport }, { data: documents }]: [
+    { data: { emarque_status: string } | null },
+    { data: { status: string; discovered_at: string; imported_at: string | null; quality_warnings: unknown } | null },
+    { data: MatchDocumentRow[] | null },
+  ] = await Promise.all([
+    supabase.from("matches").select("emarque_status").eq("id", matchId).eq("club_id", clubId).maybeSingle(),
+    supabase
+      .from("emarque_imports")
+      .select("status, discovered_at, imported_at, quality_warnings")
+      .eq("match_id", matchId)
+      .eq("club_id", clubId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("match_documents")
+      .select("id, type, source, filename, storage_path, status, downloaded_at")
+      .eq("match_id", matchId)
+      .eq("club_id", clubId)
+      .order("downloaded_at", { ascending: false }),
+  ]);
+
+  const lastRetrievedAt = documents?.[0]?.downloaded_at ?? null;
+  const source = documents && documents.length > 0 ? documents[0]!.source.toUpperCase() : null;
+
+  // Les URL signées sont générées côté serveur, avec le client admin
+  // (bucket privé, aucun accès Storage pour un utilisateur authentifié
+  // classique) — UNIQUEMENT pour un club_admin de CE club, jamais exposées
+  // à un membre non-admin (§34 du brief FBI).
+  let signedUrlByDocumentId = new Map<string, string>();
+  if (isAdmin && documents && documents.length > 0) {
+    const adminSupabase = createAdminSupabaseClient();
+    const entries = await Promise.all(
+      documents.map(async (doc) => {
+        const { data } = await adminSupabase.storage.from(EMARQUE_BUCKET).createSignedUrl(doc.storage_path, SIGNED_URL_TTL_SECONDS);
+        return [doc.id, data?.signedUrl ?? null] as const;
+      }),
+    );
+    signedUrlByDocumentId = new Map(entries.filter((entry): entry is [string, string] => entry[1] !== null));
+  }
 
   return (
     <Card title="e-Marque">
@@ -353,18 +409,54 @@ async function EmarqueTab({ supabase, clubId, matchId }: { supabase: ServerSupab
           <dt className="text-black/60 dark:text-white/60">Statut</dt>
           <dd>{EMARQUE_STATUS_LABELS[match?.emarque_status ?? "not_applicable"] ?? match?.emarque_status}</dd>
         </div>
-        {latestImport ? (
-          <div>
-            <dt className="text-black/60 dark:text-white/60">Importé le</dt>
-            <dd>{latestImport.imported_at ? new Date(latestImport.imported_at).toLocaleString("fr-FR") : "—"}</dd>
-          </div>
-        ) : null}
+        <div>
+          <dt className="text-black/60 dark:text-white/60">Source</dt>
+          <dd>{source ?? "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-black/60 dark:text-white/60">Dernière récupération</dt>
+          <dd>{lastRetrievedAt ? new Date(lastRetrievedAt).toLocaleString("fr-FR") : "—"}</dd>
+        </div>
       </dl>
-      <p className="mt-3 text-xs text-black/50 dark:text-white/50">
-        Le document e-Marque original n&apos;est pas exposé directement ici (données personnelles) — cette page
-        n&apos;affiche que les informations déjà normalisées dans les autres onglets.
-      </p>
-      {latestImport?.quality_warnings && Array.isArray(latestImport.quality_warnings) && latestImport.quality_warnings.length > 0 ? (
+
+      {documents && documents.length > 0 ? (
+        <div className="mt-4">
+          <h4 className="text-sm font-medium text-black/80 dark:text-white/80">Documents</h4>
+          <ul className="mt-2 flex flex-col gap-1 text-sm">
+            {documents.map((doc) => {
+              const signedUrl = signedUrlByDocumentId.get(doc.id);
+              const label = DOCUMENT_TYPE_LABELS[doc.type] ?? doc.type;
+              return (
+                <li key={doc.id} className="flex items-center justify-between gap-2">
+                  <span>{label}</span>
+                  {isAdmin && signedUrl ? (
+                    <a href={signedUrl} className="text-xs text-blue-700 hover:underline dark:text-blue-400" rel="noopener noreferrer">
+                      Télécharger
+                    </a>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+          {!isAdmin ? (
+            <p className="mt-2 text-xs text-black/50 dark:text-white/50">
+              Seul un administrateur du club peut télécharger le document original.
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-black/50 dark:text-white/50">
+          Aucun document e-Marque récupéré pour l&apos;instant — ce n&apos;est pas une erreur, la récupération
+          automatique réessaiera régulièrement une fois le match terminé.
+        </p>
+      )}
+
+      {isAdmin && latestImport?.quality_warnings && Array.isArray(latestImport.quality_warnings) && latestImport.quality_warnings.length > 0 ? (
+        <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+          Import réussi avec {latestImport.quality_warnings.length} avertissement(s) — vérification recommandée.
+        </p>
+      ) : null}
+      {!isAdmin && latestImport?.quality_warnings && Array.isArray(latestImport.quality_warnings) && latestImport.quality_warnings.length > 0 ? (
         <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
           Certaines informations de ce match sont en cours de vérification par un administrateur.
         </p>

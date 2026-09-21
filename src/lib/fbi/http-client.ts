@@ -1,55 +1,32 @@
 import "server-only";
 import * as cheerio from "cheerio";
 import { SimpleCookieJar } from "./cookie-jar";
+import { FbiError } from "./errors";
+import type { EmarqueDocumentRef, FbiAutomationClient, FbiCredentialsInput } from "./types";
 
 /**
- * FBIProvider — client HTTP direct pour FBI (pas de navigateur, voir
+ * HttpFbiClient — client HTTP direct pour FBI (pas de navigateur, voir
  * ARCHITECTURE.md §7 : "Je ne veux pas d'un Chromium permanent dans Vercel
- * si FBI peut fonctionner en HTTP classique").
+ * si FBI peut fonctionner en HTTP classique"). Implémente
+ * `FbiAutomationClient` — c'est la stratégie PRIMAIRE, essayée en premier
+ * par `createFbiAutomationClient()` (voir ./create-client.ts) ; l'app ne
+ * l'appelle jamais directement en dehors de ce module et de l'action de
+ * test de connexion, qui teste explicitement CETTE implémentation.
  *
- * Statut : PREPARED — jamais exécuté contre le vrai FBI depuis cet
- * environnement (réseau *.ffbb.com bloqué, voir
- * docs/FBI_AUTHENTICATED_SPIKE.md). Le login détecte le formulaire réel de
- * la page plutôt que de supposer ses noms de champs à l'avance ; la
- * découverte des documents e-Marque n'a pas d'endpoint confirmé — voir
- * `findEmarqueDocuments` ci-dessous, qui renvoie explicitement
- * EMARQUE_DOWNLOAD_ENDPOINT_NOT_CONFIRMED plutôt que de prétendre
- * fonctionner.
+ * Statut : le login (formulaire HTML détecté dynamiquement, jamais de nom
+ * de champ deviné) est PREPARED — jamais exécuté contre le vrai FBI depuis
+ * cet environnement (réseau *.ffbb.com bloqué, voir
+ * docs/FBI_AUTHENTICATED_SPIKE.md). La découverte de documents e-Marque n'a
+ * PAS d'endpoint HTTP confirmé : `findEmarqueDocuments` échoue
+ * explicitement avec `EMARQUE_DOWNLOAD_ENDPOINT_NOT_CONFIRMED` plutôt que
+ * d'inventer une route (§58 du brief FBI) — c'est `BrowserFbiClient`
+ * (worker/) qui assure ce rôle en attendant.
  */
 
 export const FBI_DEFAULT_BASE_URL = "https://extranet.ffbb.com/fbi";
 
-export type FbiErrorCode =
-  | "LOGIN_PAGE_UNREACHABLE"
-  | "LOGIN_FORM_NOT_RECOGNIZED"
-  | "LOGIN_FAILED"
-  | "SESSION_EXPIRED"
-  | "EMARQUE_DOWNLOAD_ENDPOINT_NOT_CONFIRMED"
-  | "REQUEST_FAILED";
-
-export class FbiError extends Error {
-  constructor(
-    message: string,
-    readonly code: FbiErrorCode,
-    readonly cause?: unknown,
-  ) {
-    super(message);
-    this.name = "FbiError";
-  }
-}
-
-export interface FbiCredentialsInput {
-  username: string;
-  password: string;
-}
-
-export interface FbiSession {
+export interface HttpFbiSession {
   cookieJar: SimpleCookieJar;
-}
-
-export interface EmarqueDocumentRef {
-  url: string;
-  fileName: string;
 }
 
 interface LoginForm {
@@ -59,17 +36,17 @@ interface LoginForm {
   hiddenFields: Record<string, string>;
 }
 
-export interface FbiProviderOptions {
+export interface HttpFbiClientOptions {
   baseUrl?: string;
   /** Injection pour les tests — jamais utilisé en production. */
   fetchImpl?: typeof fetch;
 }
 
-export class FbiProvider {
+export class HttpFbiClient implements FbiAutomationClient<HttpFbiSession> {
   private readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
 
-  constructor(options: FbiProviderOptions = {}) {
+  constructor(options: HttpFbiClientOptions = {}) {
     this.baseUrl = options.baseUrl ?? FBI_DEFAULT_BASE_URL;
     this.fetchImpl = options.fetchImpl ?? fetch;
   }
@@ -117,10 +94,10 @@ export class FbiProvider {
   /**
    * Connexion avec les identifiants du club. Lève `FbiError` avec un code
    * explicite plutôt que de faire semblant de réussir — voir
-   * docs/FBI_AUTHENTICATED_SPIKE.md pour ce qui reste à confirmer en
-   * conditions réelles.
+   * `classifyFbiLoginStatus` (./errors.ts) pour la traduction en statut
+   * exploitable par l'UI/le worker.
    */
-  async login(credentials: FbiCredentialsInput): Promise<FbiSession> {
+  async login(credentials: FbiCredentialsInput): Promise<HttpFbiSession> {
     const cookieJar = new SimpleCookieJar();
     const loginUrl = `${this.baseUrl}/connexion.fbi`;
 
@@ -197,7 +174,7 @@ export class FbiProvider {
    * et pour décider de reconnecter automatiquement avant un job, voir
    * ARCHITECTURE.md §6).
    */
-  async isSessionValid(session: FbiSession): Promise<boolean> {
+  async isSessionValid(session: HttpFbiSession): Promise<boolean> {
     const response = await this.fetchImpl(`${this.baseUrl}/accueil.fbi`, {
       headers: { cookie: session.cookieJar.cookieHeader },
     });
@@ -209,13 +186,13 @@ export class FbiProvider {
    * Recherche les documents e-Marque disponibles pour un numéro de
    * rencontre donné.
    *
-   * NON IMPLÉMENTÉ : l'endpoint réel (écran "Compétitions" de FBI, export
-   * e-Marque) n'a pas pu être observé depuis cet environnement (voir
-   * docs/FBI_AUTHENTICATED_SPIKE.md, section "Résultat live — NOT TESTED").
-   * Cette méthode ne devine jamais une URL : elle échoue explicitement avec
-   * un code exploitable par l'admin UI (§44 du brief produit).
+   * NON IMPLÉMENTÉ EN HTTP DIRECT : l'endpoint réel (écran "Compétitions" de
+   * FBI, export e-Marque) n'a pas pu être observé depuis cet environnement
+   * (voir docs/FBI_AUTHENTICATED_SPIKE.md). Cette méthode ne devine jamais
+   * une URL (§58 du brief FBI) : elle échoue explicitement avec un code
+   * exploitable par le worker, qui bascule alors sur `BrowserFbiClient`.
    */
-  async findEmarqueDocuments(_session: FbiSession, matchNumber: string): Promise<EmarqueDocumentRef[]> {
+  async findEmarqueDocuments(_session: HttpFbiSession, matchNumber: string): Promise<EmarqueDocumentRef[]> {
     throw new FbiError(
       `Endpoint de découverte des documents e-Marque non confirmé pour la rencontre ${matchNumber}. ` +
         "Voir docs/FBI_AUTHENTICATED_SPIKE.md : à compléter avec un rapport sanitisé réel du spike navigateur.",
@@ -228,7 +205,7 @@ export class FbiProvider {
    * (GET + cookie de session) est générique et réutilisable dès que
    * `findEmarqueDocuments` sera complété avec un vrai endpoint.
    */
-  async downloadDocument(session: FbiSession, url: string): Promise<Buffer> {
+  async downloadDocument(session: HttpFbiSession, url: string): Promise<Buffer> {
     let response: Response;
     try {
       response = await this.fetchImpl(url, { headers: { cookie: session.cookieJar.cookieHeader } });

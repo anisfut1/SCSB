@@ -1,110 +1,51 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { EMarqueMatchData } from "@/server/emarque/types";
-import { FbiError } from "@/lib/fbi/provider";
-
-vi.mock("@/lib/fbi/credentials-store", () => ({
-  getFbiCredentials: vi.fn(),
-}));
-
-const loginMock = vi.fn();
-const findEmarqueDocumentsMock = vi.fn();
-const downloadDocumentMock = vi.fn();
-
-vi.mock("@/lib/fbi/provider", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/fbi/provider")>("@/lib/fbi/provider");
-  class FakeFbiProvider {
-    login = loginMock;
-    findEmarqueDocuments = findEmarqueDocumentsMock;
-    downloadDocument = downloadDocumentMock;
-  }
-  return {
-    ...actual,
-    FbiProvider: FakeFbiProvider,
-  };
-});
-
-vi.mock("@/lib/storage/emarque-storage", () => ({
-  emarqueStoragePath: vi.fn((clubId: string, season: string, matchId: string, fileName: string) => `private/emarque/${clubId}/${season}/${matchId}/${fileName}`),
-  uploadEmarqueFile: vi.fn(async () => undefined),
-}));
-
-vi.mock("@/server/emarque/parser/parse-emarque-zip", () => ({
-  PARSER_VERSION: "test-version",
-  parseEmarqueZip: vi.fn(),
-}));
-
-vi.mock("@/server/emarque/persist/persist-emarque-match", () => ({
-  persistEmarqueMatchData: vi.fn(async () => ({ importId: "import-1", status: "imported", alreadyImported: false, participantsLinked: 0, participantsUnlinked: 0 })),
-}));
-
-import { getFbiCredentials } from "@/lib/fbi/credentials-store";
-import { uploadEmarqueFile } from "@/lib/storage/emarque-storage";
-import { parseEmarqueZip } from "@/server/emarque/parser/parse-emarque-zip";
-import { persistEmarqueMatchData } from "@/server/emarque/persist/persist-emarque-match";
-import { discoverEmarqueForClub } from "./discover-emarque";
+import { beforeEach, describe, expect, it } from "vitest";
+import { enqueueEmarqueDiscoveryJobsForClub } from "./discover-emarque";
 
 const CLUB_ID = "club-1";
-
-const EMPTY_EMARQUE_DATA: EMarqueMatchData = {
-  match: {
-    rencontreNumero: "2813",
-    competitionLabel: null,
-    pouleLabel: null,
-    date: null,
-    heure: null,
-    lieu: null,
-    homeTeamName: null,
-    awayTeamName: null,
-    homeClubCode: null,
-    awayClubCode: null,
-    scoreHome: 69,
-    scoreAway: 101,
-    scoreByPeriod: [],
-  },
-  players: [],
-  coaches: [],
-  officials: [],
-  tableOfficials: [],
-  playerStats: [],
-  shotData: { experimental: true, documentPresent: false },
-  quality: { warnings: [], overallConfidence: null },
-};
 
 interface FakeMatchCandidate {
   id: string;
   numero: string | null;
-  match_datetime: string | null;
-  score_home: number | null;
-  score_away: number | null;
-  emarque_discovery_attempt_count: number;
 }
 
-function makeFakeSupabase(candidates: FakeMatchCandidate[], recorders: { matchUpdates: Array<{ patch: unknown; id: string }>; statusUpserts: unknown[] }) {
+function makeFakeSupabase(options: {
+  fbiStatus: { configured: boolean; auto_import_emarque: boolean } | null;
+  candidates: FakeMatchCandidate[];
+  /** Numéros de match pour lesquels l'insertion doit simuler une violation unique (déjà en file). */
+  alreadyQueuedMatchIds?: string[];
+  insertedRows: Array<{ club_id: string; match_id: string; type: string }>;
+}) {
+  const alreadyQueued = new Set(options.alreadyQueuedMatchIds ?? []);
+
   return {
     from(table: string) {
+      if (table === "fbi_integration_status") {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: () => Promise.resolve({ data: options.fbiStatus, error: null }),
+            }),
+          }),
+        };
+      }
       if (table === "matches") {
         return {
           select: () => ({
             eq: () => ({
               eq: () => ({
-                in: () => ({
-                  or: () => Promise.resolve({ data: candidates, error: null }),
-                }),
+                in: () => Promise.resolve({ data: options.candidates, error: null }),
               }),
             }),
           }),
-          update: (patch: unknown) => ({
-            eq: (_col: string, id: string) => {
-              recorders.matchUpdates.push({ patch, id });
-              return Promise.resolve({ error: null });
-            },
-          }),
         };
       }
-      if (table === "fbi_integration_status") {
+      if (table === "fbi_jobs") {
         return {
-          upsert: (payload: unknown) => {
-            recorders.statusUpserts.push(payload);
+          insert: (row: { club_id: string; match_id: string; type: string }) => {
+            if (alreadyQueued.has(row.match_id)) {
+              return Promise.resolve({ error: { code: "23505", message: "duplicate key value violates unique constraint" } });
+            }
+            options.insertedRows.push(row);
             return Promise.resolve({ error: null });
           },
         };
@@ -115,148 +56,91 @@ function makeFakeSupabase(candidates: FakeMatchCandidate[], recorders: { matchUp
   } as any;
 }
 
-const A_CANDIDATE: FakeMatchCandidate = {
-  id: "match-1",
-  numero: "2813",
-  match_datetime: "2025-09-27T19:00:00.000Z",
-  score_home: null,
-  score_away: null,
-  emarque_discovery_attempt_count: 0,
-};
+beforeEach(() => {});
 
-beforeEach(() => {
-  vi.clearAllMocks();
-});
+describe("enqueueEmarqueDiscoveryJobsForClub", () => {
+  it("ne crée aucun job et ne fait aucune requête de matchs quand FBI n'est pas configuré (FBI facultatif)", async () => {
+    const insertedRows: Array<{ club_id: string; match_id: string; type: string }> = [];
+    const supabase = makeFakeSupabase({ fbiStatus: null, candidates: [], insertedRows });
 
-describe("discoverEmarqueForClub", () => {
-  it("ne fait rien et ne tente pas de connexion FBI quand aucun match n'est candidat", async () => {
-    const recorders = { matchUpdates: [], statusUpserts: [] };
-    const supabase = makeFakeSupabase([], recorders);
+    const result = await enqueueEmarqueDiscoveryJobsForClub(supabase, CLUB_ID);
 
-    const result = await discoverEmarqueForClub(supabase, CLUB_ID);
+    expect(result).toEqual({ candidatesExamined: 0, jobsCreated: 0, alreadyQueued: 0, skippedNotConfigured: true });
+    expect(insertedRows).toHaveLength(0);
+  });
 
-    expect(result).toEqual({
-      candidatesExamined: 0,
-      imported: 0,
-      stillWaiting: 0,
-      errors: 0,
-      skippedNoCredentials: false,
-      skippedLoginFailed: false,
+  it("ne crée aucun job quand auto_import_emarque est désactivé même si FBI est configuré", async () => {
+    const insertedRows: Array<{ club_id: string; match_id: string; type: string }> = [];
+    const supabase = makeFakeSupabase({
+      fbiStatus: { configured: true, auto_import_emarque: false },
+      candidates: [{ id: "match-1", numero: "2813" }],
+      insertedRows,
     });
-    expect(getFbiCredentials).not.toHaveBeenCalled();
-    expect(loginMock).not.toHaveBeenCalled();
+
+    const result = await enqueueEmarqueDiscoveryJobsForClub(supabase, CLUB_ID);
+
+    expect(result.skippedNotConfigured).toBe(true);
+    expect(insertedRows).toHaveLength(0);
   });
 
-  it("ignore la découverte quand aucun identifiant FBI n'est enregistré", async () => {
-    vi.mocked(getFbiCredentials).mockResolvedValue(null);
-    const recorders = { matchUpdates: [], statusUpserts: [] };
-    const supabase = makeFakeSupabase([A_CANDIDATE], recorders);
-
-    const result = await discoverEmarqueForClub(supabase, CLUB_ID);
-
-    expect(result.skippedNoCredentials).toBe(true);
-    expect(result.candidatesExamined).toBe(1);
-    expect(loginMock).not.toHaveBeenCalled();
-  });
-
-  it("interrompt le job proprement quand la connexion FBI échoue (identifiants invalides)", async () => {
-    vi.mocked(getFbiCredentials).mockResolvedValue({ username: "clubxxxx", password: "wrong" });
-    loginMock.mockRejectedValue(new FbiError("Connexion FBI refusée", "LOGIN_FAILED"));
-
-    const recorders = { matchUpdates: [], statusUpserts: [] };
-    const supabase = makeFakeSupabase([A_CANDIDATE], recorders);
-
-    const result = await discoverEmarqueForClub(supabase, CLUB_ID);
-
-    expect(result.skippedLoginFailed).toBe(true);
-    expect(findEmarqueDocumentsMock).not.toHaveBeenCalled();
-    expect(recorders.statusUpserts).toContainEqual(
-      expect.objectContaining({ club_id: CLUB_ID, last_login_success: false, last_job_status: "error" }),
-    );
-  });
-
-  it("planifie une nouvelle tentative (waiting_for_emarque) quand l'endpoint de découverte n'est pas confirmé", async () => {
-    vi.mocked(getFbiCredentials).mockResolvedValue({ username: "clubxxxx", password: "correct" });
-    loginMock.mockResolvedValue({ cookieJar: {} });
-    findEmarqueDocumentsMock.mockRejectedValue(
-      new FbiError("Endpoint non confirmé", "EMARQUE_DOWNLOAD_ENDPOINT_NOT_CONFIRMED"),
-    );
-
-    const recorders = { matchUpdates: [], statusUpserts: [] };
-    const supabase = makeFakeSupabase([A_CANDIDATE], recorders);
-
-    const result = await discoverEmarqueForClub(supabase, CLUB_ID);
-
-    expect(result.errors).toBe(1);
-    expect(result.imported).toBe(0);
-    expect(recorders.matchUpdates).toHaveLength(1);
-    expect(recorders.matchUpdates[0]).toMatchObject({
-      id: "match-1",
-      patch: expect.objectContaining({ emarque_status: "waiting_for_emarque", emarque_discovery_attempt_count: 1 }),
+  it("crée un job discover_emarque par match candidat ayant un numéro de rencontre", async () => {
+    const insertedRows: Array<{ club_id: string; match_id: string; type: string }> = [];
+    const supabase = makeFakeSupabase({
+      fbiStatus: { configured: true, auto_import_emarque: true },
+      candidates: [
+        { id: "match-1", numero: "2813" },
+        { id: "match-2", numero: "2814" },
+      ],
+      insertedRows,
     });
+
+    const result = await enqueueEmarqueDiscoveryJobsForClub(supabase, CLUB_ID);
+
+    expect(result).toEqual({ candidatesExamined: 2, jobsCreated: 2, alreadyQueued: 0, skippedNotConfigured: false });
+    expect(insertedRows).toEqual([
+      { club_id: CLUB_ID, match_id: "match-1", type: "discover_emarque" },
+      { club_id: CLUB_ID, match_id: "match-2", type: "discover_emarque" },
+    ]);
   });
 
-  it("augmente le compteur de tentatives à chaque nouvel échec (retry/backoff progressif)", async () => {
-    vi.mocked(getFbiCredentials).mockResolvedValue({ username: "clubxxxx", password: "correct" });
-    loginMock.mockResolvedValue({ cookieJar: {} });
-    findEmarqueDocumentsMock.mockRejectedValue(
-      new FbiError("Endpoint non confirmé", "EMARQUE_DOWNLOAD_ENDPOINT_NOT_CONFIRMED"),
-    );
-
-    const recorders = { matchUpdates: [], statusUpserts: [] };
-    const supabase = makeFakeSupabase([{ ...A_CANDIDATE, emarque_discovery_attempt_count: 3 }], recorders);
-
-    await discoverEmarqueForClub(supabase, CLUB_ID);
-
-    expect(recorders.matchUpdates[0]).toMatchObject({
-      patch: expect.objectContaining({ emarque_discovery_attempt_count: 4 }),
+  it("ignore les matchs sans numéro de rencontre (rien à chercher)", async () => {
+    const insertedRows: Array<{ club_id: string; match_id: string; type: string }> = [];
+    const supabase = makeFakeSupabase({
+      fbiStatus: { configured: true, auto_import_emarque: true },
+      candidates: [{ id: "match-1", numero: null }],
+      insertedRows,
     });
+
+    const result = await enqueueEmarqueDiscoveryJobsForClub(supabase, CLUB_ID);
+
+    expect(result.candidatesExamined).toBe(0);
+    expect(insertedRows).toHaveLength(0);
   });
 
-  it("télécharge, parse et persiste un document trouvé (cas nominal, une fois l'endpoint disponible)", async () => {
-    vi.mocked(getFbiCredentials).mockResolvedValue({ username: "clubxxxx", password: "correct" });
-    loginMock.mockResolvedValue({ cookieJar: {} });
-    findEmarqueDocumentsMock.mockResolvedValue([{ url: "https://fbi.test/export/2813.zip", fileName: "2813.zip" }]);
-    downloadDocumentMock.mockResolvedValue(Buffer.from("contenu-zip-synthetique"));
-    vi.mocked(parseEmarqueZip).mockResolvedValue(EMPTY_EMARQUE_DATA);
+  it("compte comme alreadyQueued (pas une erreur) un job déjà en attente pour ce match", async () => {
+    const insertedRows: Array<{ club_id: string; match_id: string; type: string }> = [];
+    const supabase = makeFakeSupabase({
+      fbiStatus: { configured: true, auto_import_emarque: true },
+      candidates: [{ id: "match-1", numero: "2813" }],
+      alreadyQueuedMatchIds: ["match-1"],
+      insertedRows,
+    });
 
-    const recorders = { matchUpdates: [], statusUpserts: [] };
-    const supabase = makeFakeSupabase([A_CANDIDATE], recorders);
+    const result = await enqueueEmarqueDiscoveryJobsForClub(supabase, CLUB_ID);
 
-    const result = await discoverEmarqueForClub(supabase, CLUB_ID);
-
-    expect(result.imported).toBe(1);
-    expect(result.errors).toBe(0);
-    expect(uploadEmarqueFile).toHaveBeenCalledWith(
-      "private/emarque/club-1/2025-2026/match-1/original.zip",
-      expect.any(Buffer),
-      "application/zip",
-    );
-    expect(persistEmarqueMatchData).toHaveBeenCalledWith(
-      supabase,
-      expect.objectContaining({
-        matchId: "match-1",
-        clubId: CLUB_ID,
-        sourceFileName: "2813.zip",
-        parserVersion: "test-version",
-        data: EMPTY_EMARQUE_DATA,
-      }),
-    );
-    // Le hash SHA-256 est calculé à partir du contenu réel du buffer téléchargé.
-    const persistCallArgs = vi.mocked(persistEmarqueMatchData).mock.calls[0]?.[1];
-    expect(persistCallArgs?.fileHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(result).toEqual({ candidatesExamined: 1, jobsCreated: 0, alreadyQueued: 1, skippedNotConfigured: false });
   });
 
-  it("passe au match suivant sans planter le job quand un match n'a pas de numéro de rencontre", async () => {
-    vi.mocked(getFbiCredentials).mockResolvedValue({ username: "clubxxxx", password: "correct" });
-    loginMock.mockResolvedValue({ cookieJar: {} });
+  it("crée quand même les jobs si FBI est configuré mais actuellement en erreur (le calendrier FFBB reste indépendant, §46)", async () => {
+    const insertedRows: Array<{ club_id: string; match_id: string; type: string }> = [];
+    const supabase = makeFakeSupabase({
+      fbiStatus: { configured: true, auto_import_emarque: true },
+      candidates: [{ id: "match-1", numero: "2813" }],
+      insertedRows,
+    });
 
-    const recorders = { matchUpdates: [], statusUpserts: [] };
-    const supabase = makeFakeSupabase([{ ...A_CANDIDATE, numero: null }], recorders);
+    const result = await enqueueEmarqueDiscoveryJobsForClub(supabase, CLUB_ID);
 
-    const result = await discoverEmarqueForClub(supabase, CLUB_ID);
-
-    expect(result.stillWaiting).toBe(1);
-    expect(findEmarqueDocumentsMock).not.toHaveBeenCalled();
+    expect(result.jobsCreated).toBe(1);
   });
 });
