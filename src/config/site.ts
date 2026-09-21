@@ -19,11 +19,10 @@ export interface DashboardCardConfig {
 }
 
 /**
- * Cartes placeholder du dashboard (Phase 0). Chaque module listé ici sera
- * remplacé par un vrai lien vers sa page dans sa propre phase.
+ * Cartes placeholder du dashboard pour les modules pas encore développés.
+ * Le module Matchs est réel (voir /matchs) et n'est plus listé ici.
  */
 export const DASHBOARD_PLACEHOLDER_CARDS: DashboardCardConfig[] = [
-  { title: "Matchs", description: "Bientôt disponible" },
   { title: "Tables de marque", description: "Bientôt disponible" },
   { title: "Dérogations", description: "Bientôt disponible" },
 ];

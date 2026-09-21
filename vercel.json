@@ -1,0 +1,6 @@
+{
+  "crons": [
+    { "path": "/api/internal/sync-ffbb", "schedule": "*/15 * * * *" },
+    { "path": "/api/internal/discover-emarque", "schedule": "0 * * * *" }
+  ]
+}

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { DASHBOARD_PLACEHOLDER_CARDS } from "@/config/site";
 
@@ -7,6 +8,9 @@ export default function DashboardPage() {
       <h1 className="text-lg font-semibold">Dashboard</h1>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Link href="/matchs">
+          <Card title="Matchs" description="Calendrier, résultats et composition, synchronisés automatiquement." />
+        </Link>
         {DASHBOARD_PLACEHOLDER_CARDS.map((card) => (
           <Card key={card.title} title={card.title} description={card.description} />
         ))}

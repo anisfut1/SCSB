@@ -10,20 +10,46 @@ Voir [`ARCHITECTURE.md`](./ARCHITECTURE.md) pour l'architecture complète du
 projet — c'est la source de vérité pour toute décision de conception. Ce
 README couvre l'installation et l'organisation concrète du code.
 
-**État actuel : Phase 0 (socle technique) terminée.** Aucune donnée FFBB
-n'est encore synchronisée ; aucun module métier (matchs, dérogations,
-tables de marque, affectation, conflits) n'est encore implémenté. Ce qui
-existe : Next.js + TypeScript strict, Supabase (Auth + schéma de base),
-authentification, rôles, dashboard minimal, tests, lint/typecheck/build
-qui passent.
+**État actuel : produit "clé en main" (Module 1 — Matchs) en place.** Une
+fois déployé et configuré depuis `/admin/integrations`, le flux suivant
+tourne automatiquement, sans opération manuelle sur fichier :
+
+FFBB (calendrier/résultats publics) → synchronisation automatique
+(cron `/api/internal/sync-ffbb`) → base de données → connexion FBI
+serveur (identifiants chiffrés) → découverte + téléchargement automatique
+des documents e-Marque (cron `/api/internal/discover-emarque`) → parsing
+(OCR) → composition, statistiques, arbitres, officiels de table → pages
+`/matchs` et `/matchs/[id]`.
+
+**Important — statut FBI/e-Marque : PREPARED, pas encore CONFIRMED.**
+`FbiProvider.login()` est un client HTTP générique (détection du
+formulaire de connexion, sans nom de champ codé en dur), mais
+`FbiProvider.findEmarqueDocuments()` n'a pas d'endpoint confirmé (accès
+réseau `*.ffbb.com` bloqué depuis l'environnement de développement — voir
+`docs/FBI_AUTHENTICATED_SPIKE.md`). Tant que cet endpoint n'est pas
+confirmé et implémenté, le job de découverte échoue proprement match par
+match (`emarque_status = waiting_for_emarque`, retry 30min/2h/6h/24h) sans
+jamais prétendre avoir réussi. Le pipeline de parsing (extraction PDF/OCR,
+normalisation, écriture en base) a en revanche été développé et validé
+contre un vrai document e-Marque fourni hors-Git (jamais commité — voir
+plus bas).
+
+Ce qui existe : Next.js + TypeScript strict, Supabase (Auth, PostgreSQL,
+Storage privé, RLS partout), synchronisation FFBB réelle (client Directus),
+chiffrement AES-256-GCM des identifiants FBI, client FBI HTTP, pipeline
+d'extraction e-Marque (PDF natif + rendu/OCR ciblé par zone), système
+d'avertissements qualité non bloquants, jobs cron, UI admin
+(`/admin/integrations`, `/admin/sync`, `/admin/issues`) et UI club
+(`/matchs`, `/matchs/[id]`).
 
 ## Stack
 
 - [Next.js](https://nextjs.org) (App Router) + TypeScript strict
 - [Tailwind CSS](https://tailwindcss.com)
-- [Supabase](https://supabase.com) : PostgreSQL, Auth, Row Level Security
+- [Supabase](https://supabase.com) : PostgreSQL, Auth, Storage (bucket privé), Row Level Security
 - [Vitest](https://vitest.dev) pour les tests unitaires
-- Déploiement visé : [Vercel](https://vercel.com)
+- `pdfjs-dist` + `@napi-rs/canvas` + `tesseract.js` pour l'extraction des documents e-Marque (PDF sans couche texte, voir `src/server/emarque/`)
+- Déploiement visé : [Vercel](https://vercel.com) (Cron pour la synchronisation FFBB et la découverte e-Marque, voir `vercel.json`)
 
 ## Prérequis
 
@@ -45,11 +71,20 @@ Settings > API) :
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
+CRON_SECRET=...                     # 16+ caractères aléatoires, protège /api/internal/*
+FBI_CREDENTIALS_ENCRYPTION_KEY=...  # 32 octets aléatoires encodés en base64 (voir ci-dessous)
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY` ne doit **jamais** être commitée ni partagée
-hors de l'équipe technique : elle bypass toute la sécurité (RLS) de la
-base. `.env.local` est ignoré par git (voir `.gitignore`) ; seul
+`FBI_CREDENTIALS_ENCRYPTION_KEY` chiffre le mot de passe FBI en base
+(AES-256-GCM, voir `src/lib/security/crypto.ts`) — la générer avec :
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+```
+
+`SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET` et `FBI_CREDENTIALS_ENCRYPTION_KEY`
+ne doivent **jamais** être commitées ni partagées hors de l'équipe
+technique. `.env.local` est ignoré par git (voir `.gitignore`) ; seul
 `.env.example` (sans valeurs) est versionné.
 
 ## Appliquer les migrations
@@ -78,6 +113,24 @@ Supabase.
 
 Après application, la table `club` contient une ligne pour le SC Sète
 Basket (créée directement par la migration).
+
+## Configurer les intégrations (une fois déployé)
+
+C'est la **seule** étape de configuration à faire depuis l'application une
+fois le déploiement Vercel + les migrations Supabase en place :
+
+1. Se connecter avec le compte `super_admin`.
+2. Aller sur `/admin/integrations/fbi`, renseigner l'identifiant et le mot
+   de passe FBI du club, cliquer sur « Tester la connexion ».
+3. Vérifier `/admin/integrations` : la synchronisation FFBB tourne seule
+   (cron), le statut FBI affiche « connecté » ou l'erreur exacte sinon.
+4. Laisser tourner : les matchs, puis (une fois l'endpoint FBI de
+   découverte e-Marque confirmé, voir l'avertissement plus haut) la
+   composition/les statistiques apparaissent automatiquement sur `/matchs`.
+
+Aucun terminal, aucun script, aucun fichier à manipuler pour l'exploitation
+normale — voir `/admin/sync` (tableau de bord) et `/admin/issues` (revue
+des rares cas ambigus) pour le suivi.
 
 ## Lancer le projet
 
@@ -128,6 +181,9 @@ src/
   app/                    Routes Next.js (App Router) — couche fine, pas de logique métier
     login/                Page de connexion (publique)
     dashboard/             Layout protégé + page d'accueil post-connexion
+    matchs/                Module 1 : liste filtrée + détail (onglets) — lecture seule
+    admin/                 Espace super_admin : intégrations, synchronisation, anomalies
+    api/internal/          Routes cron (protégées par CRON_SECRET) : sync FFBB, découverte e-Marque
     layout.tsx, page.tsx   Layout racine, redirection selon session
     error.tsx, not-found.tsx
   components/             UI partagée, sans logique métier
@@ -135,34 +191,64 @@ src/
     nav/                   Navigation (en-tête de l'espace connecté)
   features/                UI + logique spécifiques à un module métier
     auth/                   Formulaire de connexion (Client Component)
+    admin/                   Formulaire identifiants FBI, bouton test de connexion
   lib/                     Logique réutilisable, testable indépendamment de Next.js
     supabase/                Les 3 clients Supabase (browser / server / admin)
     auth/                    Session (lecture) et service de connexion (logique pure)
     permissions/              Rôles applicatifs (AppRole, hasRole...)
+    ffbb/                     Client Directus + FFBBProvider (API publique FFBB)
+    fbi/                      Client HTTP FBI (login générique, cookie jar, découverte documents)
+    security/                 Chiffrement AES-256-GCM (identifiants FBI)
+    storage/                  Bucket privé Supabase Storage (documents e-Marque)
+    domain/                   Logique métier pure et testable (mapping FFBB, sync, jobs)
     logger.ts                 Logger serveur minimal
   server/
     actions/                 Server Actions (couche fine entre l'UI et lib/)
+    emarque/                  Pipeline d'extraction e-Marque : extractors/ (PDF natif, rendu+OCR),
+                               layout/ (zones calibrées par document), normalizers/ (texte -> valeurs
+                               typées), parser/ (orchestration ZIP -> EMarqueMatchData), quality/
+                               (avertissements non bloquants), schemas/ (validation zod finale),
+                               persist/ (écriture en base, liaison licencié par licence exacte)
   config/                  Configuration (env validée, constantes produit)
   types/
-    database.ts               Types du schéma PostgreSQL (écrits à la main, Phase 0)
+    database.ts               Types du schéma PostgreSQL (écrits à la main)
   proxy.ts                 Protection des routes + rafraîchissement de session (ex-middleware.ts)
 
 supabase/
   migrations/              Schéma SQL versionné, une responsabilité par fichier
 
+spikes/                    Outils de diagnostic développeur (jamais requis en exploitation normale)
+  ffbb-ecosystem/            Scripts d'exploration de l'API publique FFBB
+  fbi-auth/                  Outil Playwright à lancer LOCALEMENT (identifiants réels), voir
+                              docs/FBI_AUTHENTICATED_SPIKE.md — n'importe jamais dans l'app
+
 scripts/
   seed.ts                  Données de développement (voir plus haut)
+
+vercel.json                Configuration des Cron Jobs (sync FFBB ~15min, découverte e-Marque ~1h)
 ```
 
 Principe (voir `ARCHITECTURE.md` §13) : les routes sous `app/` restent
 fines et appellent `lib/`. Les Server Actions (`server/actions/`) sont
 aussi une couche fine : la logique testable vit dans `lib/`.
 
-### Base de données — Phase 0
+### Base de données
 
-Tables créées : `club`, `licencies`, `profiles`, `user_roles` (+ le type
-`app_role`). Détail des colonnes et des choix : voir les fichiers dans
-`supabase/migrations/` (chacun est commenté) et `ARCHITECTURE.md` §5/§7.
+Socle : `club`, `licencies`, `profiles`, `user_roles` (+ le type
+`app_role`).
+
+Couche FFBB (écrite exclusivement par le service de synchronisation) :
+`teams`, `competitions`, `pools`, `venues`, `ffbb_team_engagements`,
+`matches`, `match_change_history`, `sync_runs`.
+
+Couche FBI / e-Marque : `fbi_credentials` (aucune policy RLS pour
+`authenticated` — accès service role uniquement), `fbi_integration_status`,
+`emarque_imports` (idempotence par `file_hash` SHA-256), `match_participants`,
+`match_coaches`, `match_officials`, `match_table_officials`,
+`player_match_stats`, `shot_events` (expérimental, non peuplé).
+
+Détail des colonnes et des choix : voir les fichiers dans
+`supabase/migrations/` (chacun est commenté) et `ARCHITECTURE.md`.
 
 Point d'architecture important : **une personne (`licencies`) n'est pas un
 compte utilisateur**. Un compte Supabase Auth (`profiles.user_id`) peut se
@@ -185,11 +271,29 @@ Toutes les tables ont RLS activée dès la première migration
 npm run test
 ```
 
-Vitest teste des fonctions TypeScript pures (pas de tests E2E pour
-l'instant) : validation de la config d'environnement
-(`src/config/env.*.test.ts`), helpers de rôles
-(`src/lib/permissions/roles.test.ts`) et logique de connexion/déconnexion
-avec un client Supabase simulé (`src/lib/auth/service.test.ts`).
+Vitest teste des fonctions TypeScript pures et de la logique métier avec
+des clients Supabase simulés (pas de tests E2E, aucune donnée réelle dans
+les fixtures) :
+
+- Config d'environnement, rôles, connexion/déconnexion (Phase 0)
+- Mapping/diff/idempotence FFBB (`src/lib/domain/matches/mapping.test.ts`)
+- Chiffrement des identifiants FBI (`src/lib/security/crypto.test.ts`)
+- Cookie jar et connexion FBI simulée (`src/lib/fbi/*.test.ts`)
+- Normalisation de texte, en-têtes et avertissements qualité e-Marque
+  (`src/server/emarque/normalizers/*.test.ts`, `.../quality/*.test.ts`)
+- Rapprochement effectif/statistiques (`src/server/emarque/parser/merge.test.ts`)
+- Écriture en base idempotente + liaison licencié (`src/server/emarque/persist/*.test.ts`)
+- Job de découverte e-Marque : pas de credentials, échec de connexion,
+  endpoint non confirmé, retry/backoff, import réussi
+  (`src/lib/domain/emarque/discover-emarque.test.ts`)
+
+Le pipeline d'extraction PDF/OCR lui-même (rendu de page, reconnaissance)
+n'a pas de test automatisé au sens strict : il a été développé et validé
+manuellement contre un document e-Marque réel fourni hors-Git (jamais
+commité, jamais dans les fixtures de test — voir la note de sécurité plus
+bas). Les fonctions pures qui interprètent son résultat (normalizers,
+quality, merge, persist) sont, elles, entièrement testées avec des données
+synthétiques.
 
 ## Fichiers générés automatiquement
 
@@ -198,28 +302,35 @@ avec un client Supabase simulé (`src/lib/auth/service.test.ts`).
 version de Next.js. Ils sont recréés automatiquement s'ils sont supprimés
 — ce n'est pas une erreur, ils sont commités volontairement.
 
-## Prochaines phases
+## Modules pas encore développés
 
-Voir `ARCHITECTURE.md` §16 pour le détail. Après la Phase 0 :
-
-1. Synchronisation FFBB en lecture seule (MVP) + vue "Ce week-end"
-2. Historique des changements de matchs + suivi des synchronisations
-3. Gestion complète des licenciés et des rôles (UI)
-4. Dérogations
-5. Tables de marque (gestion manuelle)
-6. Disponibilités + moteur de recommandation
-7. Conflits automatiques
-8. Finitions (PWA, notifications, polish)
+Voir `ARCHITECTURE.md` pour le détail. Ce qui reste, au-delà du Module 1
+(Matchs) : Module 2 (Dérogations), Module 3/4 (Tables de marque + moteur
+d'affectation), Module 5 (détection automatique des conflits), gestion UI
+complète des licenciés/rôles, disponibilités, PWA/notifications.
 
 ## Configuration manuelle restante
 
 Ce qui ne peut pas être fait depuis ce dépôt et reste à faire par
-quelqu'un ayant accès aux comptes Supabase/Vercel du club :
+quelqu'un ayant accès aux comptes Supabase/Vercel/FFBB du club :
 
 - Créer le projet Supabase et récupérer ses clés API
 - Renseigner `.env.local` (développement) et les variables d'environnement
-  du projet sur Vercel (production)
+  du projet sur Vercel (production), y compris `CRON_SECRET` et
+  `FBI_CREDENTIALS_ENCRYPTION_KEY`
 - Appliquer les migrations sur le projet Supabase réel (voir plus haut)
 - Créer le premier compte `super_admin` réel (via le dashboard Supabase ou
   `npm run seed` pointé sur le vrai projet, avec un mot de passe fort)
-- Connecter le repo à Vercel pour le déploiement
+- Connecter le repo à Vercel pour le déploiement (les Cron Jobs de
+  `vercel.json` nécessitent un plan Vercel qui les autorise à la fréquence
+  configurée — à ajuster selon le plan réellement utilisé)
+- Renseigner les identifiants FBI depuis `/admin/integrations/fbi` (seule
+  étape de configuration faite depuis l'application elle-même)
+- **Confirmer l'endpoint FBI de découverte des documents e-Marque** :
+  `FbiProvider.findEmarqueDocuments()` (`src/lib/fbi/provider.ts`) n'a pas
+  pu être testé contre le vrai FBI depuis cet environnement (réseau
+  bloqué). Utiliser `spikes/fbi-auth/` en local (voir
+  `docs/FBI_AUTHENTICATED_SPIKE.md`) pour observer le vrai flux HTTP, puis
+  implémenter cette méthode en conséquence — le reste du pipeline
+  (téléchargement, parsing, écriture en base) est déjà prêt à la
+  recevoir sans autre changement.

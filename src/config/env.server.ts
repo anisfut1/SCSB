@@ -14,6 +14,15 @@ export const serverEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, {
     message: "SUPABASE_SERVICE_ROLE_KEY est requis côté serveur",
   }),
+  CRON_SECRET: z.string().min(16, {
+    message: "CRON_SECRET est requis côté serveur (au moins 16 caractères) pour protéger les routes /api/internal/*",
+  }),
+  FBI_CREDENTIALS_ENCRYPTION_KEY: z
+    .string()
+    .min(1, { message: "FBI_CREDENTIALS_ENCRYPTION_KEY est requis pour chiffrer les identifiants FBI" })
+    .refine((value) => Buffer.from(value, "base64").length === 32, {
+      message: "FBI_CREDENTIALS_ENCRYPTION_KEY doit être 32 octets encodés en base64 (clé AES-256)",
+    }),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
@@ -21,6 +30,8 @@ export type ServerEnv = z.infer<typeof serverEnvSchema>;
 export function parseServerEnv(source: Partial<Record<string, string | undefined>> = process.env): ServerEnv {
   const result = serverEnvSchema.safeParse({
     SUPABASE_SERVICE_ROLE_KEY: source.SUPABASE_SERVICE_ROLE_KEY,
+    CRON_SECRET: source.CRON_SECRET,
+    FBI_CREDENTIALS_ENCRYPTION_KEY: source.FBI_CREDENTIALS_ENCRYPTION_KEY,
   });
 
   if (!result.success) {
