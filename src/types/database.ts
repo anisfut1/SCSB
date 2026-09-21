@@ -29,7 +29,17 @@ export type ClubStatus = "active" | "suspended";
 export type MembershipStatus = "active" | "suspended";
 export type ClubRole = "club_admin" | "correspondant_club" | "responsable_tables" | "coach" | "joueur" | "parent";
 export type MatchStatus = "scheduled" | "played" | "postponed" | "cancelled" | "forfeit";
-export type EmarqueMatchStatus = "not_applicable" | "pending" | "waiting_for_emarque" | "imported" | "error" | "needs_review";
+export type EmarqueMatchStatus =
+  | "not_applicable"
+  | "pending"
+  | "waiting_for_emarque"
+  | "discovered"
+  | "downloading"
+  | "downloaded"
+  | "parsing"
+  | "imported"
+  | "error"
+  | "needs_review";
 export type SyncProvider = "ffbb" | "fbi";
 export type SyncStatus = "running" | "success" | "partial" | "error";
 export type EmarqueImportStatus = "discovered" | "downloading" | "downloaded" | "parsing" | "imported" | "error" | "needs_review";
@@ -37,6 +47,34 @@ export type TeamSide = "home" | "away";
 export type CoachRole = "principal" | "adjoint";
 export type RefereeRole = "referee_1" | "referee_2" | "referee_3";
 export type TableOfficialRole = "scorer" | "assistant_scorer" | "timekeeper" | "shot_clock_operator" | "commissioner" | "other";
+export type HistoricalSyncMode = "current_season" | "last_30_days" | "none";
+export type FbiJobType = "test_connection" | "discover_emarque";
+export type FbiJobStatus = "pending" | "claimed" | "running" | "succeeded" | "failed";
+export type MatchDocumentType = "emarque_zip" | "match_sheet" | "summary" | "shot_chart" | "other";
+export type MatchDocumentStatus = "downloaded" | "parsing" | "imported" | "error";
+
+// `type`, pas `interface` : `GenericTable["Row"]` (postgrest-js) attend
+// `Record<string, unknown>`, et seul un alias de type sur un littéral d'objet
+// bénéficie de la signature d'index implicite qui satisfait cette contrainte
+// (une interface, elle, reste "ouverte" et ne l'obtient pas) — sinon toute la
+// `Database` s'effondre silencieusement en `never` pour TOUS les consommateurs.
+export type FbiJobRow = {
+  id: string;
+  club_id: string;
+  match_id: string | null;
+  type: FbiJobType;
+  status: FbiJobStatus;
+  attempt_count: number;
+  max_attempts: number;
+  scheduled_at: string;
+  claimed_at: string | null;
+  claimed_by: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  last_error: string | null;
+  result: unknown;
+  created_at: string;
+};
 
 export interface Database {
   public: {
@@ -406,6 +444,8 @@ export interface Database {
           last_job_at: string | null;
           last_job_status: string | null;
           last_error: string | null;
+          auto_import_emarque: boolean;
+          historical_sync_mode: HistoricalSyncMode;
           updated_at: string;
         },
         {
@@ -420,6 +460,66 @@ export interface Database {
           last_job_at?: string | null;
           last_job_status?: string | null;
           last_error?: string | null;
+          auto_import_emarque?: boolean;
+          historical_sync_mode?: HistoricalSyncMode;
+          updated_at?: string;
+        }
+      >;
+
+      fbi_jobs: Table<
+        FbiJobRow,
+        {
+          id?: string;
+          club_id: string;
+          match_id?: string | null;
+          type: FbiJobType;
+          status?: FbiJobStatus;
+          attempt_count?: number;
+          max_attempts?: number;
+          scheduled_at?: string;
+          claimed_at?: string | null;
+          claimed_by?: string | null;
+          started_at?: string | null;
+          finished_at?: string | null;
+          last_error?: string | null;
+          result?: unknown;
+          created_at?: string;
+        }
+      >;
+
+      match_documents: Table<
+        {
+          id: string;
+          club_id: string;
+          match_id: string;
+          type: MatchDocumentType;
+          source: "fbi";
+          filename: string | null;
+          mime_type: string | null;
+          sha256: string;
+          storage_path: string;
+          status: MatchDocumentStatus;
+          discovered_at: string;
+          downloaded_at: string | null;
+          last_error: string | null;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          id?: string;
+          club_id: string;
+          match_id: string;
+          type: MatchDocumentType;
+          source?: "fbi";
+          filename?: string | null;
+          mime_type?: string | null;
+          sha256: string;
+          storage_path: string;
+          status?: MatchDocumentStatus;
+          discovered_at?: string;
+          downloaded_at?: string | null;
+          last_error?: string | null;
+          created_at?: string;
           updated_at?: string;
         }
       >;
@@ -667,6 +767,7 @@ export interface Database {
       is_platform_admin: Fn<Record<string, never>, boolean>;
       try_acquire_sync_lock: Fn<{ p_club_id: string; p_integration: SyncProvider; p_stale_after?: string }, boolean>;
       release_sync_lock: Fn<{ p_club_id: string; p_integration: SyncProvider }, void>;
+      claim_next_fbi_job: Fn<{ p_worker_id: string }, FbiJobRow | null>;
     };
     Enums: {
       club_role: ClubRole;
