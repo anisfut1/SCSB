@@ -33,6 +33,7 @@ yarn-error.log*
 # env files — jamais de secret commité, seul le fichier d'exemple l'est
 .env*
 !.env.example
+!spikes/fbi-auth/.env.fbi.example
 
 # vercel
 .vercel
@@ -40,3 +41,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Spike FBI authentifié (docs/FBI_AUTHENTICATED_SPIKE.md) — session, cookies,
+# exports et rapports bruts potentiellement sensibles : TOUJOURS locaux.
+spikes/fbi-auth/.local/
+spikes/fbi-auth/node_modules/
+spikes/fbi-auth/*.log

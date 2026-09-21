@@ -10,7 +10,13 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed.ts"
+    "seed": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed.ts",
+    "fbi:setup": "npm --prefix spikes/fbi-auth install",
+    "fbi:probe": "npm --prefix spikes/fbi-auth run probe --",
+    "fbi:check-session": "npm --prefix spikes/fbi-auth run check-session",
+    "fbi:report": "npm --prefix spikes/fbi-auth run report",
+    "fbi:clean": "npm --prefix spikes/fbi-auth run clean",
+    "fbi:inspect-export": "npm --prefix spikes/fbi-auth run inspect-export --"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
