@@ -8,10 +8,10 @@ export default function NotFound() {
         Cette page n&apos;existe pas ou plus.
       </p>
       <Link
-        href="/dashboard"
+        href="/"
         className="rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
       >
-        Retour au dashboard
+        Retour à l&apos;accueil
       </Link>
     </div>
   );

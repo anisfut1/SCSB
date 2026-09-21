@@ -2,7 +2,6 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
-import { getClubId } from "@/lib/domain/club/club-repository";
 import { getFbiCredentials } from "@/lib/fbi/credentials-store";
 import { FbiError, FbiProvider, type FbiSession } from "@/lib/fbi/provider";
 import { emarqueStoragePath, uploadEmarqueFile } from "@/lib/storage/emarque-storage";
@@ -56,18 +55,19 @@ async function scheduleNextAttempt(supabase: Client, matchId: string, previousAt
 }
 
 /**
- * Job de découverte e-Marque (ARCHITECTURE.md §20) : pour chaque match joué
- * en attente, tente de trouver puis d'importer le document e-Marque côté
- * FBI, avec retry/backoff.
+ * Job de découverte e-Marque POUR UN CLUB (§22/§23/§28 du brief SaaS) :
+ * pour chaque match joué en attente DE CE CLUB, tente de trouver puis
+ * d'importer le document e-Marque via LA session FBI de ce club (jamais
+ * partagée avec un autre tenant), avec retry/backoff.
  *
  * Statut : PREPARED — `FbiProvider.findEmarqueDocuments` n'a pas d'endpoint
- * confirmé (voir docs/FBI_AUTHENTICATED_SPIKE.md). Ce job se comporte donc
- * aujourd'hui comme une boucle de retry qui échoue proprement
- * (`waiting_for_emarque` + diagnostic `EMARQUE_DOWNLOAD_ENDPOINT_NOT_CONFIRMED`)
- * jusqu'à ce que l'endpoint réel soit confirmé et implémenté dans
- * FbiProvider — aucune autre modification ne sera alors nécessaire ici.
+ * confirmé (voir docs/FBI_AUTHENTICATED_SPIKE.md), indépendamment du
+ * multi-tenant : ce job se comporte donc comme une boucle de retry qui
+ * échoue proprement (`waiting_for_emarque` + diagnostic
+ * `EMARQUE_DOWNLOAD_ENDPOINT_NOT_CONFIRMED`) jusqu'à ce que l'endpoint réel
+ * soit confirmé et implémenté dans FbiProvider.
  */
-export async function discoverEmarque(supabase: Client): Promise<DiscoverEmarqueResult> {
+export async function discoverEmarqueForClub(supabase: Client, clubId: string): Promise<DiscoverEmarqueResult> {
   const result: DiscoverEmarqueResult = {
     candidatesExamined: 0,
     imported: 0,
@@ -77,12 +77,12 @@ export async function discoverEmarque(supabase: Client): Promise<DiscoverEmarque
     skippedLoginFailed: false,
   };
 
-  const clubId = await getClubId(supabase);
   const now = new Date().toISOString();
 
   const { data: candidates, error: candidatesError } = await supabase
     .from("matches")
     .select("id, numero, match_datetime, score_home, score_away, emarque_discovery_attempt_count")
+    .eq("club_id", clubId)
     .eq("status", "played")
     .in("emarque_status", ["pending", "waiting_for_emarque"])
     .or(`emarque_next_discovery_attempt_at.is.null,emarque_next_discovery_attempt_at.lte.${now}`);
@@ -92,7 +92,7 @@ export async function discoverEmarque(supabase: Client): Promise<DiscoverEmarque
   }
 
   if (!candidates || candidates.length === 0) {
-    logInfo("Découverte e-Marque : aucun match candidat");
+    logInfo("Découverte e-Marque : aucun match candidat", { clubId });
     return result;
   }
 
@@ -101,7 +101,7 @@ export async function discoverEmarque(supabase: Client): Promise<DiscoverEmarque
   const credentials = await getFbiCredentials(supabase, clubId);
   if (!credentials) {
     result.skippedNoCredentials = true;
-    logInfo("Découverte e-Marque ignorée : aucun identifiant FBI enregistré");
+    logInfo("Découverte e-Marque ignorée : aucun identifiant FBI enregistré", { clubId });
     return result;
   }
 
@@ -135,7 +135,7 @@ export async function discoverEmarque(supabase: Client): Promise<DiscoverEmarque
       { onConflict: "club_id" },
     );
 
-    logError("Découverte e-Marque : connexion FBI échouée, job interrompu", error);
+    logError("Découverte e-Marque : connexion FBI échouée, job interrompu", error, { clubId });
     return result;
   }
 
@@ -159,7 +159,7 @@ export async function discoverEmarque(supabase: Client): Promise<DiscoverEmarque
       const zipBuffer = await provider.downloadDocument(session, zipDoc.url);
       const fileHash = createHash("sha256").update(zipBuffer).digest("hex");
 
-      const storagePath = emarqueStoragePath(resolveSeasonLabel(match.match_datetime), match.id, "original.zip");
+      const storagePath = emarqueStoragePath(clubId, resolveSeasonLabel(match.match_datetime), match.id, "original.zip");
       await uploadEmarqueFile(storagePath, zipBuffer, "application/zip");
 
       const parsed = await parseEmarqueZip(zipBuffer, {
@@ -184,9 +184,9 @@ export async function discoverEmarque(supabase: Client): Promise<DiscoverEmarque
 
       if (error instanceof FbiError && error.code === "EMARQUE_DOWNLOAD_ENDPOINT_NOT_CONFIRMED") {
         // Limitation documentée, pas une panne : voir docs/FBI_AUTHENTICATED_SPIKE.md.
-        logInfo("Découverte e-Marque : endpoint non confirmé, nouvelle tentative planifiée", { matchId: match.id });
+        logInfo("Découverte e-Marque : endpoint non confirmé, nouvelle tentative planifiée", { clubId, matchId: match.id });
       } else {
-        logError("Découverte e-Marque : échec pour un match", error, { matchId: match.id });
+        logError("Découverte e-Marque : échec pour un match", error, { clubId, matchId: match.id });
       }
 
       await scheduleNextAttempt(supabase, match.id, match.emarque_discovery_attempt_count);
@@ -205,6 +205,66 @@ export async function discoverEmarque(supabase: Client): Promise<DiscoverEmarque
     { onConflict: "club_id" },
   );
 
-  logInfo("Découverte e-Marque terminée", { ...result });
+  logInfo("Découverte e-Marque terminée", { clubId, ...result });
+  return result;
+}
+
+export interface DiscoverEmarqueAllClubsResult {
+  clubsProcessed: number;
+  clubsSkippedLocked: number;
+  perClub: Record<string, DiscoverEmarqueResult>;
+}
+
+/**
+ * Point d'entrée multi-club du cron e-Marque (§28 du brief SaaS) : ne
+ * traite que les clubs ayant FBI configuré (`fbi_integration_status.configured`),
+ * un club à la fois, avec un verrou (club, 'fbi') pour ne jamais faire
+ * cohabiter deux sessions FBI simultanées pour le même club. Chaque club est
+ * traité intégralement indépendamment des autres — aucune donnée ne
+ * traverse d'un club à l'autre (nouvelle session FBI, nouveau storage path,
+ * nouvelles écritures DB scopées club_id).
+ */
+export async function discoverEmarqueForAllClubs(supabase: Client): Promise<DiscoverEmarqueAllClubsResult> {
+  const { data: configuredStatuses, error: statusError } = await supabase.from("fbi_integration_status").select("club_id").eq("configured", true);
+
+  if (statusError) {
+    throw new Error(`Recherche des clubs avec FBI configuré échouée : ${statusError.message}`);
+  }
+
+  const result: DiscoverEmarqueAllClubsResult = { clubsProcessed: 0, clubsSkippedLocked: 0, perClub: {} };
+
+  const clubIds = (configuredStatuses ?? []).map((s) => s.club_id);
+  if (clubIds.length === 0) return result;
+
+  const { data: activeClubs, error: clubsError } = await supabase.from("clubs").select("id").eq("status", "active").in("id", clubIds);
+
+  if (clubsError) {
+    throw new Error(`Recherche des clubs actifs échouée : ${clubsError.message}`);
+  }
+
+  for (const club of activeClubs ?? []) {
+    const { data: acquired, error: lockError } = await supabase.rpc("try_acquire_sync_lock", { p_club_id: club.id, p_integration: "fbi" });
+
+    if (lockError) {
+      logError("Acquisition du verrou de découverte e-Marque échouée", lockError, { clubId: club.id });
+      continue;
+    }
+
+    if (!acquired) {
+      logInfo("Découverte e-Marque déjà en cours pour ce club, ignorée", { clubId: club.id });
+      result.clubsSkippedLocked += 1;
+      continue;
+    }
+
+    try {
+      result.perClub[club.id] = await discoverEmarqueForClub(supabase, club.id);
+      result.clubsProcessed += 1;
+    } catch (error) {
+      logError("Découverte e-Marque d'un club en erreur", error, { clubId: club.id });
+    } finally {
+      await supabase.rpc("release_sync_lock", { p_club_id: club.id, p_integration: "fbi" });
+    }
+  }
+
   return result;
 }

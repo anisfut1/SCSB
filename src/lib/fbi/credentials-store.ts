@@ -21,7 +21,10 @@ export async function saveFbiCredentials(
   credentials: FbiCredentialsInput,
   updatedByUserId: string | null,
 ): Promise<void> {
-  const encrypted = encryptSecret(credentials.password);
+  // club_id comme AAD (§21 du brief SaaS) : un ciphertext déplacé par erreur
+  // vers un autre club ne pourra jamais être déchiffré comme si c'était le
+  // sien — voir src/lib/security/crypto.ts.
+  const encrypted = encryptSecret(credentials.password, clubId);
 
   const { error } = await supabase.from("fbi_credentials").upsert(
     {
@@ -59,11 +62,14 @@ export async function getFbiCredentials(supabase: Client, clubId: string): Promi
 
   if (!data) return null;
 
-  const password = decryptSecret({
-    ciphertext: data.password_ciphertext,
-    iv: data.password_iv,
-    authTag: data.password_auth_tag,
-  });
+  const password = decryptSecret(
+    {
+      ciphertext: data.password_ciphertext,
+      iv: data.password_iv,
+      authTag: data.password_auth_tag,
+    },
+    clubId,
+  );
 
   return { username: data.username, password };
 }

@@ -25,5 +25,18 @@ export const FFBB_ENDPOINTS = {
  */
 export const FFBB_USER_AGENT = "okhttp/4.12.0";
 
-/** Code FFBB du club (voir ARCHITECTURE.md). Jamais un id interne codé en dur. */
-export const SC_SETE_CLUB_CODE = "OCC0034008";
+/**
+ * Fréquence de synchronisation FFBB par club (§25 du brief SaaS). Pilote
+ * `clubs.ffbb_next_sync_at` : chaque club est resynchronisé à son propre
+ * rythme plutôt que tous en même temps à chaque tick de cron, ce qui reste
+ * simple à 2 clubs et permet de monter en charge sans changer le mécanisme
+ * (voir docs/MULTI_TENANCY.md).
+ */
+export const FFBB_SYNC_INTERVAL_MINUTES = 15;
+
+/**
+ * Nombre maximal de clubs traités par exécution du cron (§25/§49 du brief
+ * SaaS) : évite qu'un tick de cron devienne interminable à grande échelle.
+ * Les clubs non traités restent dus et seront pris au tick suivant.
+ */
+export const FFBB_SYNC_BATCH_SIZE = 20;

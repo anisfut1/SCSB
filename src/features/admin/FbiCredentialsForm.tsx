@@ -6,11 +6,12 @@ import { saveFbiCredentialsAction, type FbiActionResult } from "@/server/actions
 const initialState: FbiActionResult = { success: false, message: "" };
 
 interface FbiCredentialsFormProps {
+  clubSlug: string;
   currentUsername: string | null;
 }
 
-export function FbiCredentialsForm({ currentUsername }: FbiCredentialsFormProps) {
-  const [state, formAction, isPending] = useActionState(saveFbiCredentialsAction, initialState);
+export function FbiCredentialsForm({ clubSlug, currentUsername }: FbiCredentialsFormProps) {
+  const [state, formAction, isPending] = useActionState(saveFbiCredentialsAction.bind(null, clubSlug), initialState);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">

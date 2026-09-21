@@ -3,11 +3,12 @@
  * importable côté client comme côté serveur).
  */
 
-export const SITE_NAME = "SC Sète Basket";
+/** Nom de la plateforme elle-même (hors contexte club, ex: /platform, chooser). Jamais un nom de club en dur — voir docs/MULTI_TENANCY.md §17. */
+export const PLATFORM_NAME = "Basket Club Manager";
 
 /**
  * Chemins accessibles sans session. Tout le reste de l'application est
- * protégé par défaut (voir `src/middleware.ts`) : plutôt qu'une liste des
+ * protégé par défaut (voir `src/proxy.ts`) : plutôt qu'une liste des
  * routes protégées à maintenir à chaque nouveau module, on maintient une
  * liste courte des routes publiques.
  */
@@ -19,8 +20,8 @@ export interface DashboardCardConfig {
 }
 
 /**
- * Cartes placeholder du dashboard pour les modules pas encore développés.
- * Le module Matchs est réel (voir /matchs) et n'est plus listé ici.
+ * Cartes placeholder du dashboard club pour les modules pas encore développés.
+ * Le module Matchs est réel (voir /c/{slug}/matchs) et n'est plus listé ici.
  */
 export const DASHBOARD_PLACEHOLDER_CARDS: DashboardCardConfig[] = [
   { title: "Tables de marque", description: "Bientôt disponible" },

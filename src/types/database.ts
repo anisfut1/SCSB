@@ -5,11 +5,15 @@
  * projet Supabase existe (voir README). En attendant, ce fichier doit rester
  * synchronisé manuellement avec `supabase/migrations/`.
  *
- * Note : `Relationships: []`, ainsi que `Views`/`Functions` vides sur le
- * schéma `public`, sont requis par le typage générique de
- * `@supabase/postgrest-js` (voir `GenericTable`/`GenericSchema`) — ce ne
- * sont pas des données, juste la forme attendue par la lib. `Table<Row,
- * Insert>` factorise cette forme pour éviter la répétition.
+ * Note : `Relationships: []`, ainsi que `Views` vides sur le schéma
+ * `public`, sont requis par le typage générique de `@supabase/postgrest-js`
+ * (voir `GenericTable`/`GenericSchema`) — ce ne sont pas des données, juste
+ * la forme attendue par la lib. `Table<Row, Insert>` factorise cette forme
+ * pour éviter la répétition.
+ *
+ * Multi-tenant (voir docs/MULTI_TENANCY.md) : `clubs` est le tenant. Les
+ * anciens `app_role`/`user_roles` (globaux) ont été remplacés par
+ * `club_role`/`club_memberships`/`membership_roles` (scopés au club).
  */
 
 type Table<Row, Insert> = {
@@ -19,14 +23,11 @@ type Table<Row, Insert> = {
   Relationships: [];
 };
 
-export type AppRole =
-  | "super_admin"
-  | "correspondant_club"
-  | "responsable_tables"
-  | "coach"
-  | "joueur"
-  | "parent";
+type Fn<Args, Returns> = { Args: Args; Returns: Returns };
 
+export type ClubStatus = "active" | "suspended";
+export type MembershipStatus = "active" | "suspended";
+export type ClubRole = "club_admin" | "correspondant_club" | "responsable_tables" | "coach" | "joueur" | "parent";
 export type MatchStatus = "scheduled" | "played" | "postponed" | "cancelled" | "forfeit";
 export type EmarqueMatchStatus = "not_applicable" | "pending" | "waiting_for_emarque" | "imported" | "error" | "needs_review";
 export type SyncProvider = "ffbb" | "fbi";
@@ -40,9 +41,63 @@ export type TableOfficialRole = "scorer" | "assistant_scorer" | "timekeeper" | "
 export interface Database {
   public: {
     Tables: {
-      club: Table<
-        { id: string; name: string; ffbb_club_id: string; created_at: string },
-        { id?: string; name: string; ffbb_club_id: string; created_at?: string }
+      clubs: Table<
+        {
+          id: string;
+          name: string;
+          ffbb_club_id: string;
+          slug: string;
+          timezone: string;
+          status: ClubStatus;
+          short_name: string | null;
+          logo_url: string | null;
+          accent_color: string | null;
+          ffbb_enabled: boolean;
+          ffbb_next_sync_at: string | null;
+          created_at: string;
+        },
+        {
+          id?: string;
+          name: string;
+          ffbb_club_id: string;
+          slug: string;
+          timezone?: string;
+          status?: ClubStatus;
+          short_name?: string | null;
+          logo_url?: string | null;
+          accent_color?: string | null;
+          ffbb_enabled?: boolean;
+          ffbb_next_sync_at?: string | null;
+          created_at?: string;
+        }
+      >;
+
+      platform_admins: Table<{ user_id: string; created_at: string }, { user_id: string; created_at?: string }>;
+
+      club_memberships: Table<
+        {
+          id: string;
+          club_id: string;
+          user_id: string;
+          licencie_id: string | null;
+          status: MembershipStatus;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          id?: string;
+          club_id: string;
+          user_id: string;
+          licencie_id?: string | null;
+          status?: MembershipStatus;
+          created_at?: string;
+          updated_at?: string;
+        }
+      >;
+
+      membership_roles: Table<
+        { id: string; membership_id: string; role: ClubRole; scope_team_id: string | null; scope_key: string; created_at: string },
+        { id?: string; membership_id: string; role: ClubRole; scope_team_id?: string | null; created_at?: string }
       >;
 
       licencies: Table<
@@ -75,13 +130,8 @@ export interface Database {
       >;
 
       profiles: Table<
-        { user_id: string; licencie_id: string | null; display_name: string | null; created_at: string; updated_at: string },
-        { user_id: string; licencie_id?: string | null; display_name?: string | null; created_at?: string; updated_at?: string }
-      >;
-
-      user_roles: Table<
-        { id: string; user_id: string; role: AppRole; scope_team_id: string | null; created_at: string },
-        { id?: string; user_id: string; role: AppRole; scope_team_id?: string | null; created_at?: string }
+        { user_id: string; display_name: string | null; created_at: string; updated_at: string },
+        { user_id: string; display_name?: string | null; created_at?: string; updated_at?: string }
       >;
 
       teams: Table<
@@ -181,6 +231,7 @@ export interface Database {
       ffbb_team_engagements: Table<
         {
           id: string;
+          club_id: string;
           team_id: string;
           ffbb_engagement_id: string;
           competition_id: string;
@@ -195,6 +246,7 @@ export interface Database {
         },
         {
           id?: string;
+          club_id: string;
           team_id: string;
           ffbb_engagement_id: string;
           competition_id: string;
@@ -212,6 +264,7 @@ export interface Database {
       matches: Table<
         {
           id: string;
+          club_id: string;
           ffbb_match_id: string;
           ffbb_unique_key: string | null;
           ffbb_gs_id: string | null;
@@ -239,6 +292,7 @@ export interface Database {
         },
         {
           id?: string;
+          club_id: string;
           ffbb_match_id: string;
           ffbb_unique_key?: string | null;
           ffbb_gs_id?: string | null;
@@ -269,6 +323,7 @@ export interface Database {
       match_change_history: Table<
         {
           id: string;
+          club_id: string;
           match_id: string;
           sync_run_id: string | null;
           field_name: string;
@@ -278,6 +333,7 @@ export interface Database {
         },
         {
           id?: string;
+          club_id: string;
           match_id: string;
           sync_run_id?: string | null;
           field_name: string;
@@ -290,6 +346,7 @@ export interface Database {
       sync_runs: Table<
         {
           id: string;
+          club_id: string;
           provider: SyncProvider;
           started_at: string;
           finished_at: string | null;
@@ -300,6 +357,7 @@ export interface Database {
         },
         {
           id?: string;
+          club_id: string;
           provider: SyncProvider;
           started_at?: string;
           finished_at?: string | null;
@@ -366,9 +424,15 @@ export interface Database {
         }
       >;
 
+      sync_locks: Table<
+        { club_id: string; integration: SyncProvider; locked_at: string },
+        { club_id: string; integration: SyncProvider; locked_at?: string }
+      >;
+
       emarque_imports: Table<
         {
           id: string;
+          club_id: string;
           match_id: string;
           source: "fbi";
           file_hash: string | null;
@@ -388,6 +452,7 @@ export interface Database {
         },
         {
           id?: string;
+          club_id: string;
           match_id: string;
           source?: "fbi";
           file_hash?: string | null;
@@ -410,6 +475,7 @@ export interface Database {
       match_participants: Table<
         {
           id: string;
+          club_id: string;
           match_id: string;
           emarque_import_id: string;
           team_side: TeamSide;
@@ -426,6 +492,7 @@ export interface Database {
         },
         {
           id?: string;
+          club_id: string;
           match_id: string;
           emarque_import_id: string;
           team_side: TeamSide;
@@ -445,6 +512,7 @@ export interface Database {
       match_coaches: Table<
         {
           id: string;
+          club_id: string;
           match_id: string;
           emarque_import_id: string;
           team_side: TeamSide;
@@ -458,6 +526,7 @@ export interface Database {
         },
         {
           id?: string;
+          club_id: string;
           match_id: string;
           emarque_import_id: string;
           team_side: TeamSide;
@@ -474,6 +543,7 @@ export interface Database {
       match_officials: Table<
         {
           id: string;
+          club_id: string;
           match_id: string;
           emarque_import_id: string;
           role: RefereeRole;
@@ -485,6 +555,7 @@ export interface Database {
         },
         {
           id?: string;
+          club_id: string;
           match_id: string;
           emarque_import_id: string;
           role: RefereeRole;
@@ -499,6 +570,7 @@ export interface Database {
       match_table_officials: Table<
         {
           id: string;
+          club_id: string;
           match_id: string;
           emarque_import_id: string;
           role: TableOfficialRole;
@@ -511,6 +583,7 @@ export interface Database {
         },
         {
           id?: string;
+          club_id: string;
           match_id: string;
           emarque_import_id: string;
           role: TableOfficialRole;
@@ -526,6 +599,7 @@ export interface Database {
       player_match_stats: Table<
         {
           id: string;
+          club_id: string;
           match_id: string;
           participant_id: string;
           seconds_played: number | null;
@@ -541,6 +615,7 @@ export interface Database {
         },
         {
           id?: string;
+          club_id: string;
           match_id: string;
           participant_id: string;
           seconds_played?: number | null;
@@ -559,6 +634,7 @@ export interface Database {
       shot_events: Table<
         {
           id: string;
+          club_id: string;
           match_id: string;
           participant_id: string | null;
           team_side: TeamSide;
@@ -571,6 +647,7 @@ export interface Database {
         },
         {
           id?: string;
+          club_id: string;
           match_id: string;
           participant_id?: string | null;
           team_side: TeamSide;
@@ -584,9 +661,15 @@ export interface Database {
       >;
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      is_club_member: Fn<{ target_club_id: string }, boolean>;
+      has_club_role: Fn<{ target_club_id: string; target_role: ClubRole }, boolean>;
+      is_platform_admin: Fn<Record<string, never>, boolean>;
+      try_acquire_sync_lock: Fn<{ p_club_id: string; p_integration: SyncProvider; p_stale_after?: string }, boolean>;
+      release_sync_lock: Fn<{ p_club_id: string; p_integration: SyncProvider }, void>;
+    };
     Enums: {
-      app_role: AppRole;
+      club_role: ClubRole;
     };
   };
 }

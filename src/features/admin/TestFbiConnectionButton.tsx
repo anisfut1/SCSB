@@ -5,8 +5,12 @@ import { testFbiConnectionAction, type FbiActionResult } from "@/server/actions/
 
 const initialState: FbiActionResult = { success: false, message: "" };
 
-export function TestFbiConnectionButton() {
-  const [state, formAction, isPending] = useActionState(async () => testFbiConnectionAction(), initialState);
+interface TestFbiConnectionButtonProps {
+  clubSlug: string;
+}
+
+export function TestFbiConnectionButton({ clubSlug }: TestFbiConnectionButtonProps) {
+  const [state, formAction, isPending] = useActionState(async () => testFbiConnectionAction(clubSlug), initialState);
 
   return (
     <form action={formAction} className="flex flex-col items-start gap-2">

@@ -5,7 +5,7 @@ import { diffTrackedFields, mapNormalizedMatchToRow, shouldRequestEmarque } from
 
 type MatchRow = Database["public"]["Tables"]["matches"]["Row"];
 
-const CONTEXT = { teamId: "team-1", competitionId: "comp-1", poolId: "pool-1", venueId: "venue-1" };
+const CONTEXT = { clubId: "club-1", teamId: "team-1", competitionId: "comp-1", poolId: "pool-1", venueId: "venue-1" };
 
 function buildNormalizedMatch(overrides: Partial<NormalizedMatch> = {}): NormalizedMatch {
   return {
@@ -33,6 +33,7 @@ function buildNormalizedMatch(overrides: Partial<NormalizedMatch> = {}): Normali
 function buildExistingRow(overrides: Partial<MatchRow> = {}): MatchRow {
   return {
     id: "match-1",
+    club_id: "club-1",
     ffbb_match_id: "ffbb-match-1",
     ffbb_unique_key: "unique-1",
     ffbb_gs_id: "gs-1",
@@ -66,6 +67,7 @@ describe("mapNormalizedMatchToRow", () => {
     const row = mapNormalizedMatchToRow(buildNormalizedMatch(), CONTEXT);
 
     expect(row).toMatchObject({
+      club_id: "club-1",
       ffbb_match_id: "ffbb-match-1",
       ffbb_unique_key: "unique-1",
       ffbb_gs_id: "gs-1",
@@ -87,7 +89,7 @@ describe("mapNormalizedMatchToRow", () => {
   });
 
   it("laisse team_id/competition_id/pool_id/venue_id à null quand le contexte ne les a pas résolus", () => {
-    const row = mapNormalizedMatchToRow(buildNormalizedMatch(), { teamId: null, competitionId: null, poolId: null, venueId: null });
+    const row = mapNormalizedMatchToRow(buildNormalizedMatch(), { clubId: "club-1", teamId: null, competitionId: null, poolId: null, venueId: null });
 
     expect(row.team_id).toBeNull();
     expect(row.competition_id).toBeNull();

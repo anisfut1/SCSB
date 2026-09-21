@@ -35,4 +35,22 @@ describe("encryptSecret / decryptSecret", () => {
     expect(decryptSecret(encryptSecret(""))).toBe("");
     expect(decryptSecret(encryptSecret("éàü€😀"))).toBe("éàü€😀");
   });
+
+  it("round-trip avec AAD (club_id) : déchiffre correctement avec le même AAD", () => {
+    const payload = encryptSecret("mot-de-passe-club-a", "club-a-uuid");
+    expect(decryptSecret(payload, "club-a-uuid")).toBe("mot-de-passe-club-a");
+  });
+
+  it("refuse de déchiffrer un secret avec l'AAD d'un AUTRE club (isolation multi-tenant)", () => {
+    const payload = encryptSecret("mot-de-passe-club-a", "club-a-uuid");
+    expect(() => decryptSecret(payload, "club-b-uuid")).toThrow(DecryptionError);
+  });
+
+  it("refuse de déchiffrer sans AAD un secret chiffré avec AAD, et inversement", () => {
+    const withAad = encryptSecret("secret", "club-a-uuid");
+    expect(() => decryptSecret(withAad)).toThrow(DecryptionError);
+
+    const withoutAad = encryptSecret("secret");
+    expect(() => decryptSecret(withoutAad, "club-a-uuid")).toThrow(DecryptionError);
+  });
 });

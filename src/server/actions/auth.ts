@@ -22,7 +22,7 @@ export async function signInAction(_prevState: AuthActionResult, formData: FormD
     return result;
   }
 
-  redirect("/dashboard");
+  redirect("/");
 }
 
 export async function signOutAction(): Promise<void> {

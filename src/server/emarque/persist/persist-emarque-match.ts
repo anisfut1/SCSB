@@ -69,6 +69,7 @@ async function insertParticipants(
     const { data, error } = await supabase
       .from("match_participants")
       .insert({
+        club_id: clubId,
         match_id: matchId,
         emarque_import_id: importId,
         team_side: player.teamSide,
@@ -94,7 +95,13 @@ async function insertParticipants(
   return { linked, unlinked, byKey };
 }
 
-async function insertPlayerStats(supabase: Client, matchId: string, stats: EMarquePlayerStat[], participantIdByKey: Map<string, string>): Promise<void> {
+async function insertPlayerStats(
+  supabase: Client,
+  clubId: string,
+  matchId: string,
+  stats: EMarquePlayerStat[],
+  participantIdByKey: Map<string, string>,
+): Promise<void> {
   for (const stat of stats) {
     const participantId = participantIdByKey.get(`${stat.teamSide}:${stat.jerseyNumber ?? ""}`);
     // Pas de participant correspondant (joueur listé au résumé mais pas sur
@@ -103,6 +110,7 @@ async function insertPlayerStats(supabase: Client, matchId: string, stats: EMarq
     if (!participantId) continue;
 
     const { error } = await supabase.from("player_match_stats").insert({
+      club_id: clubId,
       match_id: matchId,
       participant_id: participantId,
       seconds_played: stat.secondsPlayed,
@@ -126,6 +134,7 @@ async function insertCoaches(supabase: Client, clubId: string, matchId: string, 
     const licencieId = await findLicencieIdByLicense(supabase, clubId, coach.licenseNumber);
 
     const { error } = await supabase.from("match_coaches").insert({
+      club_id: clubId,
       match_id: matchId,
       emarque_import_id: importId,
       team_side: coach.teamSide,
@@ -147,6 +156,7 @@ async function insertOfficials(supabase: Client, clubId: string, matchId: string
     const licencieId = await findLicencieIdByLicense(supabase, clubId, official.licenseNumber);
 
     const { error } = await supabase.from("match_officials").insert({
+      club_id: clubId,
       match_id: matchId,
       emarque_import_id: importId,
       role: official.role,
@@ -173,6 +183,7 @@ async function insertTableOfficials(
     const licencieId = await findLicencieIdByLicense(supabase, clubId, official.licenseNumber);
 
     const { error } = await supabase.from("match_table_officials").insert({
+      club_id: clubId,
       match_id: matchId,
       emarque_import_id: importId,
       role: official.role,
@@ -208,6 +219,7 @@ export async function persistEmarqueMatchData(supabase: Client, params: PersistE
   const { data: existingImport, error: existingImportError } = await supabase
     .from("emarque_imports")
     .select("id, status")
+    .eq("club_id", clubId)
     .eq("file_hash", fileHash)
     .maybeSingle();
 
@@ -223,6 +235,7 @@ export async function persistEmarqueMatchData(supabase: Client, params: PersistE
   const { data: importRow, error: importInsertError } = await supabase
     .from("emarque_imports")
     .insert({
+      club_id: clubId,
       match_id: matchId,
       source: "fbi",
       file_hash: fileHash,
@@ -244,7 +257,7 @@ export async function persistEmarqueMatchData(supabase: Client, params: PersistE
 
   try {
     const { linked, unlinked, byKey } = await insertParticipants(supabase, clubId, matchId, importId, data.players);
-    await insertPlayerStats(supabase, matchId, data.playerStats, byKey);
+    await insertPlayerStats(supabase, clubId, matchId, data.playerStats, byKey);
     await insertCoaches(supabase, clubId, matchId, importId, data.coaches);
     await insertOfficials(supabase, clubId, matchId, importId, data.officials);
     await insertTableOfficials(supabase, clubId, matchId, importId, data.tableOfficials);

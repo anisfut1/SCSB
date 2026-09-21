@@ -2,10 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EMarqueMatchData } from "@/server/emarque/types";
 import { FbiError } from "@/lib/fbi/provider";
 
-vi.mock("@/lib/domain/club/club-repository", () => ({
-  getClubId: vi.fn(async () => "club-1"),
-}));
-
 vi.mock("@/lib/fbi/credentials-store", () => ({
   getFbiCredentials: vi.fn(),
 }));
@@ -28,7 +24,7 @@ vi.mock("@/lib/fbi/provider", async () => {
 });
 
 vi.mock("@/lib/storage/emarque-storage", () => ({
-  emarqueStoragePath: vi.fn((season: string, matchId: string, fileName: string) => `private/emarque/${season}/${matchId}/${fileName}`),
+  emarqueStoragePath: vi.fn((clubId: string, season: string, matchId: string, fileName: string) => `private/emarque/${clubId}/${season}/${matchId}/${fileName}`),
   uploadEmarqueFile: vi.fn(async () => undefined),
 }));
 
@@ -45,7 +41,9 @@ import { getFbiCredentials } from "@/lib/fbi/credentials-store";
 import { uploadEmarqueFile } from "@/lib/storage/emarque-storage";
 import { parseEmarqueZip } from "@/server/emarque/parser/parse-emarque-zip";
 import { persistEmarqueMatchData } from "@/server/emarque/persist/persist-emarque-match";
-import { discoverEmarque } from "./discover-emarque";
+import { discoverEmarqueForClub } from "./discover-emarque";
+
+const CLUB_ID = "club-1";
 
 const EMPTY_EMARQUE_DATA: EMarqueMatchData = {
   match: {
@@ -88,8 +86,10 @@ function makeFakeSupabase(candidates: FakeMatchCandidate[], recorders: { matchUp
         return {
           select: () => ({
             eq: () => ({
-              in: () => ({
-                or: () => Promise.resolve({ data: candidates, error: null }),
+              eq: () => ({
+                in: () => ({
+                  or: () => Promise.resolve({ data: candidates, error: null }),
+                }),
               }),
             }),
           }),
@@ -128,12 +128,12 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("discoverEmarque", () => {
+describe("discoverEmarqueForClub", () => {
   it("ne fait rien et ne tente pas de connexion FBI quand aucun match n'est candidat", async () => {
     const recorders = { matchUpdates: [], statusUpserts: [] };
     const supabase = makeFakeSupabase([], recorders);
 
-    const result = await discoverEmarque(supabase);
+    const result = await discoverEmarqueForClub(supabase, CLUB_ID);
 
     expect(result).toEqual({
       candidatesExamined: 0,
@@ -152,7 +152,7 @@ describe("discoverEmarque", () => {
     const recorders = { matchUpdates: [], statusUpserts: [] };
     const supabase = makeFakeSupabase([A_CANDIDATE], recorders);
 
-    const result = await discoverEmarque(supabase);
+    const result = await discoverEmarqueForClub(supabase, CLUB_ID);
 
     expect(result.skippedNoCredentials).toBe(true);
     expect(result.candidatesExamined).toBe(1);
@@ -166,12 +166,12 @@ describe("discoverEmarque", () => {
     const recorders = { matchUpdates: [], statusUpserts: [] };
     const supabase = makeFakeSupabase([A_CANDIDATE], recorders);
 
-    const result = await discoverEmarque(supabase);
+    const result = await discoverEmarqueForClub(supabase, CLUB_ID);
 
     expect(result.skippedLoginFailed).toBe(true);
     expect(findEmarqueDocumentsMock).not.toHaveBeenCalled();
     expect(recorders.statusUpserts).toContainEqual(
-      expect.objectContaining({ last_login_success: false, last_job_status: "error" }),
+      expect.objectContaining({ club_id: CLUB_ID, last_login_success: false, last_job_status: "error" }),
     );
   });
 
@@ -185,7 +185,7 @@ describe("discoverEmarque", () => {
     const recorders = { matchUpdates: [], statusUpserts: [] };
     const supabase = makeFakeSupabase([A_CANDIDATE], recorders);
 
-    const result = await discoverEmarque(supabase);
+    const result = await discoverEmarqueForClub(supabase, CLUB_ID);
 
     expect(result.errors).toBe(1);
     expect(result.imported).toBe(0);
@@ -206,7 +206,7 @@ describe("discoverEmarque", () => {
     const recorders = { matchUpdates: [], statusUpserts: [] };
     const supabase = makeFakeSupabase([{ ...A_CANDIDATE, emarque_discovery_attempt_count: 3 }], recorders);
 
-    await discoverEmarque(supabase);
+    await discoverEmarqueForClub(supabase, CLUB_ID);
 
     expect(recorders.matchUpdates[0]).toMatchObject({
       patch: expect.objectContaining({ emarque_discovery_attempt_count: 4 }),
@@ -223,12 +223,12 @@ describe("discoverEmarque", () => {
     const recorders = { matchUpdates: [], statusUpserts: [] };
     const supabase = makeFakeSupabase([A_CANDIDATE], recorders);
 
-    const result = await discoverEmarque(supabase);
+    const result = await discoverEmarqueForClub(supabase, CLUB_ID);
 
     expect(result.imported).toBe(1);
     expect(result.errors).toBe(0);
     expect(uploadEmarqueFile).toHaveBeenCalledWith(
-      "private/emarque/2025-2026/match-1/original.zip",
+      "private/emarque/club-1/2025-2026/match-1/original.zip",
       expect.any(Buffer),
       "application/zip",
     );
@@ -236,7 +236,7 @@ describe("discoverEmarque", () => {
       supabase,
       expect.objectContaining({
         matchId: "match-1",
-        clubId: "club-1",
+        clubId: CLUB_ID,
         sourceFileName: "2813.zip",
         parserVersion: "test-version",
         data: EMPTY_EMARQUE_DATA,
@@ -254,7 +254,7 @@ describe("discoverEmarque", () => {
     const recorders = { matchUpdates: [], statusUpserts: [] };
     const supabase = makeFakeSupabase([{ ...A_CANDIDATE, numero: null }], recorders);
 
-    const result = await discoverEmarque(supabase);
+    const result = await discoverEmarqueForClub(supabase, CLUB_ID);
 
     expect(result.stillWaiting).toBe(1);
     expect(findEmarqueDocumentsMock).not.toHaveBeenCalled();

@@ -3,8 +3,7 @@ import { NextResponse } from "next/server";
 import { serverEnv } from "@/config/env.server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { FfbbPublicProvider } from "@/lib/ffbb/public-provider";
-import { SC_SETE_CLUB_CODE } from "@/lib/ffbb/config";
-import { syncFfbb } from "@/lib/domain/sync/sync-ffbb";
+import { syncAllDueClubs } from "@/lib/domain/sync/sync-ffbb-scheduler";
 import { logError } from "@/lib/logger";
 
 /**
@@ -13,9 +12,9 @@ import { logError } from "@/lib/logger";
  * GET avec l'en-tête `Authorization: Bearer $CRON_SECRET` (convention
  * documentée par Vercel) — jamais accessible publiquement sans ce secret.
  *
- * Un job plus long que la limite par défaut d'une fonction Vercel est
- * attendu ici (parcours de tous les matchs du club) : voir ARCHITECTURE.md
- * §8 ("ne pars pas du principe que tout doit tourner en 10 secondes").
+ * Multi-tenant (§25 du brief SaaS) : cette route ne synchronise plus "le
+ * club", elle traite tous les clubs actifs dus à ce moment (voir
+ * sync-ffbb-scheduler.ts) — verrouillage par club, petits lots.
  */
 export const maxDuration = 60;
 
@@ -30,7 +29,7 @@ export async function GET(request: Request) {
 
   try {
     const supabase = createAdminSupabaseClient();
-    const result = await syncFfbb(supabase, new FfbbPublicProvider(), SC_SETE_CLUB_CODE);
+    const result = await syncAllDueClubs(supabase, new FfbbPublicProvider());
     return NextResponse.json(result);
   } catch (error) {
     logError("Route /api/internal/sync-ffbb en erreur", error);

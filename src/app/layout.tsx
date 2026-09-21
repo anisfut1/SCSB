@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SC Sète Basket",
-  description: "Application interne de gestion sportive du SC Sète Basket",
+  title: "Basket Club Manager",
+  description: "Plateforme de gestion sportive multi-clubs (calendrier, feuilles de match, statistiques)",
 };
 
 export const viewport = {

@@ -23,6 +23,7 @@ export const TRACKED_MATCH_FIELDS = [
 export type TrackedMatchField = (typeof TRACKED_MATCH_FIELDS)[number];
 
 export interface MatchMappingContext {
+  clubId: string;
   teamId: string | null;
   competitionId: string | null;
   poolId: string | null;
@@ -32,6 +33,7 @@ export interface MatchMappingContext {
 /** Convertit un match normalisé FFBB en ligne prête pour upsert dans `matches`. */
 export function mapNormalizedMatchToRow(match: NormalizedMatch, context: MatchMappingContext): MatchInsert {
   return {
+    club_id: context.clubId,
     ffbb_match_id: match.ffbbId,
     ffbb_unique_key: match.uniqueKey,
     ffbb_gs_id: match.gsId,

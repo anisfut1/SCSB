@@ -4,11 +4,15 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 export const EMARQUE_BUCKET = "emarque";
 
 /**
- * Convention de chemin pour les documents e-Marque (voir ARCHITECTURE.md
- * §12) : private/emarque/{season}/{matchId}/{fileName}.
+ * Convention de chemin pour les documents e-Marque, tenant-scopée (§23 du
+ * brief SaaS) : private/emarque/{clubId}/{season}/{matchId}/{fileName}.
+ * `clubId` en premier segment rend une fuite cross-tenant immédiatement
+ * visible dans les logs/audits Storage, et permettrait une policy Storage
+ * par préfixe si on en ajoutait une un jour (aujourd'hui : bucket privé,
+ * accès service role uniquement, voir la migration de création du bucket).
  */
-export function emarqueStoragePath(season: string, matchId: string, fileName: string): string {
-  return `private/emarque/${season}/${matchId}/${fileName}`;
+export function emarqueStoragePath(clubId: string, season: string, matchId: string, fileName: string): string {
+  return `private/emarque/${clubId}/${season}/${matchId}/${fileName}`;
 }
 
 /**

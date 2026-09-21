@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireSuperAdmin } from "@/lib/auth/session";
+import { requireClubAdminContext } from "@/lib/tenancy/club-context";
+import { getCurrentUser } from "@/lib/auth/session";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import { getClubId } from "@/lib/domain/club/club-repository";
 import { getFbiCredentials, saveFbiCredentials } from "@/lib/fbi/credentials-store";
 import { FbiError, FbiProvider, type FbiErrorCode } from "@/lib/fbi/provider";
 import { logError } from "@/lib/logger";
@@ -33,16 +33,16 @@ function messageForErrorCode(code: FbiErrorCode): string {
 }
 
 /**
- * Enregistre les identifiants FBI (chiffrés, voir src/lib/security/crypto.ts).
- * Utilise le client admin (service role) : la table fbi_credentials n'a
- * volontairement aucune policy RLS pour un utilisateur authentifié, voir
- * supabase/migrations/20260921090070_fbi_integration.sql.
+ * Enregistre les identifiants FBI DU CLUB `clubSlug` (chiffrés, AAD =
+ * club_id — voir src/lib/security/crypto.ts). Utilise le client admin
+ * (service role) : la table fbi_credentials n'a volontairement aucune
+ * policy RLS pour un utilisateur authentifié, voir
+ * supabase/migrations/20260921090070_fbi_integration.sql. `requireClubAdminContext`
+ * vérifie que l'utilisateur est bien club_admin DE CE CLUB avant toute écriture.
  */
-export async function saveFbiCredentialsAction(
-  _prevState: FbiActionResult,
-  formData: FormData,
-): Promise<FbiActionResult> {
-  const user = await requireSuperAdmin();
+export async function saveFbiCredentialsAction(clubSlug: string, _prevState: FbiActionResult, formData: FormData): Promise<FbiActionResult> {
+  const { club } = await requireClubAdminContext(clubSlug);
+  const user = await getCurrentUser();
 
   const username = String(formData.get("username") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -54,40 +54,38 @@ export async function saveFbiCredentialsAction(
   const supabase = createAdminSupabaseClient();
 
   try {
-    const clubId = await getClubId(supabase);
-
     if (password) {
-      await saveFbiCredentials(supabase, clubId, { username, password }, user.id);
+      await saveFbiCredentials(supabase, club.id, { username, password }, user?.id ?? null);
     } else {
       // Mot de passe laissé vide : on ne change que l'identifiant, à
       // condition qu'un mot de passe soit déjà enregistré.
-      const existing = await getFbiCredentials(supabase, clubId);
+      const existing = await getFbiCredentials(supabase, club.id);
       if (!existing) {
         return { success: false, message: "Un mot de passe est requis lors du premier enregistrement." };
       }
-      await saveFbiCredentials(supabase, clubId, { username, password: existing.password }, user.id);
+      await saveFbiCredentials(supabase, club.id, { username, password: existing.password }, user?.id ?? null);
     }
   } catch (error) {
-    logError("Enregistrement des identifiants FBI échoué", error);
+    logError("Enregistrement des identifiants FBI échoué", error, { clubId: club.id });
     return { success: false, message: "Enregistrement impossible. Réessaie." };
   }
 
-  revalidatePath("/admin/integrations/fbi");
-  revalidatePath("/admin/integrations");
+  revalidatePath(`/c/${clubSlug}/admin/integrations/fbi`);
+  revalidatePath(`/c/${clubSlug}/admin/integrations`);
   return { success: true, message: "Identifiants FBI enregistrés." };
 }
 
 /**
- * Tente une connexion FBI réelle avec les identifiants enregistrés, sans
- * rien télécharger ni modifier côté FBI. Le résultat (jamais le mot de
- * passe) est enregistré dans fbi_integration_status pour /admin/integrations.
+ * Tente une connexion FBI réelle avec les identifiants enregistrés DU CLUB
+ * `clubSlug`, sans rien télécharger ni modifier côté FBI. Le résultat
+ * (jamais le mot de passe) est enregistré dans fbi_integration_status pour
+ * /c/{slug}/admin/integrations.
  */
-export async function testFbiConnectionAction(): Promise<FbiActionResult> {
-  await requireSuperAdmin();
+export async function testFbiConnectionAction(clubSlug: string): Promise<FbiActionResult> {
+  const { club } = await requireClubAdminContext(clubSlug);
 
   const supabase = createAdminSupabaseClient();
-  const clubId = await getClubId(supabase);
-  const credentials = await getFbiCredentials(supabase, clubId);
+  const credentials = await getFbiCredentials(supabase, club.id);
 
   if (!credentials) {
     return { success: false, message: "Aucun identifiant FBI enregistré pour l'instant." };
@@ -101,7 +99,7 @@ export async function testFbiConnectionAction(): Promise<FbiActionResult> {
 
     await supabase.from("fbi_integration_status").upsert(
       {
-        club_id: clubId,
+        club_id: club.id,
         configured: true,
         last_test_at: testedAt,
         last_test_success: true,
@@ -113,15 +111,15 @@ export async function testFbiConnectionAction(): Promise<FbiActionResult> {
       { onConflict: "club_id" },
     );
 
-    revalidatePath("/admin/integrations/fbi");
-    revalidatePath("/admin/integrations");
+    revalidatePath(`/c/${clubSlug}/admin/integrations/fbi`);
+    revalidatePath(`/c/${clubSlug}/admin/integrations`);
     return { success: true, message: "FBI connecté ✅" };
   } catch (error) {
     const message = error instanceof FbiError ? messageForErrorCode(error.code) : "Connexion FBI impossible.";
 
     await supabase.from("fbi_integration_status").upsert(
       {
-        club_id: clubId,
+        club_id: club.id,
         configured: true,
         last_test_at: testedAt,
         last_test_success: false,
@@ -133,9 +131,9 @@ export async function testFbiConnectionAction(): Promise<FbiActionResult> {
       { onConflict: "club_id" },
     );
 
-    logError("Test de connexion FBI échoué", error);
-    revalidatePath("/admin/integrations/fbi");
-    revalidatePath("/admin/integrations");
+    logError("Test de connexion FBI échoué", error, { clubId: club.id });
+    revalidatePath(`/c/${clubSlug}/admin/integrations/fbi`);
+    revalidatePath(`/c/${clubSlug}/admin/integrations`);
     return { success: false, message };
   }
 }

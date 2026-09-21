@@ -1,25 +1,36 @@
-# SC Sète Basket — Application interne
+# Basket Club Manager — plateforme SaaS multi-clubs
 
-Application interne de gestion sportive pour le club SC Sète Basket
-(identifiant FFBB `OCC0034008`), synchronisée automatiquement avec les
-données FFBB (matchs, compétitions, poules, scores...) et enrichie d'une
-couche métier propre au club (dérogations, tables de marque, affectations,
-disponibilités).
+Plateforme SaaS destinée aux clubs de basket : une seule application, une
+seule base de données, plusieurs clubs (tenants) totalement isolés les uns
+des autres. **SC Sète Basket** (identifiant FFBB `OCC0034008`) est le
+**tenant pilote** — pas un cas particulier câblé dans le code.
 
-Voir [`ARCHITECTURE.md`](./ARCHITECTURE.md) pour l'architecture complète du
-projet — c'est la source de vérité pour toute décision de conception. Ce
+Chaque club synchronise automatiquement ses données FFBB (matchs,
+compétitions, poules, scores...) et, via ses propres identifiants FBI, ses
+documents e-Marque (composition, statistiques, arbitres, officiels de
+table).
+
+Voir [`ARCHITECTURE.md`](./ARCHITECTURE.md) pour l'architecture
+fonctionnelle (modules, flux FFBB, modèle de données métier) et
+[`docs/MULTI_TENANCY.md`](./docs/MULTI_TENANCY.md) pour le modèle
+multi-tenant lui-même (isolation, RLS, rôles, routes, jobs, onboarding) —
+ces deux documents font autorité pour toute décision de conception. Ce
 README couvre l'installation et l'organisation concrète du code.
 
-**État actuel : produit "clé en main" (Module 1 — Matchs) en place.** Une
-fois déployé et configuré depuis `/admin/integrations`, le flux suivant
-tourne automatiquement, sans opération manuelle sur fichier :
+**État actuel : socle SaaS multi-tenant + Module 1 (Matchs) en place.**
+Une fois déployé, un `platform_admin` crée un club depuis `/platform/clubs`
+(sans toucher au code), puis le `club_admin` de ce club configure ses
+propres intégrations FFBB/FBI depuis `/c/{slug}/admin/integrations`. Le
+flux suivant tourne ensuite automatiquement, sans opération manuelle sur
+fichier, **indépendamment pour chaque club** :
 
 FFBB (calendrier/résultats publics) → synchronisation automatique
-(cron `/api/internal/sync-ffbb`) → base de données → connexion FBI
-serveur (identifiants chiffrés) → découverte + téléchargement automatique
-des documents e-Marque (cron `/api/internal/discover-emarque`) → parsing
-(OCR) → composition, statistiques, arbitres, officiels de table → pages
-`/matchs` et `/matchs/[id]`.
+multi-club (cron `/api/internal/sync-ffbb`) → base de données → connexion
+FBI serveur (identifiants chiffrés, propres à chaque club) → découverte +
+téléchargement automatique des documents e-Marque (cron
+`/api/internal/discover-emarque`, multi-club) → parsing (OCR) →
+composition, statistiques, arbitres, officiels de table → pages
+`/c/{slug}/matchs` et `/c/{slug}/matchs/[id]`.
 
 **Important — statut FBI/e-Marque : PREPARED, pas encore CONFIRMED.**
 `FbiProvider.login()` est un client HTTP générique (détection du
@@ -28,25 +39,28 @@ formulaire de connexion, sans nom de champ codé en dur), mais
 réseau `*.ffbb.com` bloqué depuis l'environnement de développement — voir
 `docs/FBI_AUTHENTICATED_SPIKE.md`). Tant que cet endpoint n'est pas
 confirmé et implémenté, le job de découverte échoue proprement match par
-match (`emarque_status = waiting_for_emarque`, retry 30min/2h/6h/24h) sans
-jamais prétendre avoir réussi. Le pipeline de parsing (extraction PDF/OCR,
-normalisation, écriture en base) a en revanche été développé et validé
-contre un vrai document e-Marque fourni hors-Git (jamais commité — voir
-plus bas).
+match, pour chaque club (`emarque_status = waiting_for_emarque`, retry
+30min/2h/6h/24h) sans jamais prétendre avoir réussi. Le pipeline de
+parsing (extraction PDF/OCR, normalisation, écriture en base) a en
+revanche été développé et validé contre un vrai document e-Marque fourni
+hors-Git (jamais commité — voir plus bas).
 
 Ce qui existe : Next.js + TypeScript strict, Supabase (Auth, PostgreSQL,
-Storage privé, RLS partout), synchronisation FFBB réelle (client Directus),
-chiffrement AES-256-GCM des identifiants FBI, client FBI HTTP, pipeline
-d'extraction e-Marque (PDF natif + rendu/OCR ciblé par zone), système
-d'avertissements qualité non bloquants, jobs cron, UI admin
-(`/admin/integrations`, `/admin/sync`, `/admin/issues`) et UI club
-(`/matchs`, `/matchs/[id]`).
+Storage privé, RLS multi-tenant partout), modèle `clubs` /
+`club_memberships` / `membership_roles` / `platform_admins`,
+synchronisation FFBB réelle multi-club (client Directus), chiffrement
+AES-256-GCM des identifiants FBI (AAD = `club_id`), client FBI HTTP,
+pipeline d'extraction e-Marque (PDF natif + rendu/OCR ciblé par zone),
+système d'avertissements qualité non bloquants, jobs cron multi-club avec
+verrouillage par `(club, intégration)`, UI `/platform` (opérateur SaaS),
+UI admin par club (`/c/{slug}/admin/*`) et UI club
+(`/c/{slug}/matchs`, `/c/{slug}/matchs/[id]`).
 
 ## Stack
 
 - [Next.js](https://nextjs.org) (App Router) + TypeScript strict
 - [Tailwind CSS](https://tailwindcss.com)
-- [Supabase](https://supabase.com) : PostgreSQL, Auth, Storage (bucket privé), Row Level Security
+- [Supabase](https://supabase.com) : PostgreSQL, Auth, Storage (bucket privé), Row Level Security multi-tenant
 - [Vitest](https://vitest.dev) pour les tests unitaires
 - `pdfjs-dist` + `@napi-rs/canvas` + `tesseract.js` pour l'extraction des documents e-Marque (PDF sans couche texte, voir `src/server/emarque/`)
 - Déploiement visé : [Vercel](https://vercel.com) (Cron pour la synchronisation FFBB et la découverte e-Marque, voir `vercel.json`)
@@ -75,8 +89,9 @@ CRON_SECRET=...                     # 16+ caractères aléatoires, protège /api
 FBI_CREDENTIALS_ENCRYPTION_KEY=...  # 32 octets aléatoires encodés en base64 (voir ci-dessous)
 ```
 
-`FBI_CREDENTIALS_ENCRYPTION_KEY` chiffre le mot de passe FBI en base
-(AES-256-GCM, voir `src/lib/security/crypto.ts`) — la générer avec :
+`FBI_CREDENTIALS_ENCRYPTION_KEY` chiffre le mot de passe FBI de chaque
+club en base (AES-256-GCM, AAD = `club_id`, voir `src/lib/security/crypto.ts`)
+— la générer avec :
 
 ```bash
 node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
@@ -85,7 +100,8 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET` et `FBI_CREDENTIALS_ENCRYPTION_KEY`
 ne doivent **jamais** être commitées ni partagées hors de l'équipe
 technique. `.env.local` est ignoré par git (voir `.gitignore`) ; seul
-`.env.example` (sans valeurs) est versionné.
+`.env.example` (sans valeurs) est versionné. Ce sont des secrets
+**globaux au déploiement**, jamais par club.
 
 ## Appliquer les migrations
 
@@ -111,26 +127,28 @@ supabase db reset  # applique toutes les migrations sur la base locale
 `supabase/migrations/` (dans l'ordre) dans l'éditeur SQL du dashboard
 Supabase.
 
-Après application, la table `club` contient une ligne pour le SC Sète
-Basket (créée directement par la migration).
+Après application, la table `clubs` contient une ligne pour le tenant
+pilote SC Sète Basket (`slug = 'sc-sete-basket'`, créée directement par
+les migrations).
 
-## Configurer les intégrations (une fois déployé)
+## Bootstrap : premier platform_admin, puis premier club_admin
 
-C'est la **seule** étape de configuration à faire depuis l'application une
-fois le déploiement Vercel + les migrations Supabase en place :
+Il n'existe **aucune voie applicative** pour devenir `platform_admin`
+(pas d'auto-élévation, voir `docs/MULTI_TENANCY.md` §3) : la première fois,
+c'est un script exécuté avec la service role.
 
-1. Se connecter avec le compte `super_admin`.
-2. Aller sur `/admin/integrations/fbi`, renseigner l'identifiant et le mot
-   de passe FBI du club, cliquer sur « Tester la connexion ».
-3. Vérifier `/admin/integrations` : la synchronisation FFBB tourne seule
-   (cron), le statut FBI affiche « connecté » ou l'erreur exacte sinon.
-4. Laisser tourner : les matchs, puis (une fois l'endpoint FBI de
-   découverte e-Marque confirmé, voir l'avertissement plus haut) la
-   composition/les statistiques apparaissent automatiquement sur `/matchs`.
+```bash
+SEED_ADMIN_EMAIL=admin@example.local SEED_ADMIN_PASSWORD=change-me-1234 SEED_PLATFORM_ADMIN=true npm run seed
+```
 
-Aucun terminal, aucun script, aucun fichier à manipuler pour l'exploitation
-normale — voir `/admin/sync` (tableau de bord) et `/admin/issues` (revue
-des rares cas ambigus) pour le suivi.
+Ce compte devient à la fois `club_admin` du tenant pilote (SC Sète Basket)
+et `platform_admin` de la plateforme. Ensuite, **tout le reste se fait
+depuis l'application** :
+
+- `/platform/clubs` (platform_admin) : créer de nouveaux clubs, y compris
+  l'invitation automatique de leur premier `club_admin` par email.
+- `/c/{slug}/admin/integrations` (club_admin de ce club) : configurer
+  FFBB/FBI pour ce club précisément.
 
 ## Lancer le projet
 
@@ -140,24 +158,13 @@ npm run dev
 
 Ouvrir [http://localhost:3000](http://localhost:3000). Toute route est
 protégée par défaut (redirection vers `/login`) sauf `/login` elle-même
-(voir `src/proxy.ts` et `src/config/site.ts#PUBLIC_PATHS`).
+(voir `src/proxy.ts` et `src/config/site.ts#PUBLIC_PATHS`). Après
+connexion, `/` résout automatiquement le club de l'utilisateur (0, 1 ou
+plusieurs clubs — voir `docs/MULTI_TENANCY.md` §5).
 
-Il n'y a pas d'inscription publique : les comptes sont créés côté
-Supabase (dashboard, ou script de seed ci-dessous) par un administrateur.
-
-## Données de développement (seed)
-
-Pour créer un compte `super_admin` et quelques licenciés fictifs (aucune
-donnée réelle du club) :
-
-```bash
-SEED_ADMIN_EMAIL=admin@scsete-basket.local SEED_ADMIN_PASSWORD=change-me-1234 npm run seed
-```
-
-`SEED_ADMIN_PASSWORD` est obligatoire (pas de valeur par défaut codée en
-dur). Le script est idempotent : le rejouer ne duplique pas le compte
-admin, et n'insère les licenciés fictifs que s'il n'y en a pas déjà pour
-le club (voir `scripts/seed.ts`).
+Il n'y a pas d'inscription publique : les comptes sont créés par
+invitation (`/platform/clubs` pour un premier club_admin, ou directement
+en base pour un développement local via le script de seed ci-dessus).
 
 ## Commandes
 
@@ -169,7 +176,7 @@ npm run lint        # ESLint
 npm run typecheck   # génère les types de routes Next.js puis tsc --noEmit
 npm run test        # tests unitaires (Vitest)
 npm run test:watch  # tests en mode watch
-npm run seed        # données de développement (voir ci-dessus)
+npm run seed        # bootstrap platform_admin/club_admin + licenciés fictifs (voir ci-dessus)
 ```
 
 Toutes ces commandes doivent passer sans erreur sur `main`.
@@ -180,35 +187,40 @@ Toutes ces commandes doivent passer sans erreur sur `main`.
 src/
   app/                    Routes Next.js (App Router) — couche fine, pas de logique métier
     login/                Page de connexion (publique)
-    dashboard/             Layout protégé + page d'accueil post-connexion
-    matchs/                Module 1 : liste filtrée + détail (onglets) — lecture seule
-    admin/                 Espace super_admin : intégrations, synchronisation, anomalies
-    api/internal/          Routes cron (protégées par CRON_SECRET) : sync FFBB, découverte e-Marque
-    layout.tsx, page.tsx   Layout racine, redirection selon session
+    page.tsx              Résolution du club courant après connexion (0/1/plusieurs clubs)
+    platform/             Réservé platform_admin : liste + création de clubs
+    c/[clubSlug]/          Tout l'espace d'UN club
+      dashboard/
+      matchs/               Module 1 : liste filtrée + détail (onglets) — lecture seule
+      admin/                Espace club_admin DE CE CLUB : intégrations, sync, anomalies, réglages
+    api/internal/          Routes cron (protégées par CRON_SECRET) : sync FFBB, découverte e-Marque — multi-club
+    layout.tsx             Layout racine
     error.tsx, not-found.tsx
   components/             UI partagée, sans logique métier
     ui/                    Composants génériques (Card...)
-    nav/                   Navigation (en-tête de l'espace connecté)
+    nav/                   Navigation (en-tête, sélecteur de club)
   features/                UI + logique spécifiques à un module métier
     auth/                   Formulaire de connexion (Client Component)
-    admin/                   Formulaire identifiants FBI, bouton test de connexion
+    admin/                   Formulaire identifiants FBI, réglages club, bouton test de connexion
+    platform/                Formulaire de création de club
   lib/                     Logique réutilisable, testable indépendamment de Next.js
     supabase/                Les 3 clients Supabase (browser / server / admin)
-    auth/                    Session (lecture) et service de connexion (logique pure)
-    permissions/              Rôles applicatifs (AppRole, hasRole...)
+    auth/                    Session (lecture) et statut platform_admin
+    tenancy/                  ClubContext : LE point d'entrée pour résoudre "quel club, quels droits"
+    permissions/              Rôles de club (ClubRole, hasRole...)
     ffbb/                     Client Directus + FFBBProvider (API publique FFBB)
     fbi/                      Client HTTP FBI (login générique, cookie jar, découverte documents)
-    security/                 Chiffrement AES-256-GCM (identifiants FBI)
-    storage/                  Bucket privé Supabase Storage (documents e-Marque)
-    domain/                   Logique métier pure et testable (mapping FFBB, sync, jobs)
+    security/                 Chiffrement AES-256-GCM (identifiants FBI, AAD = club_id)
+    storage/                  Bucket privé Supabase Storage (documents e-Marque, chemin tenant-scopé)
+    domain/                   Logique métier pure et testable (mapping FFBB, sync, jobs — tous paramétrés par clubId)
     logger.ts                 Logger serveur minimal
   server/
-    actions/                 Server Actions (couche fine entre l'UI et lib/)
+    actions/                 Server Actions (couche fine entre l'UI et lib/) — toutes paramétrées par clubSlug/clubId
     emarque/                  Pipeline d'extraction e-Marque : extractors/ (PDF natif, rendu+OCR),
                                layout/ (zones calibrées par document), normalizers/ (texte -> valeurs
                                typées), parser/ (orchestration ZIP -> EMarqueMatchData), quality/
                                (avertissements non bloquants), schemas/ (validation zod finale),
-                               persist/ (écriture en base, liaison licencié par licence exacte)
+                               persist/ (écriture en base, tenant-scopée, liaison licencié par licence exacte)
   config/                  Configuration (env validée, constantes produit)
   types/
     database.ts               Types du schéma PostgreSQL (écrits à la main)
@@ -216,6 +228,7 @@ src/
 
 supabase/
   migrations/              Schéma SQL versionné, une responsabilité par fichier
+  tests/                   Tests d'isolation RLS multi-tenant (voir supabase/tests/README.md)
 
 spikes/                    Outils de diagnostic développeur (jamais requis en exploitation normale)
   ffbb-ecosystem/            Scripts d'exploration de l'API publique FFBB
@@ -223,47 +236,56 @@ spikes/                    Outils de diagnostic développeur (jamais requis en e
                               docs/FBI_AUTHENTICATED_SPIKE.md — n'importe jamais dans l'app
 
 scripts/
-  seed.ts                  Données de développement (voir plus haut)
+  seed.ts                  Bootstrap platform_admin/club_admin + licenciés fictifs (voir plus haut)
 
 vercel.json                Configuration des Cron Jobs (sync FFBB ~15min, découverte e-Marque ~1h)
 ```
 
-Principe (voir `ARCHITECTURE.md` §13) : les routes sous `app/` restent
-fines et appellent `lib/`. Les Server Actions (`server/actions/`) sont
-aussi une couche fine : la logique testable vit dans `lib/`.
+Principe : les routes sous `app/` restent fines et appellent `lib/`. Les
+Server Actions (`server/actions/`) sont aussi une couche fine : la logique
+testable vit dans `lib/`. Toute page/service qui a besoin du club courant
+passe par `src/lib/tenancy/club-context.ts` — voir `docs/MULTI_TENANCY.md`
+§5 pour la règle de développement associée.
 
 ### Base de données
 
-Socle : `club`, `licencies`, `profiles`, `user_roles` (+ le type
-`app_role`).
+**Tenant** : `clubs` (le club — voir `docs/MULTI_TENANCY.md`),
+`club_memberships` + `membership_roles` (appartenance et rôles, scopés au
+club), `platform_admins` (opérateur SaaS, table séparée, aucune policy
+d'auto-élévation).
 
-Couche FFBB (écrite exclusivement par le service de synchronisation) :
-`teams`, `competitions`, `pools`, `venues`, `ffbb_team_engagements`,
-`matches`, `match_change_history`, `sync_runs`.
+**Socle** : `licencies` (tenant-scopé), `profiles` (global, lié à
+`auth.users`).
 
-Couche FBI / e-Marque : `fbi_credentials` (aucune policy RLS pour
-`authenticated` — accès service role uniquement), `fbi_integration_status`,
-`emarque_imports` (idempotence par `file_hash` SHA-256), `match_participants`,
-`match_coaches`, `match_officials`, `match_table_officials`,
-`player_match_stats`, `shot_events` (expérimental, non peuplé).
+**Couche FFBB** (écrite exclusivement par le service de synchronisation,
+tenant-scopée sauf mention contraire) : `teams`, `competitions`/`pools`/`venues`
+(référentiel **global partagé** entre clubs, voir `docs/MULTI_TENANCY.md`
+§2), `ffbb_team_engagements`, `matches`, `match_change_history`, `sync_runs`.
+
+**Couche FBI / e-Marque** (tenant-scopée) : `fbi_credentials` (aucune
+policy RLS pour `authenticated` — accès service role uniquement),
+`fbi_integration_status`, `emarque_imports` (idempotence par
+`UNIQUE(club_id, file_hash)`), `match_participants`, `match_coaches`,
+`match_officials`, `match_table_officials`, `player_match_stats`,
+`shot_events` (expérimental, non peuplé).
+
+**Verrouillage** : `sync_locks` (empêche deux synchronisations
+simultanées pour un même `(club, intégration)`, voir `docs/MULTI_TENANCY.md` §8).
 
 Détail des colonnes et des choix : voir les fichiers dans
-`supabase/migrations/` (chacun est commenté) et `ARCHITECTURE.md`.
+`supabase/migrations/` (chacun est commenté), `ARCHITECTURE.md` et
+`docs/MULTI_TENANCY.md`.
 
 Point d'architecture important : **une personne (`licencies`) n'est pas un
-compte utilisateur**. Un compte Supabase Auth (`profiles.user_id`) peut se
-rattacher à 0 ou 1 licencié (`profiles.licencie_id`, nullable et unique) —
-jamais l'inverse. Un licencié peut donc exister sans jamais avoir de
-compte.
+compte utilisateur**. Un compte Supabase Auth peut se rattacher à un
+licencié DIFFÉRENT par club (`club_memberships.licencie_id`, tenant-scopé
+— voir `docs/MULTI_TENANCY.md` §3) ; un licencié peut exister sans jamais
+avoir de compte.
 
-Les rôles (`user_roles`) sont un enregistrement par rôle attribué : un
-utilisateur peut cumuler plusieurs rôles. La notion de scope (ex: coach
-limité à une équipe) sera ajoutée par une migration ultérieure une fois la
-table `teams` créée (Phase 1) — voir le commentaire dans
-`supabase/migrations/20260921083030_user_roles.sql`.
-
-Toutes les tables ont RLS activée dès la première migration
-(`20260921083040_rls_policies.sql`, entièrement commentée).
+Toutes les tables tenant-scopées ont RLS activée, avec deux policies
+type (`..._select_member` / `..._all_club_admin`) reposant sur les
+fonctions `is_club_member()`/`has_club_role()` — voir
+`docs/MULTI_TENANCY.md` §4 et `supabase/migrations/20260921100090_rls_multitenant_rewrite.sql`.
 
 ## Tests
 
@@ -275,25 +297,38 @@ Vitest teste des fonctions TypeScript pures et de la logique métier avec
 des clients Supabase simulés (pas de tests E2E, aucune donnée réelle dans
 les fixtures) :
 
-- Config d'environnement, rôles, connexion/déconnexion (Phase 0)
-- Mapping/diff/idempotence FFBB (`src/lib/domain/matches/mapping.test.ts`)
-- Chiffrement des identifiants FBI (`src/lib/security/crypto.test.ts`)
+- Config d'environnement, rôles de club, connexion/déconnexion
+- `ClubContext` : résolution club/membre/rôles, isolation cross-tenant
+  (`src/lib/tenancy/club-context.test.ts`)
+- Mapping/diff/idempotence FFBB, tenant-scopé (`src/lib/domain/matches/mapping.test.ts`)
+- Chiffrement des identifiants FBI, y compris l'isolation par AAD
+  cross-club (`src/lib/security/crypto.test.ts`)
 - Cookie jar et connexion FBI simulée (`src/lib/fbi/*.test.ts`)
 - Normalisation de texte, en-têtes et avertissements qualité e-Marque
   (`src/server/emarque/normalizers/*.test.ts`, `.../quality/*.test.ts`)
 - Rapprochement effectif/statistiques (`src/server/emarque/parser/merge.test.ts`)
-- Écriture en base idempotente + liaison licencié (`src/server/emarque/persist/*.test.ts`)
-- Job de découverte e-Marque : pas de credentials, échec de connexion,
-  endpoint non confirmé, retry/backoff, import réussi
-  (`src/lib/domain/emarque/discover-emarque.test.ts`)
+- Écriture en base idempotente + liaison licencié, tenant-scopée
+  (`src/server/emarque/persist/*.test.ts`)
+- Jobs multi-club : sélection des clubs dus, verrouillage par
+  `(club, intégration)`, isolation (un club en échec/verrouillé n'affecte
+  jamais les autres) — `src/lib/domain/sync/sync-ffbb-scheduler.test.ts`,
+  `src/lib/domain/emarque/discover-emarque.test.ts`,
+  `src/lib/domain/emarque/discover-emarque-all-clubs.test.ts`
+
+**Isolation RLS multi-tenant (réelle, contre un moteur PostgreSQL)** :
+`supabase/tests/isolation_test.sql` — 26 scénarios (lecture/écriture
+cross-tenant refusées, coexistence de mêmes identifiants externes entre
+clubs, `platform_admin` cross-club, visiteur anonyme) exécutés avec succès
+lors du développement de cette migration. Voir `supabase/tests/README.md`
+pour le détail et pour la rejouer (`supabase test db`, ou un Postgres
+local sans Docker via le shim documenté).
 
 Le pipeline d'extraction PDF/OCR lui-même (rendu de page, reconnaissance)
 n'a pas de test automatisé au sens strict : il a été développé et validé
 manuellement contre un document e-Marque réel fourni hors-Git (jamais
-commité, jamais dans les fixtures de test — voir la note de sécurité plus
-bas). Les fonctions pures qui interprètent son résultat (normalizers,
-quality, merge, persist) sont, elles, entièrement testées avec des données
-synthétiques.
+commité, jamais dans les fixtures de test). Les fonctions pures qui
+interprètent son résultat (normalizers, quality, merge, persist) sont,
+elles, entièrement testées avec des données synthétiques.
 
 ## Fichiers générés automatiquement
 
@@ -307,30 +342,35 @@ version de Next.js. Ils sont recréés automatiquement s'ils sont supprimés
 Voir `ARCHITECTURE.md` pour le détail. Ce qui reste, au-delà du Module 1
 (Matchs) : Module 2 (Dérogations), Module 3/4 (Tables de marque + moteur
 d'affectation), Module 5 (détection automatique des conflits), gestion UI
-complète des licenciés/rôles, disponibilités, PWA/notifications.
+complète des licenciés/rôles, disponibilités, PWA/notifications. **Règle
+impérative** (voir `docs/MULTI_TENANCY.md` §12) : tout nouveau module doit
+être tenant-scopé dès sa première migration.
 
 ## Configuration manuelle restante
 
 Ce qui ne peut pas être fait depuis ce dépôt et reste à faire par
-quelqu'un ayant accès aux comptes Supabase/Vercel/FFBB du club :
+quelqu'un ayant accès aux comptes Supabase/Vercel :
 
 - Créer le projet Supabase et récupérer ses clés API
 - Renseigner `.env.local` (développement) et les variables d'environnement
   du projet sur Vercel (production), y compris `CRON_SECRET` et
-  `FBI_CREDENTIALS_ENCRYPTION_KEY`
+  `FBI_CREDENTIALS_ENCRYPTION_KEY` (secrets **globaux au déploiement**,
+  jamais par club)
 - Appliquer les migrations sur le projet Supabase réel (voir plus haut)
-- Créer le premier compte `super_admin` réel (via le dashboard Supabase ou
-  `npm run seed` pointé sur le vrai projet, avec un mot de passe fort)
+- Exécuter `npm run seed` avec `SEED_PLATFORM_ADMIN=true` pour créer le
+  premier `platform_admin` (voir « Bootstrap » plus haut) — seule
+  opération qui ne peut pas se faire depuis l'UI, par design
 - Connecter le repo à Vercel pour le déploiement (les Cron Jobs de
   `vercel.json` nécessitent un plan Vercel qui les autorise à la fréquence
   configurée — à ajuster selon le plan réellement utilisé)
-- Renseigner les identifiants FBI depuis `/admin/integrations/fbi` (seule
-  étape de configuration faite depuis l'application elle-même)
+- Tout le reste (créer un club, inviter son premier admin, configurer
+  FFBB/FBI) se fait depuis l'application (`/platform/clubs`, puis
+  `/c/{slug}/admin/integrations`)
 - **Confirmer l'endpoint FBI de découverte des documents e-Marque** :
   `FbiProvider.findEmarqueDocuments()` (`src/lib/fbi/provider.ts`) n'a pas
   pu être testé contre le vrai FBI depuis cet environnement (réseau
   bloqué). Utiliser `spikes/fbi-auth/` en local (voir
   `docs/FBI_AUTHENTICATED_SPIKE.md`) pour observer le vrai flux HTTP, puis
   implémenter cette méthode en conséquence — le reste du pipeline
-  (téléchargement, parsing, écriture en base) est déjà prêt à la
-  recevoir sans autre changement.
+  (téléchargement, parsing, écriture en base, déjà tenant-scopé) est prêt
+  à la recevoir sans autre changement.

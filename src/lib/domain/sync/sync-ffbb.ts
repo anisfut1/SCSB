@@ -154,6 +154,7 @@ async function upsertEngagements(
 
     const { error } = await supabase.from("ffbb_team_engagements").upsert(
       {
+        club_id: clubId,
         team_id: teamId,
         ffbb_engagement_id: engagement.ffbbId,
         competition_id: competitionId ?? "",
@@ -164,7 +165,7 @@ async function upsertEngagements(
         raw_ffbb_payload: engagement.raw,
         ffbb_last_seen_at: new Date().toISOString(),
       },
-      { onConflict: "ffbb_engagement_id" },
+      { onConflict: "club_id,ffbb_engagement_id" },
     );
 
     if (error) {
@@ -196,20 +197,27 @@ async function upsertVenue(supabase: Client, ffbbVenueId: string | null, name: s
   return data.id;
 }
 
+export interface SyncFfbbClub {
+  id: string;
+  ffbbClubId: string;
+}
+
 /**
- * syncFfbb — service de synchronisation FFBB (ARCHITECTURE.md §8/§9).
- * Idempotent (clé d'upsert = identifiants FFBB), ne supprime jamais un
- * match, historise chaque changement de champ suivi.
+ * syncFfbb — service de synchronisation FFBB, désormais explicitement
+ * paramétré par club (§18/§37 du brief SaaS) : plus aucun singleton "le
+ * club". Idempotent (clé d'upsert = identifiants FFBB, scopée au club pour
+ * `matches`/`ffbb_team_engagements`), ne supprime jamais un match, historise
+ * chaque changement de champ suivi.
  *
  * Statut : PREPARED — la logique de mapping/diff est testée unitairement
  * (voir mapping.test.ts), mais cette orchestration n'a jamais été exécutée
  * contre un vrai projet Supabase ni la vraie API FFBB depuis cet
  * environnement (voir docs/FFBB_ECOSYSTEM_RESEARCH.md).
  */
-export async function syncFfbb(supabase: Client, provider: FfbbPublicProvider, clubFfbbCode: string): Promise<SyncFfbbResult> {
+export async function syncFfbb(supabase: Client, provider: FfbbPublicProvider, club: SyncFfbbClub): Promise<SyncFfbbResult> {
   const { data: syncRun, error: syncRunError } = await supabase
     .from("sync_runs")
-    .insert({ provider: "ffbb", status: "running" })
+    .insert({ club_id: club.id, provider: "ffbb", status: "running" })
     .select("id")
     .single();
 
@@ -229,17 +237,7 @@ export async function syncFfbb(supabase: Client, provider: FfbbPublicProvider, c
   };
 
   try {
-    const { data: club, error: clubError } = await supabase
-      .from("club")
-      .select("id")
-      .eq("ffbb_club_id", clubFfbbCode)
-      .single();
-
-    if (clubError || !club) {
-      throw new Error(`Club introuvable en base pour le code ${clubFfbbCode} : ${clubError?.message}`);
-    }
-
-    const snapshot = await provider.fetchClubSnapshot(clubFfbbCode);
+    const snapshot = await provider.fetchClubSnapshot(club.ffbbClubId);
 
     const competitionIdByFfbbId = await upsertCompetitions(supabase, snapshot.competitions);
     stats.competitionsUpserted = competitionIdByFfbbId.size;
@@ -263,13 +261,19 @@ export async function syncFfbb(supabase: Client, provider: FfbbPublicProvider, c
         const venueId = await upsertVenue(supabase, match.venue?.ffbbId ?? null, match.venue?.name ?? null, match.venue?.commune ?? null);
 
         const row = mapNormalizedMatchToRow(match, {
+          clubId: club.id,
           teamId: teamIdByEngagementFfbbId.get(match.ourEngagementFfbbId) ?? null,
           competitionId: match.competitionFfbbId ? (competitionIdByFfbbId.get(match.competitionFfbbId) ?? null) : null,
           poolId: match.poolFfbbId ? (poolIdByFfbbId.get(match.poolFfbbId) ?? null) : null,
           venueId,
         });
 
-        const { data: existing } = await supabase.from("matches").select("*").eq("ffbb_match_id", match.ffbbId).maybeSingle();
+        const { data: existing } = await supabase
+          .from("matches")
+          .select("*")
+          .eq("club_id", club.id)
+          .eq("ffbb_match_id", match.ffbbId)
+          .maybeSingle();
 
         const diffs = diffTrackedFields(existing, row);
         const emarqueTransition = shouldRequestEmarque(existing?.status, row.status);
@@ -278,7 +282,7 @@ export async function syncFfbb(supabase: Client, provider: FfbbPublicProvider, c
           .from("matches")
           .upsert(
             { ...row, emarque_status: emarqueTransition ? "pending" : (existing?.emarque_status ?? "not_applicable") },
-            { onConflict: "ffbb_match_id" },
+            { onConflict: "club_id,ffbb_match_id" },
           )
           .select("id")
           .single();
@@ -295,6 +299,7 @@ export async function syncFfbb(supabase: Client, provider: FfbbPublicProvider, c
 
           const { error: historyError } = await supabase.from("match_change_history").insert(
             diffs.map((diff) => ({
+              club_id: club.id,
               match_id: upserted.id,
               sync_run_id: syncRun.id,
               field_name: diff.field,
@@ -304,14 +309,14 @@ export async function syncFfbb(supabase: Client, provider: FfbbPublicProvider, c
           );
 
           if (historyError) {
-            logError("Écriture de l'historique de changement échouée", historyError, { matchId: upserted.id });
+            logError("Écriture de l'historique de changement échouée", historyError, { clubId: club.id, matchId: upserted.id });
           }
         } else {
           stats.matchesUnchanged += 1;
         }
       } catch (error) {
         stats.errors += 1;
-        logError("Synchronisation d'un match échouée", error, { ffbbMatchId: match.ffbbId });
+        logError("Synchronisation d'un match échouée", error, { clubId: club.id, ffbbMatchId: match.ffbbId });
       }
     }
 
@@ -322,7 +327,7 @@ export async function syncFfbb(supabase: Client, provider: FfbbPublicProvider, c
       .update({ status: finalStatus, finished_at: new Date().toISOString(), stats })
       .eq("id", syncRun.id);
 
-    logInfo("Synchronisation FFBB terminée", { syncRunId: syncRun.id, status: finalStatus, stats });
+    logInfo("Synchronisation FFBB terminée", { clubId: club.id, syncRunId: syncRun.id, status: finalStatus, stats });
 
     return { syncRunId: syncRun.id, status: finalStatus, stats };
   } catch (error) {
@@ -333,7 +338,7 @@ export async function syncFfbb(supabase: Client, provider: FfbbPublicProvider, c
       .update({ status: "error", finished_at: new Date().toISOString(), stats, error_log: message })
       .eq("id", syncRun.id);
 
-    logError("Synchronisation FFBB en erreur", error);
+    logError("Synchronisation FFBB en erreur", error, { clubId: club.id });
 
     return { syncRunId: syncRun.id, status: "error", stats };
   }

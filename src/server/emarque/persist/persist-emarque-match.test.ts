@@ -53,7 +53,9 @@ function makeFakeSupabase(options: FakeSupabaseOptions = {}) {
           return {
             select: () => ({
               eq: () => ({
-                maybeSingle: () => Promise.resolve({ data: options.existingImport ?? null, error: null }),
+                eq: () => ({
+                  maybeSingle: () => Promise.resolve({ data: options.existingImport ?? null, error: null }),
+                }),
               }),
             }),
             insert: (payload: unknown) => ({

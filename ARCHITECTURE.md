@@ -1,7 +1,21 @@
-# Architecture — Application interne SC Sète Basket
+# Architecture — Plateforme SaaS multi-clubs (basket)
 
-> Statut : proposition d'architecture (aucun code applicatif à ce stade).
-> Club : SC Sète Basket — identifiant FFBB `OCC0034008`.
+> **MULTI-TENANT SAAS.** Ce document décrit l'architecture FONCTIONNELLE
+> (modules, flux FFBB, modèle de données métier) qui s'applique À CHAQUE
+> CLUB de la plateforme — ce n'est plus une application développée pour un
+> seul club. SC Sète Basket (identifiant FFBB `OCC0034008`) est le
+> **tenant pilote**, pas une hypothèse câblée dans le code.
+>
+> Pour le modèle multi-tenant lui-même (isolation, `clubs`,
+> `club_memberships`, RLS, routes `/c/{slug}/...`, `/platform`, jobs
+> multi-club, onboarding d'un nouveau club) : voir
+> **[`docs/MULTI_TENANCY.md`](./docs/MULTI_TENANCY.md)**, qui fait autorité
+> sur ces sujets. Toute mention ci-dessous de "le club" désigne UN club
+> parmi d'autres sur la plateforme, jamais un singleton.
+>
+> Règle de développement (voir aussi `docs/MULTI_TENANCY.md`) : **toute
+> nouvelle fonctionnalité métier doit être conçue tenant-aware dès le
+> départ** (paramétrée par `clubId`, jamais un club implicite global).
 
 ## Sommaire
 
