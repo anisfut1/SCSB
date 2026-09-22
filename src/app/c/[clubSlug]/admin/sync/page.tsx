@@ -1,6 +1,7 @@
 import { requireClubAdminContext } from "@/lib/tenancy/club-context";
 import { api } from "@/lib/api/server";
 import { Card } from "@/components/ui/Card";
+import { currentSeasonStart } from "@/lib/season";
 
 function formatDateTime(value: string | null | undefined): string {
   return value ? new Date(value).toLocaleString("fr-FR") : "—";
@@ -29,12 +30,22 @@ const EMARQUE_STATUS_LABELS: Record<string, string> = {
  * imports e-Marque" (liste `emarque_imports` : tentatives, dates de
  * découverte) n'a pas d'équivalent API — aucune route ne l'expose. Retirée
  * de cette page en attendant une route dédiée côté club-manager-api.
+ *
+ * `api.matches.list` filtre sur la saison en cours (`from: currentSeasonStart()`,
+ * même règle que la page Matchs, voir src/lib/api/matches.ts) — sans ce
+ * filtre, cette page paginait tout l'historique du club (des centaines de
+ * matchs et ça grossit à chaque saison) en série à chaque chargement,
+ * risquant le même dépassement de délai déjà corrigé côté page Matchs.
  */
 export default async function SyncDashboardPage({ params }: { params: Promise<{ clubSlug: string }> }) {
   const { clubSlug } = await params;
   const club = await requireClubAdminContext(clubSlug);
 
-  const [syncRuns, matches] = await Promise.all([api.integrations.syncRuns(club.id), api.matches.list(club.id)]);
+  const seasonStart = currentSeasonStart();
+  const [syncRuns, matches] = await Promise.all([
+    api.integrations.syncRuns(club.id),
+    api.matches.list(club.id, { from: seasonStart.toISOString() }),
+  ]);
 
   const statusCounts = new Map<string, number>();
   for (const match of matches) {
