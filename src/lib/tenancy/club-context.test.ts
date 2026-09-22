@@ -1,196 +1,120 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { User } from "@supabase/supabase-js";
 
-// getClubContext/listUserClubs (les fonctions testées ici) n'appellent
-// jamais notFound()/redirect() elles-mêmes (voir requireClubContext pour
-// ça), mais le module les importe au niveau fichier — sans ce mock,
-// next/navigation plante en dehors du runtime Next.js réel.
+// getClubContext/listUserClubs (les fonctions testées ici) n'appellent pas
+// notFound()/redirect() elles-mêmes, mais requireClubContext/
+// requireClubAdminContext (aussi testées ici) le font — sans ce mock,
+// next/navigation plante en dehors du runtime Next.js réel. On les fait
+// lever une erreur reconnaissable plutôt que de renvoyer `undefined`, pour
+// pouvoir distinguer "notFound() appelé" de "redirect() appelé" dans les
+// assertions.
 vi.mock("next/navigation", () => ({
-  notFound: vi.fn(),
-  redirect: vi.fn(),
+  notFound: vi.fn(() => {
+    throw new Error("NEXT_NOT_FOUND");
+  }),
+  redirect: vi.fn((url: string) => {
+    throw new Error(`NEXT_REDIRECT:${url}`);
+  }),
 }));
 
-interface FakeClub {
-  id: string;
-  slug: string;
-  name: string;
-  short_name: string | null;
-  logo_url: string | null;
-  accent_color: string | null;
-  timezone: string;
-  status: "active" | "suspended";
-  ffbb_club_id: string;
-}
-
-interface FakeMembership {
-  id: string;
-  club_id: string;
-  user_id: string;
-  status: "active" | "suspended";
-}
-
-interface FakeRoleRow {
-  membership_id: string;
-  role: string;
-}
-
-function buildFakeSupabase(state: { clubs: FakeClub[]; memberships: FakeMembership[]; roles: FakeRoleRow[] }) {
-  return {
-    from(table: string) {
-      if (table === "clubs") {
-        return {
-          select: () => ({
-            eq: (_col: string, slug: string) => ({
-              maybeSingle: () => Promise.resolve({ data: state.clubs.find((c) => c.slug === slug) ?? null, error: null }),
-            }),
-            in: (_col: string, ids: string[]) => Promise.resolve({ data: state.clubs.filter((c) => ids.includes(c.id)), error: null }),
-          }),
-        };
-      }
-      if (table === "club_memberships") {
-        return {
-          select: (cols: string) => {
-            if (cols === "id") {
-              // getClubContext: eq(club_id).eq(user_id).eq(status).maybeSingle()
-              return {
-                eq: (_c1: string, clubId: string) => ({
-                  eq: (_c2: string, userId: string) => ({
-                    eq: (_c3: string, status: string) => ({
-                      maybeSingle: () =>
-                        Promise.resolve({
-                          data: state.memberships.find((m) => m.club_id === clubId && m.user_id === userId && m.status === status) ?? null,
-                          error: null,
-                        }),
-                    }),
-                  }),
-                }),
-              };
-            }
-            // listUserClubs: eq(user_id).eq(status)
-            return {
-              eq: (_c1: string, userId: string) => ({
-                eq: (_c2: string, status: string) =>
-                  Promise.resolve({ data: state.memberships.filter((m) => m.user_id === userId && m.status === status), error: null }),
-              }),
-            };
-          },
-        };
-      }
-      if (table === "membership_roles") {
-        return {
-          select: () => ({
-            eq: (_col: string, membershipId: string) => Promise.resolve({ data: state.roles.filter((r) => r.membership_id === membershipId), error: null }),
-            in: (_col: string, membershipIds: string[]) =>
-              Promise.resolve({ data: state.roles.filter((r) => membershipIds.includes(r.membership_id)), error: null }),
-          }),
-        };
-      }
-      throw new Error(`Table inattendue dans le fake Supabase de test : ${table}`);
-    },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
-}
-
-let fakeSupabaseState: { clubs: FakeClub[]; memberships: FakeMembership[]; roles: FakeRoleRow[] };
-
-vi.mock("@/lib/supabase/server", () => ({
-  createServerSupabaseClient: vi.fn(async () => buildFakeSupabase(fakeSupabaseState)),
+const mockRequireUser = vi.fn();
+vi.mock("@/lib/auth/session", () => ({
+  requireUser: () => mockRequireUser(),
 }));
 
-import { getClubContext, listUserClubs } from "./club-context";
+const mockListClubs = vi.fn();
+vi.mock("@/lib/api/server", () => ({
+  api: { clubs: { list: () => mockListClubs() } },
+}));
 
-const CLUB_A: FakeClub = {
-  id: "club-a",
+import { getClubContext, requireClubContext, requireClubAdminContext, listUserClubs } from "./club-context";
+import type { ClubDto } from "@/lib/api/clubs";
+
+const CLUB_A: ClubDto = {
+  id: "club-a-id",
   slug: "club-a",
   name: "Club A Basket",
-  short_name: null,
-  logo_url: null,
-  accent_color: null,
+  shortName: null,
+  logoUrl: null,
+  accentColor: null,
   timezone: "Europe/Paris",
   status: "active",
-  ffbb_club_id: "AAA0000001",
+  roles: ["club_admin"],
 };
 
-const CLUB_B: FakeClub = { ...CLUB_A, id: "club-b", slug: "club-b", name: "Club B Basket", ffbb_club_id: "BBB0000002" };
-
-const USER_A: User = { id: "user-a" } as User;
-const USER_B: User = { id: "user-b" } as User;
+const CLUB_B: ClubDto = { ...CLUB_A, id: "club-b-id", slug: "club-b", name: "Club B Basket", roles: ["joueur"] };
 
 beforeEach(() => {
-  fakeSupabaseState = {
-    clubs: [CLUB_A, CLUB_B],
-    memberships: [
-      { id: "membership-a1", club_id: "club-a", user_id: "user-a", status: "active" },
-      { id: "membership-b1", club_id: "club-b", user_id: "user-b", status: "active" },
-    ],
-    roles: [
-      { membership_id: "membership-a1", role: "club_admin" },
-      { membership_id: "membership-b1", role: "joueur" },
-    ],
-  };
+  vi.clearAllMocks();
+  mockRequireUser.mockResolvedValue({ id: "user-a" });
+  // Reproduit exactement le contrat de GET /v1/clubs (§11 de la demande) :
+  // seuls les clubs dont l'utilisateur est membre actif, jamais une requête
+  // Supabase directe sur `clubs`/`club_memberships` (§28 de la demande).
+  mockListClubs.mockResolvedValue([CLUB_A, CLUB_B]);
 });
 
 describe("getClubContext", () => {
-  it("renvoie null si le club n'existe pas (jamais de distinction avec 'pas membre')", async () => {
-    const context = await getClubContext("club-inexistant", USER_A);
-    expect(context).toBeNull();
+  it("appelle requireUser() avant tout appel à club-manager-api (barrière avant l'API)", async () => {
+    await getClubContext("club-a");
+    expect(mockRequireUser).toHaveBeenCalled();
   });
 
-  it("renvoie null si l'utilisateur n'est PAS membre du club (isolation cross-tenant)", async () => {
-    const context = await getClubContext("club-b", USER_A);
-    expect(context).toBeNull();
+  it("résout le club correspondant au slug depuis la réponse de GET /v1/clubs", async () => {
+    const club = await getClubContext("club-a");
+    expect(club?.id).toBe("club-a-id");
+    expect(club?.roles).toEqual(["club_admin"]);
   });
 
-  it("renvoie le contexte complet (club + rôles) pour un membre actif", async () => {
-    const context = await getClubContext("club-a", USER_A);
-    expect(context).not.toBeNull();
-    expect(context?.club.slug).toBe("club-a");
-    expect(context?.membershipId).toBe("membership-a1");
-    expect(context?.roles).toEqual(["club_admin"]);
+  it("renvoie null si le slug ne correspond à aucun club renvoyé par l'API — jamais de distinction 'club inexistant' / 'pas membre' (isolation cross-tenant, §58 du brief SaaS)", async () => {
+    const club = await getClubContext("club-inconnu");
+    expect(club).toBeNull();
   });
 
-  it("ne mélange jamais les rôles de deux clubs différents pour un même utilisateur", async () => {
-    fakeSupabaseState.memberships.push({ id: "membership-a2", club_id: "club-a", user_id: "user-b", status: "active" });
-    fakeSupabaseState.roles.push({ membership_id: "membership-a2", role: "coach" });
+  it("renvoie null pour le club d'un autre club (non renvoyé par GET /v1/clubs pour cet utilisateur)", async () => {
+    mockListClubs.mockResolvedValue([CLUB_A]); // seul club-a est renvoyé pour cet utilisateur
+    const club = await getClubContext("club-b");
+    expect(club).toBeNull();
+  });
+});
 
-    const contextInA = await getClubContext("club-a", USER_B);
-    const contextInB = await getClubContext("club-b", USER_B);
-
-    expect(contextInA?.roles).toEqual(["coach"]);
-    expect(contextInB?.roles).toEqual(["joueur"]);
+describe("requireClubContext", () => {
+  it("lève notFound() si le club n'existe pas / n'est pas accessible", async () => {
+    await expect(requireClubContext("inconnu")).rejects.toThrow("NEXT_NOT_FOUND");
   });
 
-  it("renvoie null pour un membership suspendu (status != active)", async () => {
-    fakeSupabaseState.memberships[0]!.status = "suspended";
-    const context = await getClubContext("club-a", USER_A);
-    expect(context).toBeNull();
+  it("renvoie le club s'il existe", async () => {
+    const club = await requireClubContext("club-a");
+    expect(club.slug).toBe("club-a");
+  });
+});
+
+describe("requireClubAdminContext", () => {
+  it("redirige vers le dashboard du club si l'utilisateur n'est pas club_admin DE CE CLUB", async () => {
+    await expect(requireClubAdminContext("club-b")).rejects.toThrow("NEXT_REDIRECT:/c/club-b/dashboard");
+  });
+
+  it("renvoie le club si l'utilisateur est club_admin de ce club", async () => {
+    const club = await requireClubAdminContext("club-a");
+    expect(club.slug).toBe("club-a");
+  });
+
+  it("ne confond jamais club_admin d'un club avec club_admin d'un autre", async () => {
+    // user-a est club_admin sur club-a mais seulement joueur sur club-b —
+    // jamais un rôle qui "fuit" d'un club à l'autre (§58 du brief SaaS).
+    await expect(requireClubAdminContext("club-b")).rejects.toThrow("NEXT_REDIRECT:/c/club-b/dashboard");
+    await expect(requireClubAdminContext("club-a")).resolves.toMatchObject({ slug: "club-a" });
   });
 });
 
 describe("listUserClubs", () => {
-  it("renvoie un tableau vide pour un utilisateur sans membership", async () => {
-    const clubs = await listUserClubs("user-inconnu");
+  it("renvoie tous les clubs accessibles à l'utilisateur, avec leurs rôles respectifs", async () => {
+    const clubs = await listUserClubs();
+    expect(clubs.map((c) => c.slug)).toEqual(["club-a", "club-b"]);
+    expect(clubs.find((c) => c.slug === "club-b")?.roles).toEqual(["joueur"]);
+  });
+
+  it("renvoie un tableau vide si l'API ne renvoie aucun club", async () => {
+    mockListClubs.mockResolvedValue([]);
+    const clubs = await listUserClubs();
     expect(clubs).toEqual([]);
-  });
-
-  it("renvoie uniquement les clubs dont l'utilisateur est membre, avec ses rôles respectifs", async () => {
-    fakeSupabaseState.memberships.push({ id: "membership-b2", club_id: "club-b", user_id: "user-a", status: "active" });
-    fakeSupabaseState.roles.push({ membership_id: "membership-b2", role: "parent" });
-
-    const clubs = await listUserClubs("user-a");
-
-    expect(clubs).toHaveLength(2);
-    const clubA = clubs.find((c) => c.slug === "club-a");
-    const clubB = clubs.find((c) => c.slug === "club-b");
-    expect(clubA?.roles).toEqual(["club_admin"]);
-    expect(clubB?.roles).toEqual(["parent"]);
-  });
-
-  it("n'inclut jamais un club dont le membership est suspendu", async () => {
-    fakeSupabaseState.memberships.push({ id: "membership-b3", club_id: "club-b", user_id: "user-a", status: "suspended" });
-
-    const clubs = await listUserClubs("user-a");
-
-    expect(clubs.map((c) => c.slug)).toEqual(["club-a"]);
   });
 });

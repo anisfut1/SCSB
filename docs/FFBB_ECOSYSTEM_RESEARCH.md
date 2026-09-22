@@ -1,6 +1,10 @@
 # Spike technique — Écosystème FFBB (API publique / FBI / e-Marque)
 
-> Statut : recherche technique (spike). Aucune intégration n'est développée dans ce document.
+> Statut : recherche technique (spike), historique — conservé tel quel.
+> L'intégration FFBB réelle vit désormais dans
+> [club-manager-api](https://github.com/anisfut1/club-manager-api)
+> (`integrations/ffbb/`, voir son `docs/FFBB.md`), pas dans ce repository —
+> voir `docs/MIGRATION_TO_API.md`.
 > Club : SC Sète Basket — identifiant FFBB `OCC0034008`.
 
 ## Méthodologie et limite importante de cet environnement

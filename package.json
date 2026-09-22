@@ -10,7 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed.ts",
+    "api:generate": "tsx scripts/generate-api-types.ts",
+    "api:smoke": "tsx scripts/api-smoke.ts",
     "fbi:setup": "npm --prefix spikes/fbi-auth install",
     "fbi:probe": "npm --prefix spikes/fbi-auth run probe --",
     "fbi:check-session": "npm --prefix spikes/fbi-auth run check-session",
@@ -19,17 +20,12 @@
     "fbi:inspect-export": "npm --prefix spikes/fbi-auth run inspect-export --"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^1.0.9",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
-    "cheerio": "^1.2.0",
-    "jszip": "^3.10.2",
     "next": "16.3.5",
-    "pdfjs-dist": "^6.3.289",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "^0.0.1",
-    "tesseract.js": "^7.0.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -39,6 +35,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",

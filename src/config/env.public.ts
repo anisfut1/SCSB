@@ -15,6 +15,15 @@ export const publicEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, {
     message: "NEXT_PUBLIC_SUPABASE_ANON_KEY est requis",
   }),
+  /**
+   * URL du backend club-manager-api (jamais d'URL en dur dans le code, voir
+   * src/lib/api/config.ts). En développement, http://localhost:3001 (le
+   * port par défaut de `npm run dev` dans club-manager-api) est une valeur
+   * valide.
+   */
+  NEXT_PUBLIC_CLUB_MANAGER_API_URL: z.string().url({
+    message: "NEXT_PUBLIC_CLUB_MANAGER_API_URL doit être une URL valide (ex: https://api.example.com ou http://localhost:3001)",
+  }),
 });
 
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
@@ -27,6 +36,7 @@ export function parsePublicEnv(source: Partial<Record<string, string | undefined
   const result = publicEnvSchema.safeParse({
     NEXT_PUBLIC_SUPABASE_URL: source.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: source.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    NEXT_PUBLIC_CLUB_MANAGER_API_URL: source.NEXT_PUBLIC_CLUB_MANAGER_API_URL,
   });
 
   if (!result.success) {

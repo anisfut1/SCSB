@@ -1,22 +1,33 @@
 import { requireClubAdminContext } from "@/lib/tenancy/club-context";
-import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import { getFbiUsername } from "@/lib/fbi/credentials-store";
-import { setAutoImportEmarqueAction } from "@/server/actions/fbi-integration";
+import { api } from "@/lib/api/server";
 import { Card } from "@/components/ui/Card";
 import { FbiCredentialsForm } from "@/features/admin/FbiCredentialsForm";
 import { TestFbiConnectionButton } from "@/features/admin/TestFbiConnectionButton";
 
+/**
+ * §20/§21 de la demande. Le formulaire et le bouton de test appellent
+ * club-manager-api directement (Client Components, voir
+ * src/features/admin/{FbiCredentialsForm,TestFbiConnectionButton}.tsx).
+ *
+ * BACKEND_API_GAP (voir docs/MIGRATION_TO_API.md) : l'ancien interrupteur
+ * "Activer/désactiver la récupération automatique e-Marque"
+ * (`fbi_integration_status.auto_import_emarque`) n'a plus d'équivalent
+ * fonctionnel ici, volontairement : côté club-manager-api, l'écriture de
+ * cette colonne n'est possible qu'avec le client service role (aucune
+ * policy RLS `authenticated` en écriture sur `fbi_integration_status`) —
+ * l'exposer depuis ce frontend nécessiterait d'y remettre une clé
+ * service role, explicitement interdit (§30/§31 de la demande). Le statut
+ * reste affiché en LECTURE (`integrations.fbi.autoImportEmarque`, déjà
+ * disponible via `GET /v1/clubs/:clubId/integrations`) ; la bascule
+ * elle-même nécessite une route `POST` dédiée côté club-manager-api,
+ * volontairement pas ajoutée dans cette phase (§56 de la demande : ne pas
+ * contourner le backend, documenter le manque).
+ */
 export default async function FbiIntegrationPage({ params }: { params: Promise<{ clubSlug: string }> }) {
   const { clubSlug } = await params;
-  const { club } = await requireClubAdminContext(clubSlug);
+  const club = await requireClubAdminContext(clubSlug);
 
-  const supabase = createAdminSupabaseClient();
-  const [currentUsername, { data: fbiStatus }] = await Promise.all([
-    getFbiUsername(supabase, club.id),
-    supabase.from("fbi_integration_status").select("configured, last_login_success, auto_import_emarque").eq("club_id", club.id).maybeSingle(),
-  ]);
-
-  const setAutoImport = setAutoImportEmarqueAction.bind(null, clubSlug);
+  const integrations = await api.integrations.get(club.id);
 
   return (
     <div className="flex flex-col gap-6">
@@ -29,33 +40,24 @@ export default async function FbiIntegrationPage({ params }: { params: Promise<{
       </div>
 
       <Card title="Identifiant / mot de passe">
-        <FbiCredentialsForm clubSlug={clubSlug} currentUsername={currentUsername} />
+        <FbiCredentialsForm clubId={club.id} />
       </Card>
 
       <Card title="Test de connexion">
-        <TestFbiConnectionButton clubSlug={clubSlug} />
+        <TestFbiConnectionButton clubId={club.id} />
       </Card>
 
-      {fbiStatus?.configured && fbiStatus.last_login_success ? (
+      {integrations.fbi.configured ? (
         <Card title="Récupération automatique e-Marque">
           <p className="text-sm text-black/60 dark:text-white/60">
-            Une fois activée, les feuilles de match, compositions, OTM et statistiques disponibles sont récupérées
-            automatiquement pour chaque match joué — aucune action manuelle nécessaire.
+            {integrations.fbi.autoImportEmarque
+              ? "Activée : les feuilles de match, compositions, OTM et statistiques disponibles sont récupérées automatiquement pour chaque match joué."
+              : "Désactivée pour l'instant."}
           </p>
-          <form
-            action={async () => {
-              "use server";
-              await setAutoImport(!fbiStatus.auto_import_emarque);
-            }}
-            className="mt-4"
-          >
-            <button
-              type="submit"
-              className="rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
-            >
-              {fbiStatus.auto_import_emarque ? "Désactiver l'e-Marque automatique" : "Activer la récupération automatique e-Marque"}
-            </button>
-          </form>
+          <p className="mt-2 text-xs text-black/50 dark:text-white/50">
+            Le changement de ce réglage depuis cette page n&apos;est pas encore disponible (en attente d&apos;une route
+            dédiée côté club-manager-api) — contacte l&apos;équipe technique pour le modifier.
+          </p>
         </Card>
       ) : null}
     </div>

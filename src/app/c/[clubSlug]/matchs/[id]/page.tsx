@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { requireClubContext } from "@/lib/tenancy/club-context";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { api } from "@/lib/api/server";
+import { ApiError } from "@/lib/api/client";
+import { notFound } from "next/navigation";
 import { isClubAdmin } from "@/lib/permissions/roles";
-import { EMARQUE_BUCKET } from "@/lib/storage/emarque-storage";
 import { Card } from "@/components/ui/Card";
+import type { MatchDetailsDto, MatchDocumentDto } from "@/lib/api/matches";
 
 type Tab = "informations" | "composition" | "statistiques" | "officiels" | "emarque";
 
@@ -31,6 +31,10 @@ const EMARQUE_STATUS_LABELS: Record<string, string> = {
   not_applicable: "Non concerné",
   pending: "En attente de traitement",
   waiting_for_emarque: "En attente du document FBI",
+  discovered: "Document découvert",
+  downloading: "Téléchargement en cours",
+  downloaded: "Téléchargé",
+  parsing: "Traitement en cours",
   imported: "Importé",
   error: "Erreur de traitement",
   needs_review: "En cours de vérification",
@@ -48,6 +52,14 @@ function formatSecondsPlayed(seconds: number | null): string {
   return `${minutes}:${remaining.toString().padStart(2, "0")}`;
 }
 
+/**
+ * §15 de la demande : toutes les données viennent de
+ * `GET /v1/clubs/:clubId/matches/:matchId` (+ `.../documents` pour la liste
+ * e-Marque, dont l'URL de téléchargement est déjà signée côté backend pour
+ * un club_admin — voir docs/API.md). Aucun accès Supabase direct, jamais un
+ * client service role ici : ce composant ne sait même plus qu'un bucket
+ * Storage existe.
+ */
 export default async function MatchDetailPage({
   params,
   searchParams,
@@ -56,31 +68,21 @@ export default async function MatchDetailPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { clubSlug, id } = await params;
-  const { club, roles } = await requireClubContext(clubSlug);
-  const isAdmin = isClubAdmin(roles);
+  const club = await requireClubContext(clubSlug);
+  const isAdmin = isClubAdmin(club.roles);
   const resolvedSearchParams = await searchParams;
   const tab: Tab = TABS.some((t) => t.value === resolvedSearchParams.tab) ? (resolvedSearchParams.tab as Tab) : "informations";
 
-  const supabase = await createServerSupabaseClient();
+  let match: MatchDetailsDto;
+  try {
+    match = await api.matches.get(club.id, id);
+  } catch (error) {
+    if (error instanceof ApiError && error.isNotFound) notFound();
+    throw error;
+  }
 
-  // club_id filtré explicitement (§53/§58 du brief SaaS) : un match d'un
-  // AUTRE club (même si l'utilisateur en est aussi membre) ne doit jamais
-  // s'afficher sous l'URL de CE club.
-  const { data: match } = await supabase
-    .from("matches")
-    .select("id, numero, match_datetime, is_home, opponent_name, score_home, score_away, status, emarque_status, venue_raw_label, journee, team_id")
-    .eq("id", id)
-    .eq("club_id", club.id)
-    .maybeSingle();
-
-  if (!match) notFound();
-
-  const { data: team } = match.team_id
-    ? await supabase.from("teams").select("name").eq("id", match.team_id).eq("club_id", club.id).maybeSingle()
-    : { data: null };
-
-  const homeLabel = match.is_home ? (team?.name ?? "Équipe") : (match.opponent_name ?? "?");
-  const awayLabel = match.is_home ? (match.opponent_name ?? "?") : (team?.name ?? "Équipe");
+  const homeLabel = match.isHome ? (match.teamName ?? "Équipe") : (match.opponentName ?? "?");
+  const awayLabel = match.isHome ? (match.opponentName ?? "?") : (match.teamName ?? "Équipe");
 
   return (
     <div className="flex flex-col gap-6">
@@ -91,7 +93,7 @@ export default async function MatchDetailPage({
         <h1 className="mt-2 text-lg font-semibold">
           {homeLabel} vs {awayLabel}
         </h1>
-        <p className="mt-1 text-sm text-black/60 dark:text-white/60">{formatMatchDateTime(match.match_datetime)}</p>
+        <p className="mt-1 text-sm text-black/60 dark:text-white/60">{formatMatchDateTime(match.matchDatetime)}</p>
       </div>
 
       <nav className="flex gap-4 overflow-x-auto border-b border-black/10 text-sm dark:border-white/10">
@@ -109,26 +111,15 @@ export default async function MatchDetailPage({
       </nav>
 
       {tab === "informations" ? <InformationsTab match={match} homeLabel={homeLabel} awayLabel={awayLabel} /> : null}
-      {tab === "composition" ? <CompositionTab supabase={supabase} clubId={club.id} matchId={id} /> : null}
-      {tab === "statistiques" ? <StatistiquesTab supabase={supabase} clubId={club.id} matchId={id} /> : null}
-      {tab === "officiels" ? <OfficielsTab supabase={supabase} clubId={club.id} matchId={id} /> : null}
-      {tab === "emarque" ? <EmarqueTab supabase={supabase} clubId={club.id} matchId={id} isAdmin={isAdmin} /> : null}
+      {tab === "composition" ? <CompositionTab match={match} /> : null}
+      {tab === "statistiques" ? <StatistiquesTab match={match} /> : null}
+      {tab === "officiels" ? <OfficielsTab match={match} /> : null}
+      {tab === "emarque" ? <EmarqueTab clubId={club.id} matchId={id} match={match} isAdmin={isAdmin} /> : null}
     </div>
   );
 }
 
-type MatchRow = {
-  numero: string | null;
-  match_datetime: string | null;
-  score_home: number | null;
-  score_away: number | null;
-  status: string;
-  emarque_status: string;
-  venue_raw_label: string | null;
-  journee: string | null;
-};
-
-function InformationsTab({ match, homeLabel, awayLabel }: { match: MatchRow; homeLabel: string; awayLabel: string }) {
+function InformationsTab({ match, homeLabel, awayLabel }: { match: MatchDetailsDto; homeLabel: string; awayLabel: string }) {
   return (
     <Card title="Informations">
       <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
@@ -142,13 +133,13 @@ function InformationsTab({ match, homeLabel, awayLabel }: { match: MatchRow; hom
         </div>
         <div>
           <dt className="text-black/60 dark:text-white/60">Lieu</dt>
-          <dd>{match.venue_raw_label ?? "À confirmer"}</dd>
+          <dd>{match.venueLabel ?? "À confirmer"}</dd>
         </div>
         <div>
           <dt className="text-black/60 dark:text-white/60">Score</dt>
           <dd>
-            {match.score_home !== null && match.score_away !== null
-              ? `${homeLabel} ${match.score_home} - ${match.score_away} ${awayLabel}`
+            {match.scoreHome !== null && match.scoreAway !== null
+              ? `${homeLabel} ${match.scoreHome} - ${match.scoreAway} ${awayLabel}`
               : "Non disponible"}
           </dd>
         </div>
@@ -161,39 +152,10 @@ function InformationsTab({ match, homeLabel, awayLabel }: { match: MatchRow; hom
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ServerSupabase = any;
+function CompositionTab({ match }: { match: MatchDetailsDto }) {
+  const { participants, coaches } = match;
 
-interface ParticipantRow {
-  id: string;
-  team_side: "home" | "away";
-  jersey_number: string | null;
-  first_name: string | null;
-  last_name: string | null;
-  is_captain: boolean;
-  is_starter: boolean | null;
-}
-
-interface CoachRow {
-  team_side: "home" | "away";
-  role: "principal" | "adjoint";
-  first_name: string | null;
-  last_name: string | null;
-}
-
-async function CompositionTab({ supabase, clubId, matchId }: { supabase: ServerSupabase; clubId: string; matchId: string }) {
-  const [{ data: participants }, { data: coaches }]: [{ data: ParticipantRow[] | null }, { data: CoachRow[] | null }] = await Promise.all([
-    supabase
-      .from("match_participants")
-      .select("id, team_side, jersey_number, first_name, last_name, is_captain, is_starter")
-      .eq("match_id", matchId)
-      .eq("club_id", clubId)
-      .order("team_side")
-      .order("jersey_number"),
-    supabase.from("match_coaches").select("team_side, role, first_name, last_name").eq("match_id", matchId).eq("club_id", clubId),
-  ]);
-
-  if ((!participants || participants.length === 0) && (!coaches || coaches.length === 0)) {
+  if (participants.length === 0 && coaches.length === 0) {
     return (
       <Card title="Composition">
         <p className="mt-1 text-sm text-black/60 dark:text-white/60">
@@ -203,8 +165,8 @@ async function CompositionTab({ supabase, clubId, matchId }: { supabase: ServerS
     );
   }
 
-  const bySide = { home: participants?.filter((p) => p.team_side === "home") ?? [], away: participants?.filter((p) => p.team_side === "away") ?? [] };
-  const coachesBySide = { home: coaches?.filter((c) => c.team_side === "home") ?? [], away: coaches?.filter((c) => c.team_side === "away") ?? [] };
+  const bySide = { home: participants.filter((p) => p.teamSide === "home"), away: participants.filter((p) => p.teamSide === "away") };
+  const coachesBySide = { home: coaches.filter((c) => c.teamSide === "home"), away: coaches.filter((c) => c.teamSide === "away") };
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -213,17 +175,17 @@ async function CompositionTab({ supabase, clubId, matchId }: { supabase: ServerS
           <ul className="mt-2 flex flex-col gap-1 text-sm">
             {bySide[side].map((p) => (
               <li key={p.id} className="flex items-center gap-2">
-                <span className="w-8 text-black/60 dark:text-white/60">#{p.jersey_number ?? "?"}</span>
+                <span className="w-8 text-black/60 dark:text-white/60">#{p.jerseyNumber ?? "?"}</span>
                 <span>
-                  {p.first_name ?? ""} {p.last_name ?? "(nom non lu)"}
-                  {p.is_captain ? " (C)" : ""}
-                  {p.is_starter ? " · titulaire" : ""}
+                  {p.firstName ?? ""} {p.lastName ?? "(nom non lu)"}
+                  {p.isCaptain ? " (C)" : ""}
+                  {p.isStarter ? " · titulaire" : ""}
                 </span>
               </li>
             ))}
             {coachesBySide[side].map((c, index) => (
               <li key={`coach-${index}`} className="mt-2 border-t border-black/10 pt-2 text-black/70 dark:border-white/10 dark:text-white/70">
-                {c.role === "principal" ? "Entraîneur" : "Entraîneur adjoint"} : {c.first_name ?? ""} {c.last_name ?? "(nom non lu)"}
+                {c.role === "principal" ? "Entraîneur" : "Entraîneur adjoint"} : {c.firstName ?? ""} {c.lastName ?? "(nom non lu)"}
               </li>
             ))}
           </ul>
@@ -233,16 +195,10 @@ async function CompositionTab({ supabase, clubId, matchId }: { supabase: ServerS
   );
 }
 
-async function StatistiquesTab({ supabase, clubId, matchId }: { supabase: ServerSupabase; clubId: string; matchId: string }) {
-  const { data: stats } = await supabase
-    .from("player_match_stats")
-    .select(
-      "seconds_played, points, shots_made, three_points_made, two_points_interior_made, two_points_exterior_made, free_throws_made, fouls_committed, match_participants(team_side, jersey_number, first_name, last_name)",
-    )
-    .eq("match_id", matchId)
-    .eq("club_id", clubId);
+function StatistiquesTab({ match }: { match: MatchDetailsDto }) {
+  const { stats } = match;
 
-  if (!stats || stats.length === 0) {
+  if (stats.length === 0) {
     return (
       <Card title="Statistiques">
         <p className="mt-1 text-sm text-black/60 dark:text-white/60">Statistiques pas encore disponibles pour ce match.</p>
@@ -267,20 +223,18 @@ async function StatistiquesTab({ supabase, clubId, matchId }: { supabase: Server
             </tr>
           </thead>
           <tbody>
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {stats.map((row: any, index: number) => (
+            {stats.map((row, index) => (
               <tr key={index} className="border-t border-black/5 dark:border-white/10">
                 <td className="py-1 pr-2">
-                  #{row.match_participants?.jersey_number ?? "?"} {row.match_participants?.first_name ?? ""}{" "}
-                  {row.match_participants?.last_name ?? "(nom non lu)"}
+                  #{row.jerseyNumber ?? "?"} {row.firstName ?? ""} {row.lastName ?? "(nom non lu)"}
                 </td>
-                <td className="px-2 text-right">{formatSecondsPlayed(row.seconds_played)}</td>
+                <td className="px-2 text-right">{formatSecondsPlayed(row.secondsPlayed)}</td>
                 <td className="px-2 text-right">{row.points ?? "—"}</td>
-                <td className="px-2 text-right">{row.three_points_made ?? "—"}</td>
-                <td className="px-2 text-right">{row.two_points_interior_made ?? "—"}</td>
-                <td className="px-2 text-right">{row.two_points_exterior_made ?? "—"}</td>
-                <td className="px-2 text-right">{row.free_throws_made ?? "—"}</td>
-                <td className="px-2 text-right">{row.fouls_committed ?? "—"}</td>
+                <td className="px-2 text-right">{row.threePointsMade ?? "—"}</td>
+                <td className="px-2 text-right">{row.twoPointsInteriorMade ?? "—"}</td>
+                <td className="px-2 text-right">{row.twoPointsExteriorMade ?? "—"}</td>
+                <td className="px-2 text-right">{row.freeThrowsMade ?? "—"}</td>
+                <td className="px-2 text-right">{row.foulsCommitted ?? "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -293,19 +247,10 @@ async function StatistiquesTab({ supabase, clubId, matchId }: { supabase: Server
   );
 }
 
-interface NamedRoleRow {
-  role: string;
-  first_name: string | null;
-  last_name: string | null;
-}
+function OfficielsTab({ match }: { match: MatchDetailsDto }) {
+  const { officials, tableOfficials } = match;
 
-async function OfficielsTab({ supabase, clubId, matchId }: { supabase: ServerSupabase; clubId: string; matchId: string }) {
-  const [{ data: officials }, { data: tableOfficials }]: [{ data: NamedRoleRow[] | null }, { data: NamedRoleRow[] | null }] = await Promise.all([
-    supabase.from("match_officials").select("role, first_name, last_name").eq("match_id", matchId).eq("club_id", clubId),
-    supabase.from("match_table_officials").select("role, first_name, last_name").eq("match_id", matchId).eq("club_id", clubId),
-  ]);
-
-  if ((!officials || officials.length === 0) && (!tableOfficials || tableOfficials.length === 0)) {
+  if (officials.length === 0 && tableOfficials.length === 0) {
     return (
       <Card title="Officiels">
         <p className="mt-1 text-sm text-black/60 dark:text-white/60">Officiels pas encore disponibles pour ce match.</p>
@@ -317,22 +262,22 @@ async function OfficielsTab({ supabase, clubId, matchId }: { supabase: ServerSup
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <Card title="Arbitres">
         <ul className="mt-2 flex flex-col gap-1 text-sm">
-          {(officials ?? []).map((o, index) => (
+          {officials.map((o, index) => (
             <li key={index}>
-              {REFEREE_ROLE_LABELS[o.role] ?? o.role} : {o.first_name ?? ""} {o.last_name ?? "(nom non lu)"}
+              {REFEREE_ROLE_LABELS[o.role] ?? o.role} : {o.firstName ?? ""} {o.lastName ?? "(nom non lu)"}
             </li>
           ))}
-          {(!officials || officials.length === 0) && <li className="text-black/60 dark:text-white/60">Non disponible</li>}
+          {officials.length === 0 && <li className="text-black/60 dark:text-white/60">Non disponible</li>}
         </ul>
       </Card>
       <Card title="Officiels de table (OTM)">
         <ul className="mt-2 flex flex-col gap-1 text-sm">
-          {(tableOfficials ?? []).map((o, index) => (
+          {tableOfficials.map((o, index) => (
             <li key={index}>
-              {TABLE_OFFICIAL_ROLE_LABELS[o.role] ?? o.role} : {o.first_name ?? ""} {o.last_name ?? "(nom non lu)"}
+              {TABLE_OFFICIAL_ROLE_LABELS[o.role] ?? o.role} : {o.firstName ?? ""} {o.lastName ?? "(nom non lu)"}
             </li>
           ))}
-          {(!tableOfficials || tableOfficials.length === 0) && <li className="text-black/60 dark:text-white/60">Non disponible</li>}
+          {tableOfficials.length === 0 && <li className="text-black/60 dark:text-white/60">Non disponible</li>}
         </ul>
       </Card>
     </div>
@@ -347,90 +292,37 @@ const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   other: "Autre document",
 };
 
-/** Durée de validité courte (§34 du brief FBI) : jamais d'URL publique/permanente vers un document e-Marque. */
-const SIGNED_URL_TTL_SECONDS = 60;
-
-interface MatchDocumentRow {
-  id: string;
-  type: string;
-  source: string;
-  filename: string | null;
-  storage_path: string;
-  status: string;
-  downloaded_at: string | null;
-}
-
-async function EmarqueTab({ supabase, clubId, matchId, isAdmin }: { supabase: ServerSupabase; clubId: string; matchId: string; isAdmin: boolean }) {
-  const [{ data: match }, { data: latestImport }, { data: documents }]: [
-    { data: { emarque_status: string } | null },
-    { data: { status: string; discovered_at: string; imported_at: string | null; quality_warnings: unknown } | null },
-    { data: MatchDocumentRow[] | null },
-  ] = await Promise.all([
-    supabase.from("matches").select("emarque_status").eq("id", matchId).eq("club_id", clubId).maybeSingle(),
-    supabase
-      .from("emarque_imports")
-      .select("status, discovered_at, imported_at, quality_warnings")
-      .eq("match_id", matchId)
-      .eq("club_id", clubId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("match_documents")
-      .select("id, type, source, filename, storage_path, status, downloaded_at")
-      .eq("match_id", matchId)
-      .eq("club_id", clubId)
-      .order("downloaded_at", { ascending: false }),
-  ]);
-
-  const lastRetrievedAt = documents?.[0]?.downloaded_at ?? null;
-  const source = documents && documents.length > 0 ? documents[0]!.source.toUpperCase() : null;
-
-  // Les URL signées sont générées côté serveur, avec le client admin
-  // (bucket privé, aucun accès Storage pour un utilisateur authentifié
-  // classique) — UNIQUEMENT pour un club_admin de CE club, jamais exposées
-  // à un membre non-admin (§34 du brief FBI).
-  let signedUrlByDocumentId = new Map<string, string>();
-  if (isAdmin && documents && documents.length > 0) {
-    const adminSupabase = createAdminSupabaseClient();
-    const entries = await Promise.all(
-      documents.map(async (doc) => {
-        const { data } = await adminSupabase.storage.from(EMARQUE_BUCKET).createSignedUrl(doc.storage_path, SIGNED_URL_TTL_SECONDS);
-        return [doc.id, data?.signedUrl ?? null] as const;
-      }),
-    );
-    signedUrlByDocumentId = new Map(entries.filter((entry): entry is [string, string] => entry[1] !== null));
-  }
+async function EmarqueTab({ clubId, matchId, match, isAdmin }: { clubId: string; matchId: string; match: MatchDetailsDto; isAdmin: boolean }) {
+  const documents: MatchDocumentDto[] = await api.matches.documents(clubId, matchId);
 
   return (
     <Card title="e-Marque">
       <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-black/60 dark:text-white/60">Statut</dt>
-          <dd>{EMARQUE_STATUS_LABELS[match?.emarque_status ?? "not_applicable"] ?? match?.emarque_status}</dd>
+          <dd>{EMARQUE_STATUS_LABELS[match.emarque.status] ?? match.emarque.status}</dd>
         </div>
         <div>
           <dt className="text-black/60 dark:text-white/60">Source</dt>
-          <dd>{source ?? "—"}</dd>
+          <dd>{match.emarque.source ?? "—"}</dd>
         </div>
         <div>
           <dt className="text-black/60 dark:text-white/60">Dernière récupération</dt>
-          <dd>{lastRetrievedAt ? new Date(lastRetrievedAt).toLocaleString("fr-FR") : "—"}</dd>
+          <dd>{match.emarque.lastRetrievedAt ? new Date(match.emarque.lastRetrievedAt).toLocaleString("fr-FR") : "—"}</dd>
         </div>
       </dl>
 
-      {documents && documents.length > 0 ? (
+      {documents.length > 0 ? (
         <div className="mt-4">
           <h4 className="text-sm font-medium text-black/80 dark:text-white/80">Documents</h4>
           <ul className="mt-2 flex flex-col gap-1 text-sm">
             {documents.map((doc) => {
-              const signedUrl = signedUrlByDocumentId.get(doc.id);
               const label = DOCUMENT_TYPE_LABELS[doc.type] ?? doc.type;
               return (
                 <li key={doc.id} className="flex items-center justify-between gap-2">
                   <span>{label}</span>
-                  {isAdmin && signedUrl ? (
-                    <a href={signedUrl} className="text-xs text-blue-700 hover:underline dark:text-blue-400" rel="noopener noreferrer">
+                  {isAdmin && doc.downloadUrl ? (
+                    <a href={doc.downloadUrl} className="text-xs text-blue-700 hover:underline dark:text-blue-400" rel="noopener noreferrer">
                       Télécharger
                     </a>
                   ) : null}
@@ -451,14 +343,11 @@ async function EmarqueTab({ supabase, clubId, matchId, isAdmin }: { supabase: Se
         </p>
       )}
 
-      {isAdmin && latestImport?.quality_warnings && Array.isArray(latestImport.quality_warnings) && latestImport.quality_warnings.length > 0 ? (
+      {match.emarque.qualityWarningCount !== null && match.emarque.qualityWarningCount > 0 ? (
         <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-          Import réussi avec {latestImport.quality_warnings.length} avertissement(s) — vérification recommandée.
-        </p>
-      ) : null}
-      {!isAdmin && latestImport?.quality_warnings && Array.isArray(latestImport.quality_warnings) && latestImport.quality_warnings.length > 0 ? (
-        <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-          Certaines informations de ce match sont en cours de vérification par un administrateur.
+          {isAdmin
+            ? `Import réussi avec ${match.emarque.qualityWarningCount} avertissement(s) — vérification recommandée.`
+            : "Certaines informations de ce match sont en cours de vérification par un administrateur."}
         </p>
       ) : null}
     </Card>

@@ -1,5 +1,15 @@
 # Multi-tenancy — modèle, isolation, règles de développement
 
+> **Note post-migration** (voir `docs/MIGRATION_TO_API.md`) : le modèle
+> décrit ci-dessous (schéma `clubs`/`club_memberships`/`membership_roles`,
+> RLS, fonctions `is_club_member()`/`has_club_role()`) reste exact — il n'a
+> pas changé. Ce qui a changé : **club-manager-api est désormais
+> l'unique propriétaire de `supabase/migrations/`** et l'unique service qui
+> écrit sur ces tables (hors authentification). SCSB ne lit plus ce modèle
+> qu'à travers `GET /v1/clubs` (voir `src/lib/tenancy/club-context.ts`),
+> jamais par une requête Supabase directe. Ce document reste la référence
+> conceptuelle du modèle de données.
+
 Ce document fait autorité sur tout ce qui concerne le multi-tenant SaaS.
 `ARCHITECTURE.md` décrit les modules métier (matchs, e-Marque, FFBB, FBI...)
 qui s'appliquent identiquement à chaque club ; ce document décrit comment

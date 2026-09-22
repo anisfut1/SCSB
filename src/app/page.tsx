@@ -12,15 +12,15 @@ import { listUserClubs } from "@/lib/tenancy/club-context";
  * - plusieurs clubs : choix
  */
 export default async function HomePage() {
-  const user = await requireUser();
-  const clubs = await listUserClubs(user.id);
+  await requireUser();
+  const clubs = await listUserClubs();
 
   if (clubs.length === 1) {
     redirect(`/c/${clubs[0]!.slug}/dashboard`);
   }
 
   if (clubs.length === 0) {
-    const canManagePlatform = await isPlatformAdmin(user.id);
+    const canManagePlatform = await isPlatformAdmin();
 
     return (
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 px-4 text-center">

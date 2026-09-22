@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireClubContext } from "@/lib/tenancy/club-context";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { api } from "@/lib/api/server";
 import { Card } from "@/components/ui/Card";
 
 type WhenFilter = "weekend" | "upcoming" | "past";
@@ -52,13 +52,14 @@ function buildFilterHref(
 
 /**
  * Vue "Ce week-end" + filtres (ARCHITECTURE.md §3, Module 1), scopée au
- * club de l'URL. Lecture seule : les données affichées viennent
- * exclusivement de la synchronisation automatique FFBB/e-Marque de CE club.
+ * club de l'URL. Lecture seule, via club-manager-api (§14 de la demande) —
+ * ce frontend n'interroge plus jamais `matches`/`teams` directement.
  *
- * `club_id` est filtré explicitement en plus de la RLS (§58 du brief SaaS) :
- * un utilisateur membre de plusieurs clubs ne doit jamais voir les matchs
- * d'un AUTRE club mélangés sur cette page, même si la RLS les autoriserait
- * en lecture par ailleurs.
+ * BACKEND_API_GAP (voir docs/MIGRATION_TO_API.md) : `GET /v1/clubs/:clubId/matches`
+ * ne supporte pas (encore) de filtres en query params ni de pagination —
+ * tous les matchs du club sont récupérés en un appel, puis filtrés ici.
+ * Acceptable pour le volume actuel, à corriger côté API si un club atteint
+ * un volume de matchs qui rend ce chargement coûteux.
  */
 export default async function MatchsPage({
   params,
@@ -68,39 +69,38 @@ export default async function MatchsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { clubSlug } = await params;
-  const { club } = await requireClubContext(clubSlug);
+  const club = await requireClubContext(clubSlug);
 
   const resolvedSearchParams = await searchParams;
   const when: WhenFilter = resolvedSearchParams.when === "upcoming" || resolvedSearchParams.when === "past" ? resolvedSearchParams.when : "weekend";
   const side: SideFilter = resolvedSearchParams.side === "home" || resolvedSearchParams.side === "away" ? resolvedSearchParams.side : "all";
   const team = typeof resolvedSearchParams.team === "string" ? resolvedSearchParams.team : null;
 
-  const supabase = await createServerSupabaseClient();
+  const [teams, allMatches] = await Promise.all([api.clubs.teams(club.id), api.matches.list(club.id)]);
 
-  const { data: teams } = await supabase.from("teams").select("id, name").eq("club_id", club.id).order("name");
-
-  let query = supabase
-    .from("matches")
-    .select("id, numero, match_datetime, is_home, opponent_name, score_home, score_away, status, emarque_status, venue_raw_label, team_id")
-    .eq("club_id", club.id);
-
-  if (team) query = query.eq("team_id", team);
-  if (side !== "all") query = query.eq("is_home", side === "home");
+  let matches = allMatches;
+  if (team) {
+    const teamName = teams.find((t) => t.id === team)?.name ?? null;
+    matches = teamName ? matches.filter((m) => m.teamName === teamName) : matches;
+  }
+  if (side !== "all") matches = matches.filter((m) => m.isHome === (side === "home"));
 
   const now = new Date();
   if (when === "weekend") {
     const { start, end } = currentWeekendRange();
-    query = query.gte("match_datetime", start.toISOString()).lt("match_datetime", end.toISOString());
+    matches = matches.filter((m) => m.matchDatetime !== null && new Date(m.matchDatetime) >= start && new Date(m.matchDatetime) < end);
   } else if (when === "upcoming") {
-    query = query.gte("match_datetime", now.toISOString());
+    matches = matches.filter((m) => m.matchDatetime !== null && new Date(m.matchDatetime) >= now);
   } else {
-    query = query.lt("match_datetime", now.toISOString());
+    matches = matches.filter((m) => m.matchDatetime !== null && new Date(m.matchDatetime) < now);
   }
 
-  query = query.order("match_datetime", { ascending: when !== "past" });
+  matches = [...matches].sort((a, b) => {
+    const aTime = a.matchDatetime ? new Date(a.matchDatetime).getTime() : 0;
+    const bTime = b.matchDatetime ? new Date(b.matchDatetime).getTime() : 0;
+    return when === "past" ? bTime - aTime : aTime - bTime;
+  });
 
-  const { data: matches } = await query;
-  const teamNameById = new Map((teams ?? []).map((t) => [t.id, t.name]));
   const currentFilters = { when, side, team };
 
   return (
@@ -140,7 +140,7 @@ export default async function MatchsPage({
           ))}
         </div>
 
-        {teams && teams.length > 0 ? (
+        {teams.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             <Link
               href={buildFilterHref(clubSlug, currentFilters, { team: null })}
@@ -169,7 +169,7 @@ export default async function MatchsPage({
         ) : null}
       </div>
 
-      {!matches || matches.length === 0 ? (
+      {matches.length === 0 ? (
         <Card title="Aucun match">
           <p className="mt-1 text-sm text-black/60 dark:text-white/60">Aucun match ne correspond à ces filtres.</p>
         </Card>
@@ -178,18 +178,20 @@ export default async function MatchsPage({
           {matches.map((match) => (
             <li key={match.id}>
               <Link href={`/c/${clubSlug}/matchs/${match.id}`} className="block">
-                <Card title={`${teamNameById.get(match.team_id ?? "") ?? "Équipe"} ${match.is_home ? "vs" : "@"} ${match.opponent_name ?? "?"}`}>
+                <Card title={`${match.teamName ?? "Équipe"} ${match.isHome ? "vs" : "@"} ${match.opponentName ?? "?"}`}>
                   <dl className="flex flex-wrap items-center justify-between gap-2 text-sm text-black/60 dark:text-white/60">
-                    <dd>{formatMatchDateTime(match.match_datetime)}</dd>
-                    <dd>{match.venue_raw_label ?? "Lieu à confirmer"}</dd>
+                    <dd>{formatMatchDateTime(match.matchDatetime)}</dd>
+                    <dd>{match.venueLabel ?? "Lieu à confirmer"}</dd>
                     <dd>
-                      {match.score_home !== null && match.score_away !== null
-                        ? `${match.score_home} - ${match.score_away}`
+                      {match.scoreHome !== null && match.scoreAway !== null
+                        ? `${match.scoreHome} - ${match.scoreAway}`
                         : match.status === "postponed"
                           ? "Reporté"
                           : match.status === "cancelled"
                             ? "Annulé"
-                            : "À venir"}
+                            : match.status === "forfeit"
+                              ? "Forfait"
+                              : "À venir"}
                     </dd>
                   </dl>
                 </Card>

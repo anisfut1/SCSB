@@ -6,12 +6,24 @@ describe("parsePublicEnv", () => {
     const env = parsePublicEnv({
       NEXT_PUBLIC_SUPABASE_URL: "https://xxxx.supabase.co",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon-key",
+      NEXT_PUBLIC_CLUB_MANAGER_API_URL: "https://api.example.com",
     });
 
     expect(env).toEqual({
       NEXT_PUBLIC_SUPABASE_URL: "https://xxxx.supabase.co",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon-key",
+      NEXT_PUBLIC_CLUB_MANAGER_API_URL: "https://api.example.com",
     });
+  });
+
+  it("accepte une URL localhost pour club-manager-api (développement)", () => {
+    const env = parsePublicEnv({
+      NEXT_PUBLIC_SUPABASE_URL: "https://xxxx.supabase.co",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon-key",
+      NEXT_PUBLIC_CLUB_MANAGER_API_URL: "http://localhost:3001",
+    });
+
+    expect(env.NEXT_PUBLIC_CLUB_MANAGER_API_URL).toBe("http://localhost:3001");
   });
 
   it("rejette une URL Supabase invalide", () => {
@@ -19,6 +31,7 @@ describe("parsePublicEnv", () => {
       parsePublicEnv({
         NEXT_PUBLIC_SUPABASE_URL: "pas-une-url",
         NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon-key",
+        NEXT_PUBLIC_CLUB_MANAGER_API_URL: "https://api.example.com",
       }),
     ).toThrow(/NEXT_PUBLIC_SUPABASE_URL/);
   });
@@ -28,8 +41,19 @@ describe("parsePublicEnv", () => {
       parsePublicEnv({
         NEXT_PUBLIC_SUPABASE_URL: "https://xxxx.supabase.co",
         NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined,
+        NEXT_PUBLIC_CLUB_MANAGER_API_URL: "https://api.example.com",
       }),
     ).toThrow(/NEXT_PUBLIC_SUPABASE_ANON_KEY/);
+  });
+
+  it("rejette une URL club-manager-api manquante ou invalide", () => {
+    expect(() =>
+      parsePublicEnv({
+        NEXT_PUBLIC_SUPABASE_URL: "https://xxxx.supabase.co",
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon-key",
+        NEXT_PUBLIC_CLUB_MANAGER_API_URL: "pas-une-url",
+      }),
+    ).toThrow(/NEXT_PUBLIC_CLUB_MANAGER_API_URL/);
   });
 
   it("rejette un environnement totalement vide", () => {

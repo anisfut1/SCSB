@@ -1,65 +1,28 @@
 import { requireClubAdminContext } from "@/lib/tenancy/club-context";
-import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { api } from "@/lib/api/server";
 import { Card } from "@/components/ui/Card";
-import { resolveMatchIssueAction } from "@/server/actions/emarque-issues";
-
-interface QualityWarning {
-  code: string;
-  message: string;
-  severity: "info" | "warning" | "error";
-}
+import { ResolveIssueButton } from "@/features/admin/ResolveIssueButton";
 
 function formatDateTime(value: string | null | undefined): string {
   return value ? new Date(value).toLocaleString("fr-FR") : "—";
 }
 
 /**
- * File de revue humaine (ARCHITECTURE.md §21), scopée à CE club (§29 du
- * brief SaaS) : un problème FBI/e-Marque d'un autre club de la plateforme
- * n'apparaît jamais ici.
+ * File de revue humaine (ARCHITECTURE.md §21) — §23 de la demande :
+ * `GET /v1/clubs/:clubId/issues`, plus aucun SELECT Supabase.
+ *
+ * BACKEND_API_GAP (voir docs/MIGRATION_TO_API.md) : `IssueDto` ne renvoie
+ * pas les avertissements qualité détaillés (`quality_warnings`) ni le
+ * dernier message d'erreur (`emarque_imports.last_error`) — seulement
+ * `emarqueStatus` (`error`/`needs_review`). Le détail par match n'est donc
+ * plus affiché ici ; le statut suffit pour identifier les matchs à
+ * vérifier et déclencher l'action "Marquer comme vérifié".
  */
 export default async function IssuesPage({ params }: { params: Promise<{ clubSlug: string }> }) {
   const { clubSlug } = await params;
-  const { club } = await requireClubAdminContext(clubSlug);
+  const club = await requireClubAdminContext(clubSlug);
 
-  const supabase = createAdminSupabaseClient();
-
-  const { data: matches } = await supabase
-    .from("matches")
-    .select("id, numero, opponent_name, match_datetime, emarque_status")
-    .eq("club_id", club.id)
-    .in("emarque_status", ["needs_review", "error"])
-    .order("match_datetime", { ascending: false });
-
-  const matchIds = (matches ?? []).map((m) => m.id);
-
-  type EmarqueImportSummary = {
-    match_id: string;
-    status: string;
-    quality_warnings: unknown;
-    last_error: string | null;
-    created_at: string;
-  };
-
-  const imports: EmarqueImportSummary[] = matchIds.length
-    ? ((
-        await supabase
-          .from("emarque_imports")
-          .select("match_id, status, quality_warnings, last_error, created_at")
-          .eq("club_id", club.id)
-          .in("match_id", matchIds)
-          .order("created_at", { ascending: false })
-      ).data ?? [])
-    : [];
-
-  const latestImportByMatchId = new Map<string, EmarqueImportSummary>();
-  for (const imp of imports ?? []) {
-    if (!latestImportByMatchId.has(imp.match_id)) {
-      latestImportByMatchId.set(imp.match_id, imp);
-    }
-  }
-
-  const resolveThisClubIssue = resolveMatchIssueAction.bind(null, clubSlug);
+  const issues = await api.issues.list(club.id);
 
   return (
     <div className="flex flex-col gap-6">
@@ -71,62 +34,27 @@ export default async function IssuesPage({ params }: { params: Promise<{ clubSlu
         </p>
       </div>
 
-      {!matches || matches.length === 0 ? (
+      {issues.length === 0 ? (
         <Card title="Aucune anomalie en attente">
           <p className="mt-1 text-sm text-black/60 dark:text-white/60">Tout est à jour.</p>
         </Card>
       ) : (
-        matches.map((match) => {
-          const latestImport = latestImportByMatchId.get(match.id);
-          const warnings = (latestImport?.quality_warnings as QualityWarning[] | null) ?? [];
+        issues.map((issue) => (
+          <Card key={issue.matchId} title={`Rencontre ${issue.numero ?? "?"} — vs ${issue.opponentName ?? "?"}`}>
+            <dl className="grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-black/60 dark:text-white/60">Date</dt>
+                <dd>{formatDateTime(issue.matchDatetime)}</dd>
+              </div>
+              <div>
+                <dt className="text-black/60 dark:text-white/60">Statut</dt>
+                <dd>{issue.emarqueStatus}</dd>
+              </div>
+            </dl>
 
-          return (
-            <Card key={match.id} title={`Rencontre ${match.numero ?? "?"} — vs ${match.opponent_name ?? "?"}`}>
-              <dl className="grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="text-black/60 dark:text-white/60">Date</dt>
-                  <dd>{formatDateTime(match.match_datetime)}</dd>
-                </div>
-                <div>
-                  <dt className="text-black/60 dark:text-white/60">Statut</dt>
-                  <dd>{match.emarque_status}</dd>
-                </div>
-              </dl>
-
-              {latestImport?.last_error ? (
-                <p className="mt-2 text-sm text-red-600 dark:text-red-400">{latestImport.last_error}</p>
-              ) : null}
-
-              {warnings.length > 0 ? (
-                <ul className="mt-2 flex flex-col gap-1 text-sm">
-                  {warnings.map((warning, index) => (
-                    <li
-                      key={index}
-                      className={
-                        warning.severity === "error"
-                          ? "text-red-600 dark:text-red-400"
-                          : warning.severity === "warning"
-                            ? "text-amber-600 dark:text-amber-400"
-                            : "text-black/60 dark:text-white/60"
-                      }
-                    >
-                      [{warning.code}] {warning.message}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-
-              <form action={resolveThisClubIssue.bind(null, match.id)} className="mt-4">
-                <button
-                  type="submit"
-                  className="rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
-                >
-                  Marquer comme vérifié
-                </button>
-              </form>
-            </Card>
-          );
-        })
+            <ResolveIssueButton clubId={club.id} matchId={issue.matchId} />
+          </Card>
+        ))
       )}
     </div>
   );

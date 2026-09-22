@@ -16,6 +16,23 @@
 > Règle de développement (voir aussi `docs/MULTI_TENANCY.md`) : **toute
 > nouvelle fonctionnalité métier doit être conçue tenant-aware dès le
 > départ** (paramétrée par `clubId`, jamais un club implicite global).
+>
+> **IMPORTANT — lire avant tout ce qui suit.** Ce repository (SCSB) est
+> désormais le **frontend web uniquement** de la plateforme. Toute la
+> logique métier décrite plus bas comme vivant dans "Next.js" (synchro
+> FFBB, connexion FBI, parsing e-Marque, jobs, cron, service role,
+> `supabase/migrations`) a été déplacée vers un backend séparé,
+> **[club-manager-api](https://github.com/anisfut1/club-manager-api)** —
+> voir `docs/MIGRATION_TO_API.md` pour l'audit complet. Ce document
+> décrit encore le MODÈLE FONCTIONNEL/PRODUIT (modules, données, règles
+> métier), qui reste valide ; les sections décrivant explicitement Next.js
+> comme propriétaire de la synchronisation/des cron/de la service role
+> (§1 tableau stack, §3, §7 dernier point, §8.3, §13, §14, §15) sont
+> annotées ci-dessous pour rediriger vers club-manager-api. Toute
+> fonctionnalité métier NOUVELLE (dérogations, tables de marque, moteur de
+> recommandation...) doit désormais être implémentée côté club-manager-api
+> et exposée via son API REST — jamais réimplémentée dans ce frontend
+> (§58 de la demande de migration : "SCSB ne doit plus savoir COMMENT").
 
 ## Sommaire
 
@@ -50,15 +67,16 @@ flowchart LR
     SYNC -.->|historique + logs| DB
 ```
 
-**Choix de stack : validés, avec ajustements mineurs.**
+**Choix de stack — mis à jour après la migration vers club-manager-api (voir `docs/MIGRATION_TO_API.md`).**
 
 | Brique | Choix | Justification |
 |---|---|---|
-| Frontend + backend | **Next.js (App Router) + TypeScript** | Un seul repo, SSR pour le mobile-first, API routes pour les endpoints de sync/cron, écosystème mûr. |
-| Base de données | **PostgreSQL via Supabase** | Relationnel adapté au modèle (matchs, licenciés, affectations), RLS natif pour les permissions, pas d'infra à gérer. |
-| Auth | **Supabase Auth** | Gère comptes, sessions, magic link — suffisant pour une petite structure associative, pas besoin d'un IdP externe. |
-| Hébergement | **Vercel** | Déploiement simple, Cron Jobs natifs pour la synchronisation planifiée. |
-| Synchronisation FFBB | **Service dédié (module isolé), déclenché par cron** | Voir §8. Pas de queue/broker (Redis, SQS...) : la volumétrie d'un seul club ne le justifie pas. |
+| Frontend | **Next.js (App Router) + TypeScript**, repository SCSB | SSR pour le mobile-first, écosystème mûr. **N'est plus le backend** : aucune logique métier, aucun accès direct à Supabase pour une donnée métier. |
+| Backend | **club-manager-api** (Hono/TypeScript, Vercel Functions), repository séparé | Source de vérité de toute la logique métier (FFBB, FBI, e-Marque, jobs, cron) — voir son propre `ARCHITECTURE.md`. |
+| Base de données | **PostgreSQL via Supabase** | Relationnel adapté au modèle (matchs, licenciés, affectations), RLS native pour les permissions, pas d'infra à gérer. Migrations possédées par club-manager-api. |
+| Auth | **Supabase Auth** | Utilisée directement par SCSB pour la session utilisateur ; club-manager-api valide le JWT à chaque requête. |
+| Hébergement | **Vercel** | Deux projets séparés (SCSB, club-manager-api). Cron Jobs natifs côté club-manager-api pour la synchronisation planifiée. |
+| Synchronisation FFBB | **club-manager-api**, déclenchée par cron Vercel | Voir `docs/JOBS.md` côté club-manager-api. Pas de queue/broker (Redis, SQS...) : la volumétrie d'un seul club ne le justifie pas. |
 | PWA | **next-pwa ou Web App Manifest natif** | Ajout léger, pas de dépendance lourde type React Native tant que le besoin n'est pas prouvé. |
 
 **Ajustements proposés par rapport à l'énoncé :**
@@ -87,6 +105,13 @@ Ces 8 modules correspondent à 8 "domaines" de code (voir §13) et peuvent avanc
 ---
 
 ## 3. Flux FFBB ↔ application
+
+> **Note post-migration** : le diagramme et le flux ci-dessous décrivent la
+> logique FONCTIONNELLE — l'implémentation réelle (`/api/sync/ffbb`,
+> `FFBBProvider`, écriture en base) vit désormais entièrement dans
+> club-manager-api (`integrations/ffbb/`), pas dans ce repository. SCSB lit
+> le résultat via `GET /v1/clubs/:clubId/matches` et
+> `GET /v1/clubs/:clubId/sync-runs`.
 
 ```mermaid
 sequenceDiagram
@@ -326,7 +351,7 @@ erDiagram
   - `coach` : lecture sur les matchs de ses équipes (`scope_team_id`), création de `derogations` pour ses équipes.
   - `joueur` : lecture de ses propres matchs/affectations, écriture sur ses propres `availabilities`.
   - `parent` : mêmes droits que `joueur`, mais pour les licenciés listés dans `parent_child_links`.
-- **Service role key** (Supabase) utilisée **uniquement** côté serveur (job de sync, routes API internes), jamais exposée au client. Le sync bypass les RLS via la service key car il doit pouvoir upserter tous les matchs.
+- **Service role key** (Supabase) — n'existe plus du tout dans SCSB (voir `docs/MIGRATION_TO_API.md`, §30/§31 de la demande de migration). Utilisée **uniquement** par club-manager-api (job de sync, routes cron internes), jamais exposée à ce frontend.
 - Un licencié peut exister **sans compte** (`licencies.id` sans `profiles` associé) — c'est la norme pour beaucoup de joueurs, notamment jeunes. Le rattachement à un compte se fait plus tard (auto-inscription avec validation, ou création manuelle par l'admin).
 
 ---
@@ -356,9 +381,12 @@ interface FFBBProvider {
 
 ### 8.3 Cadence et déclenchement
 
-- Vercel Cron déclenche `/api/internal/sync-ffbb` (protégé par un secret, voir §15) toutes les 30 à 60 minutes.
-- Chaque run crée une ligne `sync_runs` avec statut et stats (créés / mis à jour / inchangés / erreurs), consultable dans un écran "Suivi FFBB" pour le correspondant club.
-- Bouton "forcer une synchro maintenant" réservé à `super_admin` / `correspondant_club` pour le debug — ce n'est pas un import manuel de données, juste un déclenchement anticipé du même pipeline automatique.
+> Implémenté côté club-manager-api (`GET /internal/cron/ffbb`, voir son
+> `docs/FFBB.md`/`docs/JOBS.md`) — plus dans ce repository.
+
+- Vercel Cron déclenche la synchronisation (protégée par `CRON_SECRET`, géré côté club-manager-api) toutes les 15 minutes.
+- Chaque run crée une ligne `sync_runs` avec statut et stats (créés / mis à jour / inchangés / erreurs), consultable via `GET /v1/clubs/:clubId/sync-runs` sur `/c/{slug}/admin/sync`.
+- Bouton "Relancer maintenant" (`/c/{slug}/admin/integrations`) réservé à `club_admin` pour le debug — appelle `POST /v1/clubs/:clubId/integrations/ffbb/sync`, ce n'est pas un import manuel de données, juste un déclenchement anticipé du même pipeline automatique.
 
 ---
 
@@ -433,69 +461,53 @@ Ce module réutilise entièrement §10 et §11 — aucune logique dupliquée, se
 
 ---
 
-## 13. Organisation du projet Next.js
+## 13. Organisation du projet
 
-```
-/app
-  /(public)/login, /(public)/register            -- pages non protégées
-  /(dashboard)/matches                            -- vue "Ce week-end" + filtres
-  /(dashboard)/matches/[id]                       -- détail match, dérogation, tables
-  /(dashboard)/derogations
-  /(dashboard)/tables                             -- affectations, stats licenciés
-  /(dashboard)/licencies
-  /(dashboard)/admin/sync                         -- suivi des runs FFBB
-  /api/internal/sync-ffbb/route.ts                -- endpoint appelé par le cron
-  /api/internal/recompute-conflicts/route.ts      -- optionnel, si recalcul isolé nécessaire
-
-/lib
-  /ffbb
-    provider.ts            -- interface FFBBProvider
-    http-provider.ts        -- implémentation concrète
-    normalize.ts             -- mapping brut -> DTO interne
-  /domain
-    matches/                 -- diff, upsert, change history
-    derogations/              -- workflow, rapprochement auto
-    tables/                    -- recommandation, buffers, disponibilités
-    conflicts/                  -- détection, alertes
-  /db
-    client.ts (supabase server/client)
-    queries/                   -- requêtes typées par domaine
-  /auth
-    roles.ts, guards.ts
-
-/components                -- UI partagée, mobile-first
-/supabase
-  /migrations               -- schéma SQL versionné
-```
-
-Principe : **un dossier `domain/<module>` par module métier**, avec sa logique pure testable indépendamment de Next.js/Supabase. Les routes `/app` restent fines (appellent le domain layer). Cela permet d'avancer module par module sans réorganiser le projet à chaque étape.
+> **Obsolète depuis la migration vers club-manager-api** (voir
+> `docs/MIGRATION_TO_API.md`) : `/lib/ffbb`, `/lib/domain`,
+> `/api/internal/*` et `/supabase/migrations` n'existent plus dans SCSB —
+> ce contenu vit désormais dans club-manager-api (voir son propre
+> `ARCHITECTURE.md`, §"Organisation"). Pour l'organisation RÉELLE et
+> actuelle de ce repository, voir `README.md` §"Organisation du code".
+> Les modules fonctionnels non encore implémentés (dérogations, tables de
+> marque, moteur de recommandation, conflits) seront, le jour de leur
+> développement, ajoutés côté club-manager-api (routes `/v1/...` + tables)
+> et consommés par SCSB via `src/lib/api/`, jamais réimplémentés ici.
 
 ---
 
 ## 14. Tâches cron / workers
 
-| Tâche | Fréquence | Déclencheur |
+> **Mise à jour majeure — toutes les tâches cron/jobs décrites ci-dessous
+> vivent désormais exclusivement dans club-manager-api**, jamais dans SCSB
+> (voir `docs/MIGRATION_TO_API.md`). `docs/FBI_WORKER.md` (ce repository)
+> est obsolète — l'architecture réelle (3 phases cron Vercel Functions,
+> sans worker Railway/Docker séparé) est documentée dans
+> `docs/JOBS.md`/`docs/FBI.md` côté club-manager-api.
+
+| Tâche | Fréquence | Déclencheur (côté club-manager-api) |
 |---|---|---|
-| Synchronisation FFBB (matchs, scores, statuts) | Toutes les 30-60 min | Vercel Cron → `/api/internal/sync-ffbb` |
-| Nettoyage des `sync_runs` anciens (> 90 jours) | 1x/semaine | Vercel Cron |
-| Rappel notifications (ex : table à J-2 non confirmée) | 1x/jour | Vercel Cron |
-| Recalcul de conflits | Événementiel (dans le run de sync, pas un cron séparé) | Déclenché en fin de sync si changement détecté |
+| Synchronisation FFBB (matchs, scores, statuts) | Toutes les 15 min | `GET /internal/cron/ffbb` |
+| Empilement des jobs de découverte e-Marque | Toutes les heures | `GET /internal/cron/fbi-enqueue` |
+| Traitement des jobs FBI (connexion, découverte, téléchargement) | Toutes les 5 min | `GET /internal/cron/fbi-jobs` |
+| Parsing des documents e-Marque téléchargés | Toutes les 10 min | `GET /internal/cron/emarque-parse` |
+| Recalcul de conflits (module non encore développé) | Événementiel | À concevoir côté club-manager-api le jour de l'implémentation |
 
-Pas de worker séparé au départ : tout tient dans des routes API Next.js déclenchées par Vercel Cron. Si la volumétrie augmente fortement (plusieurs clubs, beaucoup plus de matchs), on pourra extraire le sync vers une Supabase Edge Function ou un petit worker dédié — l'isolation en `/lib/ffbb` et `/lib/domain` rend cette migration peu coûteuse le jour venu.
-
-> **Mise à jour** : ce cas s'est présenté pour FBI/e-Marque — l'automatisation
-> nécessite un navigateur headless (Playwright), incompatible avec une Vercel
-> Function. Un worker séparé (`worker/`) a été extrait précisément comme
-> anticipé ci-dessus, tandis que la synchronisation FFBB elle-même reste une
-> route Vercel classique. Voir `docs/FBI_WORKER.md` pour l'architecture
-> complète (jobs, isolation multi-tenant, déploiement).
+Pas de worker séparé (Railway/Render/Fly.io) : club-manager-api tourne
+entièrement sur des Vercel Functions déclenchées par cron — voir
+`docs/JOBS.md` et `docs/FBI.md` (client navigateur Playwright serverless,
+`@sparticuz/chromium`) côté club-manager-api pour le détail technique.
 
 ---
 
 ## 15. Points techniques à sécuriser dès le début
 
-- **Secret de déclenchement du cron** : la route `/api/internal/sync-ffbb` doit vérifier un header/secret (`CRON_SECRET`) pour ne pas être appelable publiquement.
-- **Service role key Supabase** : uniquement en variable d'environnement serveur, jamais dans le bundle client, jamais loguée.
+> Les deux premiers points ci-dessous concernent désormais club-manager-api
+> (voir son `docs/DEPLOYMENT.md`/`docs/AUTH.md`), pas SCSB — conservés ici
+> pour mémoire de la conception originale.
+
+- **Secret de déclenchement du cron** (`CRON_SECRET`, côté club-manager-api) : les routes `/internal/cron/*` vérifient `Authorization: Bearer <CRON_SECRET>` pour ne pas être appelables publiquement.
+- **Service role key Supabase** (côté club-manager-api uniquement) : en variable d'environnement serveur, jamais dans un bundle client, jamais loguée — n'existe plus du tout dans SCSB (voir `docs/MIGRATION_TO_API.md`).
 - **RLS activé sur toutes les tables dès la première migration** — ne jamais développer avec RLS désactivé "temporairement", car c'est le mécanisme de sécurité principal.
 - **Données personnelles de mineurs** (beaucoup de licenciés seront mineurs) : minimiser les champs collectés, prévoir une politique de rétention, restreindre l'accès aux coordonnées (téléphone/email) au strict nécessaire (RGPD).
 - **Idempotence stricte du sync** : ne jamais faire de `DELETE` puis `INSERT` sur les matchs — uniquement `UPSERT` — pour ne jamais perdre les FK vers `derogations`/`table_assignments`.

@@ -1,6 +1,10 @@
 # Spike technique — FBI authentifié
 
-> Statut : outil de diagnostic préparé. **Aucune exécution n'a pu être faite
+> Statut : outil de diagnostic préparé, historique — conservé tel quel.
+> L'intégration FBI réelle vit désormais dans
+> [club-manager-api](https://github.com/anisfut1/club-manager-api)
+> (`integrations/fbi/`, voir son `docs/FBI.md`), pas dans ce repository —
+> voir `docs/MIGRATION_TO_API.md`. **Aucune exécution n'a pu être faite
 > depuis cet environnement** (voir §2). À exécuter localement par toi, avec
 > ton propre compte club — voir la procédure exacte en §4.
 
