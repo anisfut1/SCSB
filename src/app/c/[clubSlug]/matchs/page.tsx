@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireClubContext } from "@/lib/tenancy/club-context";
 import { api } from "@/lib/api/server";
 import { Card } from "@/components/ui/Card";
+import { currentSeasonStart } from "@/lib/season";
 
 type WhenFilter = "weekend" | "upcoming" | "past";
 type SideFilter = "all" | "home" | "away";
@@ -55,11 +56,14 @@ function buildFilterHref(
  * club de l'URL. Lecture seule, via club-manager-api (§14 de la demande) —
  * ce frontend n'interroge plus jamais `matches`/`teams` directement.
  *
- * BACKEND_API_GAP (voir docs/MIGRATION_TO_API.md) : `GET /v1/clubs/:clubId/matches`
- * ne supporte pas (encore) de filtres en query params ni de pagination —
- * tous les matchs du club sont récupérés en un appel, puis filtrés ici.
- * Acceptable pour le volume actuel, à corriger côté API si un club atteint
- * un volume de matchs qui rend ce chargement coûteux.
+ * `api.matches.list` filtre déjà sur la saison en cours côté API
+ * (`from: currentSeasonStart()`, voir `src/lib/api/matches.ts`) — les
+ * saisons passées restent en base (jamais supprimées côté API) mais ne
+ * sont pas chargées par cette page, ni par défaut ni sur les filtres
+ * when/side/team ci-dessous (elle ne portent que sur la saison déjà
+ * filtrée). Volontaire : demande explicite de ne pas afficher/charger
+ * l'historique, et ça évite de récupérer des centaines/milliers de
+ * matchs à chaque visite à mesure que l'historique du club grandit.
  */
 export default async function MatchsPage({
   params,
@@ -76,9 +80,13 @@ export default async function MatchsPage({
   const side: SideFilter = resolvedSearchParams.side === "home" || resolvedSearchParams.side === "away" ? resolvedSearchParams.side : "all";
   const team = typeof resolvedSearchParams.team === "string" ? resolvedSearchParams.team : null;
 
-  const [teams, allMatches] = await Promise.all([api.clubs.teams(club.id), api.matches.list(club.id)]);
+  const seasonStart = currentSeasonStart();
+  const [teams, matches0] = await Promise.all([
+    api.clubs.teams(club.id),
+    api.matches.list(club.id, { from: seasonStart.toISOString() }),
+  ]);
 
-  let matches = allMatches;
+  let matches = matches0;
   if (team) {
     const teamName = teams.find((t) => t.id === team)?.name ?? null;
     matches = teamName ? matches.filter((m) => m.teamName === teamName) : matches;

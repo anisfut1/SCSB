@@ -23,7 +23,7 @@ export function createApi(fetcher: ApiFetcher) {
       teams: (clubId: string) => clubs.listTeams(fetcher, clubId),
     },
     matches: {
-      list: (clubId: string) => matches.listMatches(fetcher, clubId),
+      list: (clubId: string, params?: matches.ListMatchesParams) => matches.listMatches(fetcher, clubId, params),
       get: (clubId: string, matchId: string) => matches.getMatch(fetcher, clubId, matchId),
       documents: (clubId: string, matchId: string) => matches.listMatchDocuments(fetcher, clubId, matchId),
     },
