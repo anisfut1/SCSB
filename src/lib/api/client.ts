@@ -8,6 +8,22 @@ export interface ApiRequestInit extends Omit<RequestInit, "body"> {
 }
 
 /**
+ * `fetch()` seul n'a aucun délai d'expiration : un club-manager-api lent ou
+ * injoignable bloque indéfiniment la Server Action/le Server Component
+ * appelant, jusqu'à ce que Vercel tue la Function avec un
+ * `504 FUNCTION_INVOCATION_TIMEOUT` générique (page d'erreur opaque,
+ * aucun détail exploitable). Ce délai transforme ça en `ApiUnreachableError`
+ * rapide et explicite. Respecte un `signal` déjà fourni par l'appelant s'il
+ * y en a un (rare aujourd'hui), sans jamais l'écraser silencieusement.
+ */
+const API_FETCH_TIMEOUT_MS = 8_000;
+
+function withTimeout(signal: AbortSignal | null | undefined): AbortSignal {
+  const timeoutSignal = AbortSignal.timeout(API_FETCH_TIMEOUT_MS);
+  return signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+}
+
+/**
  * Client HTTP central (§5 de la demande) : UN SEUL point d'appel réseau
  * vers club-manager-api, isomorphe (fonctionne identiquement en Server
  * Component et en Client Component) — jamais un `fetch()` dispersé dans un
@@ -37,6 +53,7 @@ export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Prom
       // défaut (§41 de la demande) — un club ne doit jamais recevoir une
       // réponse mise en cache pour un autre club.
       cache: rest.cache ?? "no-store",
+      signal: withTimeout(rest.signal),
     });
   } catch (error) {
     throw new ApiUnreachableError(error);
