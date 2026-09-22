@@ -32,8 +32,15 @@ export async function triggerFfbbSync(fetcher: ApiFetcher, clubId: string): Prom
   return fetcher(`/v1/clubs/${clubId}/integrations/ffbb/sync`, { method: "POST" });
 }
 
-/** GET /v1/clubs/:clubId/sync-runs */
+/**
+ * GET /v1/clubs/:clubId/integrations/sync-runs — la route vit sous
+ * `integrationsRouter`, monté à `/v1/clubs/:clubId/integrations` côté
+ * club-manager-api (voir `api/v1/index.ts`) : l'URL manquait `/integrations`
+ * ici, causant un 404 "Route introuvable" à chaque chargement de
+ * /admin/sync (constaté en production, voir docs/FFBB.md côté
+ * club-manager-api).
+ */
 export async function listSyncRuns(fetcher: ApiFetcher, clubId: string): Promise<SyncRunDto[]> {
-  const { syncRuns } = await fetcher<{ syncRuns: SyncRunDto[] }>(`/v1/clubs/${clubId}/sync-runs`);
+  const { syncRuns } = await fetcher<{ syncRuns: SyncRunDto[] }>(`/v1/clubs/${clubId}/integrations/sync-runs`);
   return syncRuns;
 }
