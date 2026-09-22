@@ -19,6 +19,44 @@ const SIDE_OPTIONS: { value: SideFilter; label: string }[] = [
   { value: "away", label: "Extérieur" },
 ];
 
+/**
+ * Petit logo rond (club ou adverse) — `null` accepté (venue/logo pas toujours connus côté FFBB) :
+ * dans ce cas un simple espace réservé neutre évite de casser l'alignement "Sète vs X".
+ */
+function TeamBadge({ src, alt }: { src: string | null; alt: string }) {
+  if (!src) return <span className="h-5 w-5 shrink-0 rounded-full bg-black/10 dark:bg-white/10" aria-hidden />;
+  // eslint-disable-next-line @next/next/no-img-element -- logos hébergés par api.ffbb.app, hors domaines Next configurés
+  return <img src={src} alt={alt} className="h-5 w-5 shrink-0 rounded-full object-contain" />;
+}
+
+/** Titre visuel "Sète vs X" / "X vs Sète" avec les deux logos, dans l'ordre domicile/extérieur. */
+function MatchTitle({
+  clubName,
+  clubLogoUrl,
+  opponentName,
+  opponentLogoUrl,
+  isHome,
+}: {
+  clubName: string;
+  clubLogoUrl: string | null;
+  opponentName: string;
+  opponentLogoUrl: string | null;
+  isHome: boolean;
+}) {
+  const club = { name: clubName, logoUrl: clubLogoUrl };
+  const opponent = { name: opponentName, logoUrl: opponentLogoUrl };
+  const [left, right] = isHome ? [club, opponent] : [opponent, club];
+  return (
+    <span className="flex items-center gap-2">
+      <TeamBadge src={left.logoUrl} alt={left.name} />
+      <span>
+        {left.name} vs {right.name}
+      </span>
+      <TeamBadge src={right.logoUrl} alt={right.name} />
+    </span>
+  );
+}
+
 /** Samedi 00:00 -> lundi 00:00 de la semaine courante (Europe/Paris implicite : dates stockées en UTC, affichées en heure locale). */
 function currentWeekendRange(): { start: Date; end: Date } {
   const now = new Date();
@@ -186,7 +224,17 @@ export default async function MatchsPage({
           {matches.map((match) => (
             <li key={match.id}>
               <Link href={`/c/${clubSlug}/matchs/${match.id}`} className="block">
-                <Card title={`${match.teamName ?? "Équipe"} ${match.isHome ? "vs" : "@"} ${match.opponentName ?? "?"}`}>
+                <Card
+                  title={
+                    <MatchTitle
+                      clubName={match.teamName ?? "Sète"}
+                      clubLogoUrl={club.logoUrl}
+                      opponentName={match.opponentName ?? "?"}
+                      opponentLogoUrl={match.opponentLogoUrl}
+                      isHome={match.isHome === true}
+                    />
+                  }
+                >
                   <dl className="flex flex-wrap items-center justify-between gap-2 text-sm text-black/60 dark:text-white/60">
                     <dd>{formatMatchDateTime(match.matchDatetime)}</dd>
                     <dd>{match.venueLabel ?? "Lieu à confirmer"}</dd>

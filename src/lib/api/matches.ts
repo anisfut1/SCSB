@@ -1,8 +1,16 @@
 import type { ApiFetcher } from "./client";
 import type { components } from "./generated/schema";
 
-export type MatchListItemDto = components["schemas"]["MatchListItemDto"];
-export type MatchDetailsDto = components["schemas"]["MatchDetailsDto"];
+/**
+ * `opponentLogoUrl` ajouté côté API après la dernière génération de ce
+ * schéma (ce sandbox ne peut pas joindre l'API déployée pour relancer
+ * `npm run api:generate`, voir docs/API_CLIENT.md) — étendu ici plutôt
+ * que de toucher au fichier auto-généré. URL publique confirmée
+ * accessible sans authentification (testée en direct par le club,
+ * 2026-09-22) : une balise <img> suffit, pas de proxy nécessaire.
+ */
+export type MatchListItemDto = components["schemas"]["MatchListItemDto"] & { opponentLogoUrl: string | null };
+export type MatchDetailsDto = components["schemas"]["MatchDetailsDto"] & { opponentLogoUrl: string | null };
 export type MatchDocumentDto = components["schemas"]["MatchDocumentDto"];
 
 /**

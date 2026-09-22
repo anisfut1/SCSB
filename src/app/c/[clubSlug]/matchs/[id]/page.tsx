@@ -40,6 +40,13 @@ const EMARQUE_STATUS_LABELS: Record<string, string> = {
   needs_review: "En cours de vérification",
 };
 
+/** Voir la même logique dans matchs/page.tsx (TeamBadge) — dupliquée ici volontairement, deux pages indépendantes sans design system partagé. */
+function TeamBadge({ src, alt }: { src: string | null; alt: string }) {
+  if (!src) return <span className="h-6 w-6 shrink-0 rounded-full bg-black/10 dark:bg-white/10" aria-hidden />;
+  // eslint-disable-next-line @next/next/no-img-element -- logos hébergés par api.ffbb.app, hors domaines Next configurés
+  return <img src={src} alt={alt} className="h-6 w-6 shrink-0 rounded-full object-contain" />;
+}
+
 function formatMatchDateTime(value: string | null): string {
   if (!value) return "Date à confirmer";
   return new Date(value).toLocaleString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -83,6 +90,8 @@ export default async function MatchDetailPage({
 
   const homeLabel = match.isHome ? (match.teamName ?? "Équipe") : (match.opponentName ?? "?");
   const awayLabel = match.isHome ? (match.opponentName ?? "?") : (match.teamName ?? "Équipe");
+  const homeLogoUrl = match.isHome ? club.logoUrl : match.opponentLogoUrl;
+  const awayLogoUrl = match.isHome ? match.opponentLogoUrl : club.logoUrl;
 
   return (
     <div className="flex flex-col gap-6">
@@ -90,8 +99,12 @@ export default async function MatchDetailPage({
         <Link href={`/c/${clubSlug}/matchs`} className="text-sm text-black/60 hover:underline dark:text-white/60">
           ← Retour aux matchs
         </Link>
-        <h1 className="mt-2 text-lg font-semibold">
-          {homeLabel} vs {awayLabel}
+        <h1 className="mt-2 flex items-center gap-2 text-lg font-semibold">
+          <TeamBadge src={homeLogoUrl} alt={homeLabel} />
+          <span>
+            {homeLabel} vs {awayLabel}
+          </span>
+          <TeamBadge src={awayLogoUrl} alt={awayLabel} />
         </h1>
         <p className="mt-1 text-sm text-black/60 dark:text-white/60">{formatMatchDateTime(match.matchDatetime)}</p>
       </div>
