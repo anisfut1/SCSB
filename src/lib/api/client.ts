@@ -16,7 +16,7 @@ export interface ApiRequestInit extends Omit<RequestInit, "body"> {
  * rapide et explicite. Respecte un `signal` déjà fourni par l'appelant s'il
  * y en a un (rare aujourd'hui), sans jamais l'écraser silencieusement.
  */
-const API_FETCH_TIMEOUT_MS = 8_000;
+const API_FETCH_TIMEOUT_MS = 20_000;
 
 function withTimeout(signal: AbortSignal | null | undefined): AbortSignal {
   const timeoutSignal = AbortSignal.timeout(API_FETCH_TIMEOUT_MS);
