@@ -27,6 +27,14 @@ const TABLE_OFFICIAL_ROLE_LABELS: Record<string, string> = {
   other: "Autre",
 };
 
+const MATCH_STATUS_LABELS: Record<string, string> = {
+  scheduled: "À venir",
+  played: "Joué",
+  postponed: "Reporté",
+  cancelled: "Annulé",
+  forfeit: "Forfait",
+};
+
 const EMARQUE_STATUS_LABELS: Record<string, string> = {
   not_applicable: "Non concerné",
   pending: "En attente de traitement",
@@ -88,8 +96,13 @@ export default async function MatchDetailPage({
     throw error;
   }
 
-  const homeLabel = match.isHome ? (match.teamName ?? "Équipe") : (match.opponentName ?? "?");
-  const awayLabel = match.isHome ? (match.opponentName ?? "?") : (match.teamName ?? "Équipe");
+  // match.teamName vient de teams.name (via team_id) — souvent null en
+  // pratique (constaté en production le 2026-09-24 : team_id absent sur
+  // tout l'historique synchronisé avant l'introduction des équipes) : se
+  // rabattre sur club.name plutôt qu'un "Équipe" générique qui masque de
+  // quel club il s'agit à côté du nom réel de l'adversaire.
+  const homeLabel = match.isHome ? (match.teamName ?? club.name) : (match.opponentName ?? "?");
+  const awayLabel = match.isHome ? (match.opponentName ?? "?") : (match.teamName ?? club.name);
   const homeLogoUrl = match.isHome ? club.logoUrl : match.opponentLogoUrl;
   const awayLogoUrl = match.isHome ? match.opponentLogoUrl : club.logoUrl;
 
@@ -158,7 +171,7 @@ function InformationsTab({ match, homeLabel, awayLabel }: { match: MatchDetailsD
         </div>
         <div>
           <dt className="text-black/60 dark:text-white/60">Statut</dt>
-          <dd>{match.status}</dd>
+          <dd>{MATCH_STATUS_LABELS[match.status] ?? match.status}</dd>
         </div>
       </dl>
     </Card>
