@@ -24,6 +24,12 @@ export interface ProcessFbiJobsResult {
   failed: number;
 }
 
+export interface ParseFbiDocumentsResult {
+  candidatesExamined: number;
+  imported: number;
+  errors: number;
+}
+
 /** GET /v1/clubs/:clubId/integrations — §19 de la demande. */
 export async function getIntegrationStatus(fetcher: ApiFetcher, clubId: string): Promise<IntegrationStatusDto> {
   return fetcher<IntegrationStatusDto>(`/v1/clubs/${clubId}/integrations`);
@@ -60,6 +66,22 @@ export async function processFbiJobs(fetcher: ApiFetcher, clubId: string): Promi
   // club-manager-api) — le timeout par défaut de 20s (client.ts) expirait
   // avant la fin d'un seul job.
   return fetcher<ProcessFbiJobsResult>(`/v1/clubs/${clubId}/integrations/fbi/process-jobs`, { method: "POST", timeoutMs: 280_000 });
+}
+
+/**
+ * POST /v1/clubs/:clubId/integrations/fbi/parse-documents — deuxième étape,
+ * séparée de `processFbiJobs` : celle-ci ne fait que TÉLÉCHARGER les
+ * documents e-Marque, elle ne les transforme jamais en composition/stats/
+ * officiels affichables. Sans cet appel, un document reste "Téléchargé"
+ * indéfiniment (constaté en production le 2026-09-24 : 14 documents
+ * téléchargés, 0 importés — le parsing ne tournait que via le cron
+ * quotidien `/internal/cron/emarque-parse`, voir docs/FBI.md côté
+ * club-manager-api). Pas de navigateur ici (OCR/PDF seulement) : plus
+ * rapide par document que processFbiJobs, mais le timeout par défaut de
+ * 20s reste trop court dès que plusieurs documents sont à traiter.
+ */
+export async function parseFbiDocuments(fetcher: ApiFetcher, clubId: string): Promise<ParseFbiDocumentsResult> {
+  return fetcher<ParseFbiDocumentsResult>(`/v1/clubs/${clubId}/integrations/fbi/parse-documents`, { method: "POST", timeoutMs: 120_000 });
 }
 
 /**

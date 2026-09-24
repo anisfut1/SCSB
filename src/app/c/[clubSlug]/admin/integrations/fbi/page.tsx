@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { FbiCredentialsForm } from "@/features/admin/FbiCredentialsForm";
 import { TestFbiConnectionButton } from "@/features/admin/TestFbiConnectionButton";
 import { ProcessFbiJobsButton } from "@/features/admin/ProcessFbiJobsButton";
+import { ParseFbiDocumentsButton } from "@/features/admin/ParseFbiDocumentsButton";
 
 /**
  * §20/§21 de la demande. Le formulaire et le bouton de test appellent
@@ -52,11 +53,20 @@ export default async function FbiIntegrationPage({ params }: { params: Promise<{
         <Card title="Documents e-Marque en attente">
           <p className="text-sm text-black/60 dark:text-white/60">
             « Connecté » prouve juste que l&apos;identifiant/mot de passe FBI fonctionnent — ça ne récupère rien tout seul.
-            La récupération des feuilles de match, compositions et statistiques tourne comme des tâches en arrière-plan ;
-            ce bouton les traite maintenant plutôt que d&apos;attendre la prochaine synchronisation automatique.
+            La récupération se fait en deux étapes, chacune en tâche de fond : d&apos;abord le téléchargement des
+            documents (feuille de match, résumé), puis leur traitement (OCR/PDF) pour en extraire composition,
+            statistiques et officiels. Ces deux boutons les font avancer maintenant plutôt que d&apos;attendre la
+            prochaine synchronisation automatique.
           </p>
-          <div className="mt-3">
-            <ProcessFbiJobsButton clubId={club.id} />
+          <div className="mt-3 flex flex-col gap-3">
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-black/40 dark:text-white/40">1. Télécharger</p>
+              <ProcessFbiJobsButton clubId={club.id} />
+            </div>
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-black/40 dark:text-white/40">2. Traiter les documents téléchargés</p>
+              <ParseFbiDocumentsButton clubId={club.id} />
+            </div>
           </div>
         </Card>
       ) : null}

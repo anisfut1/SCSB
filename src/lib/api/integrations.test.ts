@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getIntegrationStatus, listSyncRuns, processFbiJobs, testFbiConnection, triggerFfbbSync } from "./integrations";
+import { getIntegrationStatus, listSyncRuns, parseFbiDocuments, processFbiJobs, testFbiConnection, triggerFfbbSync } from "./integrations";
 import type { ApiFetcher } from "./client";
 
 function fakeFetcher(response: unknown): { fetcher: ApiFetcher; calls: string[]; inits: unknown[] } {
@@ -55,5 +55,24 @@ describe("processFbiJobs", () => {
     await processFbiJobs(fetcher, "club-1");
 
     expect((inits[0] as { timeoutMs?: number }).timeoutMs).toBe(280_000);
+  });
+});
+
+describe("parseFbiDocuments", () => {
+  it("appelle POST /v1/clubs/:clubId/integrations/fbi/parse-documents et renvoie le résumé du lot", async () => {
+    const { fetcher, calls } = fakeFetcher({ candidatesExamined: 3, imported: 2, errors: 1 });
+
+    const result = await parseFbiDocuments(fetcher, "club-1");
+
+    expect(calls).toEqual(["/v1/clubs/club-1/integrations/fbi/parse-documents"]);
+    expect(result).toEqual({ candidatesExamined: 3, imported: 2, errors: 1 });
+  });
+
+  it("dépasse le timeout par défaut (20s) — plusieurs documents peuvent être traités en un seul appel", async () => {
+    const { fetcher, inits } = fakeFetcher({ candidatesExamined: 0, imported: 0, errors: 0 });
+
+    await parseFbiDocuments(fetcher, "club-1");
+
+    expect((inits[0] as { timeoutMs?: number }).timeoutMs).toBe(120_000);
   });
 });

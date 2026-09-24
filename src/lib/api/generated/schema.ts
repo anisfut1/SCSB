@@ -1084,6 +1084,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/clubs/{clubId}/integrations/fbi/parse-documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Lot de documents e-Marque téléchargés du club parsés (OCR/PDF, jamais de navigateur) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            candidatesExamined: number;
+                            imported: number;
+                            errors: number;
+                        };
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/clubs/{clubId}/sync-runs": {
         parameters: {
             query?: never;

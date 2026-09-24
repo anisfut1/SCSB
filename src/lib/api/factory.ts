@@ -32,6 +32,7 @@ export function createApi(fetcher: ApiFetcher) {
       saveFbi: (clubId: string, body: integrations.SaveFbiCredentialsDto) => integrations.saveFbiCredentials(fetcher, clubId, body),
       testFbi: (clubId: string) => integrations.testFbiConnection(fetcher, clubId),
       processFbiJobs: (clubId: string) => integrations.processFbiJobs(fetcher, clubId),
+      parseFbiDocuments: (clubId: string) => integrations.parseFbiDocuments(fetcher, clubId),
       triggerFfbbSync: (clubId: string) => integrations.triggerFfbbSync(fetcher, clubId),
       syncRuns: (clubId: string) => integrations.listSyncRuns(fetcher, clubId),
     },
