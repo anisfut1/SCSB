@@ -54,7 +54,12 @@ export async function triggerFfbbSync(fetcher: ApiFetcher, clubId: string): Prom
  * de lui-même).
  */
 export async function processFbiJobs(fetcher: ApiFetcher, clubId: string): Promise<ProcessFbiJobsResult> {
-  return fetcher<ProcessFbiJobsResult>(`/v1/clubs/${clubId}/integrations/fbi/process-jobs`, { method: "POST" });
+  // timeoutMs généreux : jusqu'à CLUB_JOB_BATCH_SIZE jobs `discover_emarque`
+  // traités en série côté club-manager-api, chacun pilotant un vrai
+  // Chromium serverless (~25-30s en pratique, voir docs/FBI.md côté
+  // club-manager-api) — le timeout par défaut de 20s (client.ts) expirait
+  // avant la fin d'un seul job.
+  return fetcher<ProcessFbiJobsResult>(`/v1/clubs/${clubId}/integrations/fbi/process-jobs`, { method: "POST", timeoutMs: 280_000 });
 }
 
 /**

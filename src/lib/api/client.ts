@@ -5,6 +5,18 @@ export interface ApiRequestInit extends Omit<RequestInit, "body"> {
   body?: unknown;
   /** Jeton d'accès Supabase (JWT) à transmettre en `Authorization: Bearer <token>` — jamais un mot de passe, jamais la service role (§6 de la demande). */
   accessToken?: string | null;
+  /**
+   * Dépasse `API_FETCH_TIMEOUT_MS` pour un endpoint dont le temps de
+   * réponse normal excède 20s (ex: `.../fbi/process-jobs`, qui pilote
+   * `BrowserFbiClient` en synchrone côté club-manager-api — un seul job
+   * `discover_emarque` prend déjà ~25-30s en pratique, voir docs/FBI.md
+   * côté club-manager-api). Sans ce dépassement, le fetch expirait avant
+   * la réponse alors que le traitement backend, lui, réussissait
+   * (constaté en production le 2026-09-24 : "Traitement impossible"
+   * affiché côté SCSB pendant que les jobs continuaient de se terminer
+   * avec succès côté serveur).
+   */
+  timeoutMs?: number;
 }
 
 /**
@@ -18,8 +30,8 @@ export interface ApiRequestInit extends Omit<RequestInit, "body"> {
  */
 const API_FETCH_TIMEOUT_MS = 20_000;
 
-function withTimeout(signal: AbortSignal | null | undefined): AbortSignal {
-  const timeoutSignal = AbortSignal.timeout(API_FETCH_TIMEOUT_MS);
+function withTimeout(signal: AbortSignal | null | undefined, timeoutMs: number): AbortSignal {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
   return signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
 }
 
@@ -31,7 +43,7 @@ function withTimeout(signal: AbortSignal | null | undefined): AbortSignal {
  * par les modules de src/lib/api/*.ts, jamais deviné à la main.
  */
 export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Promise<T> {
-  const { accessToken, body, headers, ...rest } = init;
+  const { accessToken, body, headers, timeoutMs, ...rest } = init;
   const url = new URL(path, CLUB_MANAGER_API_URL);
 
   const requestHeaders = new Headers(headers);
@@ -53,7 +65,7 @@ export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Prom
       // défaut (§41 de la demande) — un club ne doit jamais recevoir une
       // réponse mise en cache pour un autre club.
       cache: rest.cache ?? "no-store",
-      signal: withTimeout(rest.signal),
+      signal: withTimeout(rest.signal, timeoutMs ?? API_FETCH_TIMEOUT_MS),
     });
   } catch (error) {
     throw new ApiUnreachableError(error);

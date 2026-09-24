@@ -2,13 +2,15 @@ import { describe, expect, it } from "vitest";
 import { getIntegrationStatus, listSyncRuns, processFbiJobs, testFbiConnection, triggerFfbbSync } from "./integrations";
 import type { ApiFetcher } from "./client";
 
-function fakeFetcher(response: unknown): { fetcher: ApiFetcher; calls: string[] } {
+function fakeFetcher(response: unknown): { fetcher: ApiFetcher; calls: string[]; inits: unknown[] } {
   const calls: string[] = [];
-  const fetcher: ApiFetcher = (async (path: string) => {
+  const inits: unknown[] = [];
+  const fetcher: ApiFetcher = (async (path: string, init?: unknown) => {
     calls.push(path);
+    inits.push(init);
     return response;
   }) as ApiFetcher;
-  return { fetcher, calls };
+  return { fetcher, calls, inits };
 }
 
 describe("listSyncRuns", () => {
@@ -45,5 +47,13 @@ describe("processFbiJobs", () => {
 
     expect(calls).toEqual(["/v1/clubs/club-1/integrations/fbi/process-jobs"]);
     expect(result).toEqual({ claimed: 2, succeeded: 1, failed: 1 });
+  });
+
+  it("dépasse le timeout par défaut (20s) — un seul job discover_emarque prend déjà ~25-30s en pratique", async () => {
+    const { fetcher, inits } = fakeFetcher({ claimed: 0, succeeded: 0, failed: 0 });
+
+    await processFbiJobs(fetcher, "club-1");
+
+    expect((inits[0] as { timeoutMs?: number }).timeoutMs).toBe(280_000);
   });
 });

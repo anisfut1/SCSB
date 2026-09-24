@@ -117,4 +117,31 @@ describe("apiFetch", () => {
     const [, init] = fetchMock.mock.calls[0]!;
     expect(init.cache).toBe("no-store");
   });
+
+  it("utilise le timeout par défaut (20s) sauf si timeoutMs est passé explicitement", async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(200, {})));
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
+
+    await apiFetch("/v1/clubs");
+    expect(timeoutSpy).toHaveBeenLastCalledWith(20_000);
+
+    // Endpoint lent (ex: .../fbi/process-jobs, qui pilote BrowserFbiClient
+    // en synchrone — un seul job discover_emarque prend déjà ~25-30s en
+    // pratique) : le timeout par défaut de 20s expirait avant la réponse
+    // alors que le traitement backend réussissait (constaté en production
+    // le 2026-09-24), d'où ce dépassement explicite par appel.
+    await apiFetch("/v1/clubs/abc/integrations/fbi/process-jobs", { method: "POST", timeoutMs: 280_000 });
+    expect(timeoutSpy).toHaveBeenLastCalledWith(280_000);
+
+    timeoutSpy.mockRestore();
+  });
+
+  it("ne transmet jamais timeoutMs comme option fetch() brute (il est consommé par withTimeout, pas une option RequestInit valide)", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, {}));
+
+    await apiFetch("/v1/clubs", { timeoutMs: 280_000 });
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(init).not.toHaveProperty("timeoutMs");
+  });
 });
