@@ -6,6 +6,22 @@ import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
 
 /**
+ * "je ne veux pas avoir à appuyer 200 fois" (§10 de la demande) : chaque
+ * appel ne traite qu'un petit lot (`CLUB_JOB_BATCH_SIZE`, côté
+ * club-manager-api) — tant que le lot renvoyé est plein (`claimed > 0`),
+ * il en reste probablement d'autres, donc on relance automatiquement DANS
+ * CE MÊME clic, sans que l'admin ait à recliquer. Un seul clic vide toute
+ * la file, tant que l'onglet reste ouvert (le fetch continue même en
+ * arrière-plan) — `MAX_ROUNDS` est juste un filet de sécurité pour ne
+ * jamais boucler indéfiniment si le backend renvoyait toujours `claimed >
+ * 0` sans jamais vider la file (bug, ou file alimentée plus vite qu'elle
+ * n'est vidée).
+ */
+const MAX_ROUNDS = 100;
+
+type Status = { kind: "pending" | "success" | "error"; text: string };
+
+/**
  * "FBI connecté" ne récupère rien tout seul : la connexion réussie prouve
  * juste que les identifiants sont valides, la récupération réelle des
  * documents e-Marque tourne comme des jobs `discover_emarque` en arrière-plan
@@ -17,25 +33,39 @@ import { ApiError } from "@/lib/api/client";
 export function ProcessFbiJobsButton({ clubId }: { clubId: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [status, setStatus] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  const [status, setStatus] = useState<Status | null>(null);
 
   function handleClick() {
     startTransition(async () => {
-      try {
-        const result = await browserApi.integrations.processFbiJobs(clubId);
+      let claimed = 0;
+      let succeeded = 0;
+      let failed = 0;
 
-        if (result.claimed === 0) {
+      try {
+        for (let round = 0; round < MAX_ROUNDS; round += 1) {
+          setStatus({ kind: "pending", text: claimed > 0 ? `Traitement en cours… (${claimed} jobs traités jusqu'ici)` : "Traitement en cours…" });
+
+          const result = await browserApi.integrations.processFbiJobs(clubId);
+          claimed += result.claimed;
+          succeeded += result.succeeded;
+          failed += result.failed;
+
+          if (result.claimed === 0) break;
+        }
+
+        if (claimed === 0) {
           setStatus({ kind: "success", text: "Rien en attente pour l'instant." });
         } else {
-          const parts = [`${result.claimed} job${result.claimed > 1 ? "s" : ""} traité${result.claimed > 1 ? "s" : ""}`];
-          if (result.succeeded > 0) parts.push(`${result.succeeded} réussi${result.succeeded > 1 ? "s" : ""}`);
-          if (result.failed > 0) parts.push(`${result.failed} en échec`);
-          setStatus({ kind: result.failed > 0 ? "error" : "success", text: parts.join(", ") + "." });
+          const parts = [`${claimed} job${claimed > 1 ? "s" : ""} traité${claimed > 1 ? "s" : ""}`];
+          if (succeeded > 0) parts.push(`${succeeded} réussi${succeeded > 1 ? "s" : ""}`);
+          if (failed > 0) parts.push(`${failed} en échec`);
+          setStatus({ kind: failed > 0 ? "error" : "success", text: parts.join(", ") + "." });
         }
 
         router.refresh();
       } catch (error) {
-        setStatus({ kind: "error", text: error instanceof ApiError ? error.message : "Traitement impossible. Réessaie." });
+        setStatus({ kind: "error", text: `${claimed} job${claimed > 1 ? "s" : ""} traités avant l'erreur : ${error instanceof ApiError ? error.message : "traitement impossible."}` });
+        router.refresh();
       }
     });
   }
@@ -52,7 +82,12 @@ export function ProcessFbiJobsButton({ clubId }: { clubId: string }) {
       </button>
 
       {status ? (
-        <p role="status" className={`text-sm ${status.kind === "success" ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+        <p
+          role="status"
+          className={`text-sm ${
+            status.kind === "success" ? "text-green-700 dark:text-green-400" : status.kind === "error" ? "text-red-600 dark:text-red-400" : "text-black/60 dark:text-white/60"
+          }`}
+        >
           {status.text}
         </p>
       ) : null}
