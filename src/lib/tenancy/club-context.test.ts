@@ -38,6 +38,7 @@ const CLUB_A: ClubDto = {
   accentColor: null,
   timezone: "Europe/Paris",
   status: "active",
+  ffbbClubCode: "OCC0034008",
   roles: ["club_admin"],
 };
 

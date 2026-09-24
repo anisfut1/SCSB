@@ -28,11 +28,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            /** Format: uuid */
-                            id: string;
-                            email: string | null;
-                        };
+                        "application/json": components["schemas"]["MeDto"];
                     };
                 };
                 /** @description Non authentifié */
@@ -198,7 +194,78 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["UpdateClubDto"];
+                };
+            };
+            responses: {
+                /** @description Club mis à jour (branding uniquement) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ClubDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/v1/clubs/{clubId}/capabilities": {
@@ -342,7 +409,16 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    period?: "weekend" | "upcoming" | "past";
+                    from?: string;
+                    to?: string;
+                    teamId?: string;
+                    homeAway?: "home" | "away";
+                    status?: "scheduled" | "played" | "postponed" | "cancelled" | "forfeit";
+                    limit?: number;
+                    offset?: number | null;
+                };
                 header?: never;
                 path: {
                     /** @description UUID ou slug du club */
@@ -352,7 +428,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Matchs du club */
+                /** @description Matchs du club (filtrés, paginés) */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -360,7 +436,17 @@ export interface paths {
                     content: {
                         "application/json": {
                             matches: components["schemas"]["MatchListItemDto"][];
+                            pagination: components["schemas"]["MatchesPaginationDto"];
                         };
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
                     };
                 };
                 /** @description Non authentifié */
@@ -383,6 +469,15 @@ export interface paths {
                 };
                 /** @description Introuvable */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -534,6 +629,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/clubs/{clubId}/emarque-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    matchId?: string;
+                    status?: "discovered" | "downloading" | "downloaded" | "parsing" | "imported" | "error" | "needs_review";
+                    from?: string;
+                    to?: string;
+                    limit?: number;
+                    offset?: number | null;
+                };
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Imports e-Marque du club (filtrés, paginés) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            imports: components["schemas"]["EmarqueImportDto"][];
+                            pagination: components["schemas"]["MatchesPaginationDto"];
+                        };
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/clubs/{clubId}/integrations": {
         parameters: {
             query?: never;
@@ -624,14 +812,171 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Identifiants enregistrés */
+                /** @description Identifiants enregistrés (jamais le mot de passe) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SaveFbiCredentialsResponseDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PatchFbiIntegrationDto"];
+                };
+            };
+            responses: {
+                /** @description Réglages FBI mis à jour */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": {
-                            saved: boolean;
+                            fbi: components["schemas"]["FbiIntegrationStatusDto"];
+                        };
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/v1/clubs/{clubId}/integrations/fbi/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Résultat du test (HttpFbiClient, ou BrowserFbiClient en repli) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            success: boolean;
+                            message: string;
                         };
                     };
                 };
@@ -670,7 +1015,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/clubs/{clubId}/integrations/fbi/test": {
+    "/v1/clubs/{clubId}/integrations/fbi/process-jobs": {
         parameters: {
             query?: never;
             header?: never;
@@ -691,30 +1036,16 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Résultat du test (HttpFbiClient) */
+                /** @description Lot de jobs FBI du club traité (discover_emarque/test_connection en attente) */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": {
-                            success: boolean;
-                            message: string;
-                        };
-                    };
-                };
-                /** @description Job navigateur empilé en secours */
-                202: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            message: string;
-                            /** Format: uuid */
-                            jobId: string;
+                            claimed: number;
+                            succeeded: number;
+                            failed: number;
                         };
                     };
                 };
@@ -890,6 +1221,97 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/clubs/{clubId}/integrations/ffbb": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PatchFfbbIntegrationDto"];
+                };
+            };
+            responses: {
+                /** @description Intégration FFBB mise à jour (jamais de suppression de l'historique déjà synchronisé) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            clubCode: string;
+                            enabled: boolean;
+                            nextSyncAt: string | null;
+                        };
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/v1/clubs/{clubId}/issues": {
@@ -1253,6 +1675,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        MeDto: {
+            /** Format: uuid */
+            id: string;
+            email: string | null;
+            displayName: string | null;
+            isPlatformAdmin: boolean;
+        };
         ErrorEnvelope: {
             error: {
                 code: string;
@@ -1271,9 +1700,18 @@ export interface components {
             /** @enum {string} */
             status: "active" | "suspended";
             roles: components["schemas"]["ClubRole"][];
+            ffbbClubCode: string;
         };
         /** @enum {string} */
         ClubRole: "club_admin" | "correspondant_club" | "responsable_tables" | "coach" | "joueur" | "parent";
+        UpdateClubDto: {
+            name?: string;
+            shortName?: string | null;
+            timezone?: string;
+            /** Format: uri */
+            logoUrl?: string | null;
+            accentColor?: string | null;
+        };
         ClubCapabilities: {
             ffbb: boolean;
             fbi: boolean;
@@ -1295,12 +1733,18 @@ export interface components {
             isHome: boolean | null;
             teamName: string | null;
             opponentName: string | null;
+            opponentLogoUrl: string | null;
             venueLabel: string | null;
             scoreHome: number | null;
             scoreAway: number | null;
             /** @enum {string} */
             status: "scheduled" | "played" | "postponed" | "cancelled" | "forfeit";
             emarqueStatus: string;
+        };
+        MatchesPaginationDto: {
+            limit: number;
+            offset: number;
+            total: number;
         };
         MatchDetailsDto: {
             /** Format: uuid */
@@ -1311,6 +1755,7 @@ export interface components {
             isHome: boolean | null;
             teamName: string | null;
             opponentName: string | null;
+            opponentLogoUrl: string | null;
             venueLabel: string | null;
             scoreHome: number | null;
             scoreAway: number | null;
@@ -1328,7 +1773,22 @@ export interface components {
             source: string | null;
             lastRetrievedAt: string | null;
             qualityWarningCount: number | null;
+            parserVersion: string | null;
+            discoveredAt: string | null;
+            importedAt: string | null;
+            qualityWarnings: components["schemas"]["QualityWarningDto"][];
+            lastError: components["schemas"]["SanitizedErrorDto"];
         };
+        QualityWarningDto: {
+            code: string;
+            message: string;
+            /** @enum {string} */
+            severity: "info" | "warning" | "error";
+        };
+        SanitizedErrorDto: {
+            code: string;
+            message: string;
+        } | null;
         MatchParticipantDto: {
             /** Format: uuid */
             id: string;
@@ -1381,10 +1841,30 @@ export interface components {
             /** @enum {string} */
             type: "emarque_zip" | "match_sheet" | "summary" | "shot_chart" | "other";
             filename: string | null;
+            mimeType: string | null;
             /** @enum {string} */
             status: "downloaded" | "parsing" | "imported" | "error";
+            discoveredAt: string;
             downloadedAt: string | null;
             downloadUrl: string | null;
+        };
+        EmarqueImportDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            matchId: string;
+            /** @enum {string} */
+            status: "discovered" | "downloading" | "downloaded" | "parsing" | "imported" | "error" | "needs_review";
+            /** @enum {string} */
+            source: "fbi";
+            parserVersion: string | null;
+            discoveredAt: string;
+            downloadedAt: string | null;
+            importedAt: string | null;
+            qualityWarnings: components["schemas"]["QualityWarningDto"][];
+            lastError: components["schemas"]["SanitizedErrorDto"];
+            attemptCount: number;
+            nextAttemptAt: string | null;
         };
         IntegrationStatusDto: {
             ffbb: {
@@ -1392,17 +1872,28 @@ export interface components {
                 lastSyncAt: string | null;
                 lastSyncStatus: string | null;
             };
-            fbi: {
-                configured: boolean;
-                connected: boolean;
-                lastLoginAt: string | null;
-                autoImportEmarque: boolean;
-                lastError: string | null;
-            };
+            fbi: components["schemas"]["FbiIntegrationStatusDto"];
+        };
+        FbiIntegrationStatusDto: {
+            configured: boolean;
+            username: string | null;
+            connected: boolean;
+            lastLoginAt: string | null;
+            autoImportEmarque: boolean;
+            lastError: string | null;
+        };
+        SaveFbiCredentialsResponseDto: {
+            /** @enum {boolean} */
+            saved: true;
+            fbi: components["schemas"]["FbiIntegrationStatusDto"];
         };
         SaveFbiCredentialsDto: {
             username: string;
             password?: string;
+        };
+        PatchFbiIntegrationDto: {
+            enabled?: boolean;
+            autoImportEmarque?: boolean;
         };
         SyncRunDto: {
             /** Format: uuid */
@@ -1415,6 +1906,10 @@ export interface components {
             finishedAt: string | null;
             errorLog: string | null;
         };
+        PatchFfbbIntegrationDto: {
+            clubCode?: string;
+            enabled?: boolean;
+        };
         IssueDto: {
             /** Format: uuid */
             matchId: string;
@@ -1422,7 +1917,18 @@ export interface components {
             opponentName: string | null;
             matchDatetime: string | null;
             /** @enum {string} */
-            emarqueStatus: "error" | "needs_review";
+            integration: "emarque";
+            /** @enum {string} */
+            type: "emarque_import_error" | "emarque_needs_review";
+            /** @enum {string} */
+            severity: "warning" | "error";
+            /** @enum {string} */
+            status: "open";
+            message: string;
+            technicalCode: string;
+            qualityWarnings: components["schemas"]["QualityWarningDto"][];
+            createdAt: string | null;
+            resolvedAt: string | null;
         };
         JobStatusDto: {
             /** Format: uuid */

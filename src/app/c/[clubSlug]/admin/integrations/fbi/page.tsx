@@ -3,6 +3,7 @@ import { api } from "@/lib/api/server";
 import { Card } from "@/components/ui/Card";
 import { FbiCredentialsForm } from "@/features/admin/FbiCredentialsForm";
 import { TestFbiConnectionButton } from "@/features/admin/TestFbiConnectionButton";
+import { ProcessFbiJobsButton } from "@/features/admin/ProcessFbiJobsButton";
 
 /**
  * §20/§21 de la demande. Le formulaire et le bouton de test appellent
@@ -46,6 +47,19 @@ export default async function FbiIntegrationPage({ params }: { params: Promise<{
       <Card title="Test de connexion">
         <TestFbiConnectionButton clubId={club.id} />
       </Card>
+
+      {integrations.fbi.configured ? (
+        <Card title="Documents e-Marque en attente">
+          <p className="text-sm text-black/60 dark:text-white/60">
+            « Connecté » prouve juste que l&apos;identifiant/mot de passe FBI fonctionnent — ça ne récupère rien tout seul.
+            La récupération des feuilles de match, compositions et statistiques tourne comme des tâches en arrière-plan ;
+            ce bouton les traite maintenant plutôt que d&apos;attendre la prochaine synchronisation automatique.
+          </p>
+          <div className="mt-3">
+            <ProcessFbiJobsButton clubId={club.id} />
+          </div>
+        </Card>
+      ) : null}
 
       {integrations.fbi.configured ? (
         <Card title="Récupération automatique e-Marque">

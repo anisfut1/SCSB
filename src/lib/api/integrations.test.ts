@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getIntegrationStatus, listSyncRuns, testFbiConnection, triggerFfbbSync } from "./integrations";
+import { getIntegrationStatus, listSyncRuns, processFbiJobs, testFbiConnection, triggerFfbbSync } from "./integrations";
 import type { ApiFetcher } from "./client";
 
 function fakeFetcher(response: unknown): { fetcher: ApiFetcher; calls: string[] } {
@@ -34,5 +34,16 @@ describe("getIntegrationStatus / testFbiConnection / triggerFfbbSync", () => {
     const sync = fakeFetcher({ syncRunId: "r1", status: "success", stats: {} });
     await triggerFfbbSync(sync.fetcher, "club-1");
     expect(sync.calls).toEqual(["/v1/clubs/club-1/integrations/ffbb/sync"]);
+  });
+});
+
+describe("processFbiJobs", () => {
+  it("appelle POST /v1/clubs/:clubId/integrations/fbi/process-jobs et renvoie le résumé du lot", async () => {
+    const { fetcher, calls } = fakeFetcher({ claimed: 2, succeeded: 1, failed: 1 });
+
+    const result = await processFbiJobs(fetcher, "club-1");
+
+    expect(calls).toEqual(["/v1/clubs/club-1/integrations/fbi/process-jobs"]);
+    expect(result).toEqual({ claimed: 2, succeeded: 1, failed: 1 });
   });
 });

@@ -11,12 +11,10 @@ function formatDateTime(value: string | null | undefined): string {
  * File de revue humaine (ARCHITECTURE.md §21) — §23 de la demande :
  * `GET /v1/clubs/:clubId/issues`, plus aucun SELECT Supabase.
  *
- * BACKEND_API_GAP (voir docs/MIGRATION_TO_API.md) : `IssueDto` ne renvoie
- * pas les avertissements qualité détaillés (`quality_warnings`) ni le
- * dernier message d'erreur (`emarque_imports.last_error`) — seulement
- * `emarqueStatus` (`error`/`needs_review`). Le détail par match n'est donc
- * plus affiché ici ; le statut suffit pour identifier les matchs à
- * vérifier et déclencher l'action "Marquer comme vérifié".
+ * `IssueDto` (gap 6 de la demande, côté club-manager-api) expose le détail
+ * complet — `severity`/`message`/`technicalCode`/`qualityWarnings` —
+ * jamais consommé ici jusqu'ici (cette page utilisait encore l'ancien champ
+ * `emarqueStatus`, retiré du contrat OpenAPI).
  */
 export default async function IssuesPage({ params }: { params: Promise<{ clubSlug: string }> }) {
   const { clubSlug } = await params;
@@ -47,10 +45,22 @@ export default async function IssuesPage({ params }: { params: Promise<{ clubSlu
                 <dd>{formatDateTime(issue.matchDatetime)}</dd>
               </div>
               <div>
-                <dt className="text-black/60 dark:text-white/60">Statut</dt>
-                <dd>{issue.emarqueStatus}</dd>
+                <dt className="text-black/60 dark:text-white/60">Sévérité</dt>
+                <dd className={issue.severity === "error" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}>{issue.severity}</dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-black/60 dark:text-white/60">Détail</dt>
+                <dd>{issue.message}</dd>
               </div>
             </dl>
+
+            {issue.qualityWarnings.length > 0 ? (
+              <ul className="mt-2 list-inside list-disc text-sm text-black/60 dark:text-white/60">
+                {issue.qualityWarnings.map((warning, index) => (
+                  <li key={`${issue.matchId}-${warning.code}-${index}`}>{warning.message}</li>
+                ))}
+              </ul>
+            ) : null}
 
             <ResolveIssueButton clubId={club.id} matchId={issue.matchId} />
           </Card>
