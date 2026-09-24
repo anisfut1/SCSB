@@ -16,8 +16,36 @@ import { ApiError } from "@/lib/api/client";
  * jamais boucler indéfiniment si le backend renvoyait toujours `claimed >
  * 0` sans jamais vider la file (bug, ou file alimentée plus vite qu'elle
  * n'est vidée).
+ *
+ * INCIDENT constaté en production le 2026-09-24 (déploiement initial de
+ * cette boucle auto, sans les deux garde-fous ci-dessous) : la boucle a
+ * enchaîné ~190 connexions FBI en quelques minutes, sans aucune pause —
+ * `fbi_integration_status.last_error` est passé de "Connecté ✅" à
+ * "Formulaire de connexion FBI non reconnu" en cours de route, chaque job
+ * étant alors marqué en échec PERMANENT (`AUTH_FLOW_CHANGED`, jamais
+ * retried, voir errors.ts côté club-manager-api) — signature cohérente
+ * avec un blocage anti-bot FBI déclenché par le rythme, jamais observé
+ * avant cette boucle malgré des dizaines de connexions manuelles
+ * (espacées naturellement par le temps de clic de l'admin). Arrêté côté
+ * base (jobs replanifiés + remis en attente) le temps du correctif —
+ * jamais reproductible sans ces deux garde-fous :
+ * - `ROUND_DELAY_MS` : pause entre deux lots, jamais un enchaînement
+ *   immédiat (le rythme manuel précédent, ~30s+ entre clics, n'avait
+ *   jamais déclenché ce comportement).
+ * - Coupe-circuit : un lot ENTIÈREMENT en échec (`succeeded === 0` alors
+ *   que des jobs ont été réclamés) interrompt la boucle après
+ *   `MAX_CONSECUTIVE_FULL_FAILURES` lots consécutifs de ce type — un vrai
+ *   problème (identifiants, blocage FBI) ne se corrige jamais en
+ *   insistant, autant arrêter tôt plutôt que de vider toute la file en
+ *   échecs permanents.
  */
 const MAX_ROUNDS = 100;
+const ROUND_DELAY_MS = 5_000;
+const MAX_CONSECUTIVE_FULL_FAILURES = 2;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 type Status = { kind: "pending" | "success" | "error"; text: string };
 
@@ -40,9 +68,13 @@ export function ProcessFbiJobsButton({ clubId }: { clubId: string }) {
       let claimed = 0;
       let succeeded = 0;
       let failed = 0;
+      let consecutiveFullFailures = 0;
+      let stoppedOnCircuitBreaker = false;
 
       try {
         for (let round = 0; round < MAX_ROUNDS; round += 1) {
+          if (round > 0) await delay(ROUND_DELAY_MS);
+
           setStatus({ kind: "pending", text: claimed > 0 ? `Traitement en cours… (${claimed} jobs traités jusqu'ici)` : "Traitement en cours…" });
 
           const result = await browserApi.integrations.processFbiJobs(clubId);
@@ -51,6 +83,12 @@ export function ProcessFbiJobsButton({ clubId }: { clubId: string }) {
           failed += result.failed;
 
           if (result.claimed === 0) break;
+
+          consecutiveFullFailures = result.succeeded === 0 ? consecutiveFullFailures + 1 : 0;
+          if (consecutiveFullFailures >= MAX_CONSECUTIVE_FULL_FAILURES) {
+            stoppedOnCircuitBreaker = true;
+            break;
+          }
         }
 
         if (claimed === 0) {
@@ -59,6 +97,7 @@ export function ProcessFbiJobsButton({ clubId }: { clubId: string }) {
           const parts = [`${claimed} job${claimed > 1 ? "s" : ""} traité${claimed > 1 ? "s" : ""}`];
           if (succeeded > 0) parts.push(`${succeeded} réussi${succeeded > 1 ? "s" : ""}`);
           if (failed > 0) parts.push(`${failed} en échec`);
+          if (stoppedOnCircuitBreaker) parts.push("arrêté après plusieurs lots entièrement en échec — vérifie le statut FBI avant de recliquer");
           setStatus({ kind: failed > 0 ? "error" : "success", text: parts.join(", ") + "." });
         }
 
