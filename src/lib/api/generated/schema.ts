@@ -1383,6 +1383,225 @@ export interface paths {
         };
         trace?: never;
     };
+    "/v1/clubs/{clubId}/licencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Roster du club */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LicenciesListDto"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/clubs/{clubId}/licencies/{licencieId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                    licencieId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Fiche joueur : identité, historique des matchs, statistiques par match */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LicencieProfileDto"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/clubs/{clubId}/licencies/{licencieId}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                    licencieId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["UpdateLicencieProfileDto"];
+                };
+            };
+            responses: {
+                /** @description Profil mis à jour (champs admin, ou contact/photo si le licencié lui-même) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LicencieDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/v1/clubs/{clubId}/issues": {
         parameters: {
             query?: never;
@@ -1896,6 +2115,8 @@ export interface components {
             jerseyNumber: string | null;
             firstName: string | null;
             lastName: string | null;
+            /** Format: uuid */
+            licencieId: string | null;
             secondsPlayed: number | null;
             points: number | null;
             threePointsMade: number | null;
@@ -1978,6 +2199,66 @@ export interface components {
         PatchFfbbIntegrationDto: {
             clubCode?: string;
             enabled?: boolean;
+        };
+        LicenciesListDto: {
+            licencies: components["schemas"]["LicencieDto"][];
+        };
+        LicencieDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            clubId: string;
+            firstName: string;
+            lastName: string;
+            licenseNumber: string | null;
+            birthDate: string | null;
+            email: string | null;
+            phone: string | null;
+            photoUrl: string | null;
+            active: boolean;
+        };
+        LicencieProfileDto: {
+            licencie: components["schemas"]["LicencieDto"];
+            canEdit: boolean;
+            isSelf: boolean;
+            matches: components["schemas"]["LicencieMatchDto"][];
+        };
+        LicencieMatchDto: {
+            /** Format: uuid */
+            matchId: string;
+            numero: string | null;
+            matchDatetime: string | null;
+            isHome: boolean | null;
+            opponentName: string | null;
+            scoreHome: number | null;
+            scoreAway: number | null;
+            /** @enum {string} */
+            status: "scheduled" | "played" | "postponed" | "cancelled" | "forfeit";
+            jerseyNumber: string | null;
+            isCaptain: boolean;
+            isStarter: boolean | null;
+            stats: {
+                secondsPlayed: number | null;
+                points: number | null;
+                threePointsMade: number | null;
+                twoPointsInteriorMade: number | null;
+                twoPointsExteriorMade: number | null;
+                freeThrowsMade: number | null;
+                foulsCommitted: number | null;
+            } | null;
+        };
+        UpdateLicencieProfileDto: {
+            /** Format: uri */
+            photoUrl?: string | null;
+            /** Format: email */
+            email?: string | null;
+            phone?: string | null;
+            firstName?: string;
+            lastName?: string;
+            /** Format: date */
+            birthDate?: string | null;
+            licenseNumber?: string | null;
+            active?: boolean;
         };
         IssueDto: {
             /** Format: uuid */

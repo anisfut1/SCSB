@@ -4,6 +4,7 @@ import * as matches from "./matches";
 import * as integrations from "./integrations";
 import * as issues from "./issues";
 import * as jobs from "./jobs";
+import * as licencies from "./licencies";
 import * as platform from "./platform";
 
 /**
@@ -43,6 +44,11 @@ export function createApi(fetcher: ApiFetcher) {
     jobs: {
       get: (jobId: string) => jobs.getJob(fetcher, jobId),
       pollUntilTerminal: (jobId: string, options?: jobs.PollJobOptions) => jobs.pollJobUntilTerminal(fetcher, jobId, options),
+    },
+    licencies: {
+      list: (clubId: string) => licencies.listLicencies(fetcher, clubId),
+      get: (clubId: string, licencieId: string) => licencies.getLicencieProfile(fetcher, clubId, licencieId),
+      updateProfile: (clubId: string, licencieId: string, body: licencies.UpdateLicencieProfileDto) => licencies.updateLicencieProfile(fetcher, clubId, licencieId, body),
     },
     platform: {
       listClubs: () => platform.listPlatformClubs(fetcher),

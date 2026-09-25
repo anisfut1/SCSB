@@ -13,6 +13,9 @@ export default async function ClubDashboardPage({ params }: { params: Promise<{ 
         <Link href={`/c/${clubSlug}/matchs`}>
           <Card title="Matchs" description="Calendrier, résultats et composition, synchronisés automatiquement." />
         </Link>
+        <Link href={`/c/${clubSlug}/joueurs`}>
+          <Card title="Joueurs" description="Fiche par licencié : historique des matchs et statistiques." />
+        </Link>
         {DASHBOARD_PLACEHOLDER_CARDS.map((card) => (
           <Card key={card.title} title={card.title} description={card.description} />
         ))}

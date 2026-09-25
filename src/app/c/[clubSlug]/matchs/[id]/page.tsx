@@ -138,7 +138,7 @@ export default async function MatchDetailPage({
 
       {tab === "informations" ? <InformationsTab match={match} homeLabel={homeLabel} awayLabel={awayLabel} /> : null}
       {tab === "composition" ? <CompositionTab match={match} /> : null}
-      {tab === "statistiques" ? <StatistiquesTab match={match} homeLabel={homeLabel} awayLabel={awayLabel} /> : null}
+      {tab === "statistiques" ? <StatistiquesTab match={match} homeLabel={homeLabel} awayLabel={awayLabel} clubSlug={clubSlug} /> : null}
       {tab === "officiels" ? <OfficielsTab match={match} /> : null}
       {tab === "emarque" ? <EmarqueTab clubId={club.id} matchId={id} match={match} isAdmin={isAdmin} /> : null}
     </div>
@@ -221,7 +221,7 @@ function CompositionTab({ match }: { match: MatchDetailsDto }) {
   );
 }
 
-function StatistiquesTeamTable({ title, rows }: { title: string; rows: MatchDetailsDto["stats"] }) {
+function StatistiquesTeamTable({ title, rows, clubSlug }: { title: string; rows: MatchDetailsDto["stats"]; clubSlug: string }) {
   return (
     <Card title={title}>
       <div className="mt-2 overflow-x-auto">
@@ -242,7 +242,17 @@ function StatistiquesTeamTable({ title, rows }: { title: string; rows: MatchDeta
             {rows.map((row) => (
               <tr key={row.participantId} className="border-t border-black/5 dark:border-white/10">
                 <td className="py-1 pr-2">
-                  #{row.jerseyNumber ?? "?"} {row.firstName ?? ""} {row.lastName ?? "(nom non lu)"}
+                  #{row.jerseyNumber ?? "?"}{" "}
+                  {/* Vers la fiche joueur (docs/LICENCIES.md côté club-manager-api) — uniquement si ce participant a déjà un licencié rattaché. */}
+                  {row.licencieId ? (
+                    <Link href={`/c/${clubSlug}/joueurs/${row.licencieId}`} className="hover:underline">
+                      {row.firstName ?? ""} {row.lastName ?? "(nom non lu)"}
+                    </Link>
+                  ) : (
+                    <>
+                      {row.firstName ?? ""} {row.lastName ?? "(nom non lu)"}
+                    </>
+                  )}
                 </td>
                 <td className="px-2 text-right">{formatSecondsPlayed(row.secondsPlayed)}</td>
                 <td className="px-2 text-right">{row.points ?? "—"}</td>
@@ -260,7 +270,7 @@ function StatistiquesTeamTable({ title, rows }: { title: string; rows: MatchDeta
   );
 }
 
-function StatistiquesTab({ match, homeLabel, awayLabel }: { match: MatchDetailsDto; homeLabel: string; awayLabel: string }) {
+function StatistiquesTab({ match, homeLabel, awayLabel, clubSlug }: { match: MatchDetailsDto; homeLabel: string; awayLabel: string; clubSlug: string }) {
   const { stats } = match;
 
   if (stats.length === 0) {
@@ -276,8 +286,8 @@ function StatistiquesTab({ match, homeLabel, awayLabel }: { match: MatchDetailsD
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <StatistiquesTeamTable title={homeLabel} rows={bySide.home} />
-        <StatistiquesTeamTable title={awayLabel} rows={bySide.away} />
+        <StatistiquesTeamTable title={homeLabel} rows={bySide.home} clubSlug={clubSlug} />
+        <StatistiquesTeamTable title={awayLabel} rows={bySide.away} clubSlug={clubSlug} />
       </div>
       <p className="text-xs text-black/50 dark:text-white/50">
         &laquo; — &raquo; signifie une donnée non lue avec certitude sur le document, jamais une valeur nulle supposée.
