@@ -72,6 +72,12 @@ export default async function IssuesPage({ params }: { params: Promise<{ clubSlu
                 Anomalie de rapprochement calendrier FFBB/FBI — se résout automatiquement dès que le calendrier FFBB
                 est corrigé et qu&apos;une nouvelle vérification est lancée (voir Intégrations → FBI).
               </p>
+            ) : issue.integration === "scheduling" ? (
+              <p className="mt-4 text-xs text-black/50 dark:text-white/50">
+                Conflit d&apos;horaire/lieu entre deux rencontres à domicile — se résout en corrigeant la date/heure
+                ou le lieu de l&apos;une des deux rencontres côté FFBB, constaté automatiquement au prochain
+                chargement de cette page.
+              </p>
             ) : null}
           </Card>
         ))

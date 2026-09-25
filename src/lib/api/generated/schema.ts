@@ -2516,9 +2516,9 @@ export interface components {
             opponentName: string | null;
             matchDatetime: string | null;
             /** @enum {string} */
-            integration: "emarque" | "fbi_schedule";
+            integration: "emarque" | "fbi_schedule" | "scheduling";
             /** @enum {string} */
-            type: "emarque_import_error" | "emarque_needs_review" | "fbi_schedule_mismatch" | "fbi_schedule_missing_in_ffbb" | "fbi_schedule_missing_in_fbi";
+            type: "emarque_import_error" | "emarque_needs_review" | "fbi_schedule_mismatch" | "fbi_schedule_missing_in_ffbb" | "fbi_schedule_missing_in_fbi" | "venue_time_conflict";
             /** @enum {string} */
             severity: "warning" | "error";
             /** @enum {string} */
