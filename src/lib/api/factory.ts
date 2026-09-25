@@ -6,6 +6,7 @@ import * as issues from "./issues";
 import * as jobs from "./jobs";
 import * as licencies from "./licencies";
 import * as platform from "./platform";
+import * as derogations from "./derogations";
 
 /**
  * Fonctions ergonomiques (§40 de la demande) : un composant appelle
@@ -39,8 +40,12 @@ export function createApi(fetcher: ApiFetcher) {
       processFbiJobs: (clubId: string) => integrations.processFbiJobs(fetcher, clubId),
       parseFbiDocuments: (clubId: string) => integrations.parseFbiDocuments(fetcher, clubId),
       triggerFbiScheduleReconciliation: (clubId: string) => integrations.triggerFbiScheduleReconciliation(fetcher, clubId),
+      triggerCheckAllDerogations: (clubId: string) => integrations.triggerCheckAllDerogations(fetcher, clubId),
       triggerFfbbSync: (clubId: string) => integrations.triggerFfbbSync(fetcher, clubId),
       syncRuns: (clubId: string) => integrations.listSyncRuns(fetcher, clubId),
+    },
+    derogations: {
+      list: (clubId: string) => derogations.listDerogations(fetcher, clubId),
     },
     issues: {
       list: (clubId: string) => issues.listIssues(fetcher, clubId),

@@ -17,6 +17,7 @@ export default async function ClubAdminLayout({ children, params }: { children: 
     { href: `/c/${clubSlug}/admin/teams`, label: "Équipes" },
     { href: `/c/${clubSlug}/admin/sync`, label: "Synchronisation" },
     { href: `/c/${clubSlug}/admin/issues`, label: "Anomalies" },
+    { href: `/c/${clubSlug}/admin/derogations`, label: "Dérogations" },
     { href: `/c/${clubSlug}/admin/settings`, label: "Réglages" },
   ];
 

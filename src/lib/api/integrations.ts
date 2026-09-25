@@ -100,6 +100,20 @@ export async function triggerFbiScheduleReconciliation(fetcher: ApiFetcher, club
 }
 
 /**
+ * POST /v1/clubs/:clubId/integrations/fbi/check-all-derogations — "je veux
+ * un bouton global qui check toutes les demandes, pas match par match" :
+ * empile UN SEUL job `check_all_derogations` qui parcourt toutes les
+ * dérogations connues de FBI en une seule connexion (recherche à numéro de
+ * rencontre VIDE), au lieu de boucler un job par match (risque de blocage
+ * anti-bot déjà constaté, voir ProcessFbiJobsButton.tsx). Lecture seule
+ * uniquement — jamais de soumission/modification de dérogation vers FBI.
+ * Les résultats apparaissent ensuite via `derogations.list` (derogations.ts).
+ */
+export async function triggerCheckAllDerogations(fetcher: ApiFetcher, clubId: string): Promise<{ queued: true }> {
+  return fetcher<{ queued: true }>(`/v1/clubs/${clubId}/integrations/fbi/check-all-derogations`, { method: "POST" });
+}
+
+/**
  * GET /v1/clubs/:clubId/integrations/sync-runs — la route vit sous
  * `integrationsRouter`, monté à `/v1/clubs/:clubId/integrations` côté
  * club-manager-api (voir `api/v1/index.ts`) : l'URL manquait `/integrations`

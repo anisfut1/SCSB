@@ -6,6 +6,7 @@ import { TestFbiConnectionButton } from "@/features/admin/TestFbiConnectionButto
 import { ProcessFbiJobsButton } from "@/features/admin/ProcessFbiJobsButton";
 import { ParseFbiDocumentsButton } from "@/features/admin/ParseFbiDocumentsButton";
 import { ReconcileFbiScheduleButton } from "@/features/admin/ReconcileFbiScheduleButton";
+import { CheckAllDerogationsButton } from "@/features/admin/CheckAllDerogationsButton";
 
 /**
  * §20/§21 de la demande. Le formulaire et le bouton de test appellent
@@ -81,6 +82,19 @@ export default async function FbiIntegrationPage({ params }: { params: Promise<{
           </p>
           <div className="mt-3">
             <ReconcileFbiScheduleButton clubId={club.id} />
+          </div>
+        </Card>
+      ) : null}
+
+      {integrations.fbi.configured ? (
+        <Card title="Dérogations">
+          <p className="text-sm text-black/60 dark:text-white/60">
+            Consultation en lecture seule de toutes les demandes de dérogation FBI du club (jamais de soumission ni de
+            modification depuis cet outil). Une seule connexion FBI vérifie toutes les demandes d&apos;un coup plutôt
+            que match par match. Le détail apparaît ensuite sur la page Dérogations.
+          </p>
+          <div className="mt-3">
+            <CheckAllDerogationsButton clubId={club.id} />
           </div>
         </Card>
       ) : null}

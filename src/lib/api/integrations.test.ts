@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getIntegrationStatus, listSyncRuns, parseFbiDocuments, processFbiJobs, testFbiConnection, triggerFfbbSync } from "./integrations";
+import { getIntegrationStatus, listSyncRuns, parseFbiDocuments, processFbiJobs, testFbiConnection, triggerCheckAllDerogations, triggerFfbbSync } from "./integrations";
 import type { ApiFetcher } from "./client";
 
 function fakeFetcher(response: unknown): { fetcher: ApiFetcher; calls: string[]; inits: unknown[] } {
@@ -55,6 +55,18 @@ describe("processFbiJobs", () => {
     await processFbiJobs(fetcher, "club-1");
 
     expect((inits[0] as { timeoutMs?: number }).timeoutMs).toBe(280_000);
+  });
+});
+
+describe("triggerCheckAllDerogations", () => {
+  it("appelle POST /v1/clubs/:clubId/integrations/fbi/check-all-derogations ('je veux un bouton global qui check toutes les demandes, pas match par match')", async () => {
+    const { fetcher, calls, inits } = fakeFetcher({ queued: true });
+
+    const result = await triggerCheckAllDerogations(fetcher, "club-1");
+
+    expect(calls).toEqual(["/v1/clubs/club-1/integrations/fbi/check-all-derogations"]);
+    expect((inits[0] as { method?: string }).method).toBe("POST");
+    expect(result).toEqual({ queued: true });
   });
 });
 
