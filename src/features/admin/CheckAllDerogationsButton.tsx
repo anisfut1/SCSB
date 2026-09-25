@@ -48,7 +48,7 @@ export function CheckAllDerogationsButton({ clubId }: { clubId: string }) {
         const result = await browserApi.integrations.processFbiJobs(clubId);
 
         if (result.succeeded > 0 && !alreadyQueued) {
-          setStatus({ kind: "success", text: "Vérification terminée — voir le détail sur la page Dérogations." });
+          setStatus({ kind: "success", text: "Vérification terminée — liste mise à jour sur la page Dérogations." });
         } else if (result.succeeded > 0 && alreadyQueued) {
           setStatus({
             kind: "success",
