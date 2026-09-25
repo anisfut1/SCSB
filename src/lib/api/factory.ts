@@ -29,6 +29,8 @@ export function createApi(fetcher: ApiFetcher) {
       list: (clubId: string, params?: matches.ListMatchesParams) => matches.listMatches(fetcher, clubId, params),
       get: (clubId: string, matchId: string) => matches.getMatch(fetcher, clubId, matchId),
       documents: (clubId: string, matchId: string) => matches.listMatchDocuments(fetcher, clubId, matchId),
+      derogation: (clubId: string, matchId: string) => matches.getMatchDerogation(fetcher, clubId, matchId),
+      checkDerogation: (clubId: string, matchId: string) => matches.checkMatchDerogation(fetcher, clubId, matchId),
     },
     integrations: {
       get: (clubId: string) => integrations.getIntegrationStatus(fetcher, clubId),

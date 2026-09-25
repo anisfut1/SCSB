@@ -5,7 +5,8 @@ import { ApiError } from "@/lib/api/client";
 import { notFound } from "next/navigation";
 import { isClubAdmin } from "@/lib/permissions/roles";
 import { Card } from "@/components/ui/Card";
-import type { MatchDetailsDto, MatchDocumentDto } from "@/lib/api/matches";
+import { DerogationCard } from "@/features/matches/DerogationCard";
+import type { DerogationStatusDto, MatchDetailsDto, MatchDocumentDto } from "@/lib/api/matches";
 
 type Tab = "informations" | "composition" | "statistiques" | "officiels" | "emarque";
 
@@ -89,8 +90,9 @@ export default async function MatchDetailPage({
   const tab: Tab = TABS.some((t) => t.value === resolvedSearchParams.tab) ? (resolvedSearchParams.tab as Tab) : "informations";
 
   let match: MatchDetailsDto;
+  let derogation: DerogationStatusDto | null;
   try {
-    match = await api.matches.get(club.id, id);
+    [match, derogation] = await Promise.all([api.matches.get(club.id, id), api.matches.derogation(club.id, id)]);
   } catch (error) {
     if (error instanceof ApiError && error.isNotFound) notFound();
     throw error;
@@ -136,7 +138,9 @@ export default async function MatchDetailPage({
         ))}
       </nav>
 
-      {tab === "informations" ? <InformationsTab match={match} homeLabel={homeLabel} awayLabel={awayLabel} /> : null}
+      {tab === "informations" ? (
+        <InformationsTab match={match} homeLabel={homeLabel} awayLabel={awayLabel} clubId={club.id} derogation={derogation} isAdmin={isAdmin} />
+      ) : null}
       {tab === "composition" ? <CompositionTab match={match} /> : null}
       {tab === "statistiques" ? <StatistiquesTab match={match} homeLabel={homeLabel} awayLabel={awayLabel} clubSlug={clubSlug} /> : null}
       {tab === "officiels" ? <OfficielsTab match={match} /> : null}
@@ -145,36 +149,54 @@ export default async function MatchDetailPage({
   );
 }
 
-function InformationsTab({ match, homeLabel, awayLabel }: { match: MatchDetailsDto; homeLabel: string; awayLabel: string }) {
+function InformationsTab({
+  match,
+  homeLabel,
+  awayLabel,
+  clubId,
+  derogation,
+  isAdmin,
+}: {
+  match: MatchDetailsDto;
+  homeLabel: string;
+  awayLabel: string;
+  clubId: string;
+  derogation: DerogationStatusDto | null;
+  isAdmin: boolean;
+}) {
   return (
-    <Card title="Informations">
-      <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-        <div>
-          <dt className="text-black/60 dark:text-white/60">Rencontre</dt>
-          <dd>N° {match.numero ?? "?"}</dd>
-        </div>
-        <div>
-          <dt className="text-black/60 dark:text-white/60">Journée</dt>
-          <dd>{match.journee ?? "—"}</dd>
-        </div>
-        <div>
-          <dt className="text-black/60 dark:text-white/60">Lieu</dt>
-          <dd>{match.venueLabel ?? "À confirmer"}</dd>
-        </div>
-        <div>
-          <dt className="text-black/60 dark:text-white/60">Score</dt>
-          <dd>
-            {match.scoreHome !== null && match.scoreAway !== null
-              ? `${homeLabel} ${match.scoreHome} - ${match.scoreAway} ${awayLabel}`
-              : "Non disponible"}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-black/60 dark:text-white/60">Statut</dt>
-          <dd>{MATCH_STATUS_LABELS[match.status] ?? match.status}</dd>
-        </div>
-      </dl>
-    </Card>
+    <div className="flex flex-col gap-4">
+      <Card title="Informations">
+        <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-black/60 dark:text-white/60">Rencontre</dt>
+            <dd>N° {match.numero ?? "?"}</dd>
+          </div>
+          <div>
+            <dt className="text-black/60 dark:text-white/60">Journée</dt>
+            <dd>{match.journee ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-black/60 dark:text-white/60">Lieu</dt>
+            <dd>{match.venueLabel ?? "À confirmer"}</dd>
+          </div>
+          <div>
+            <dt className="text-black/60 dark:text-white/60">Score</dt>
+            <dd>
+              {match.scoreHome !== null && match.scoreAway !== null
+                ? `${homeLabel} ${match.scoreHome} - ${match.scoreAway} ${awayLabel}`
+                : "Non disponible"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-black/60 dark:text-white/60">Statut</dt>
+            <dd>{MATCH_STATUS_LABELS[match.status] ?? match.status}</dd>
+          </div>
+        </dl>
+      </Card>
+
+      <DerogationCard clubId={clubId} matchId={match.id} derogation={derogation} isAdmin={isAdmin} />
+    </div>
   );
 }
 

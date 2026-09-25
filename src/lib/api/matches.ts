@@ -12,6 +12,7 @@ import type { components } from "./generated/schema";
 export type MatchListItemDto = components["schemas"]["MatchListItemDto"] & { opponentLogoUrl: string | null };
 export type MatchDetailsDto = components["schemas"]["MatchDetailsDto"] & { opponentLogoUrl: string | null };
 export type MatchDocumentDto = components["schemas"]["MatchDocumentDto"];
+export type DerogationStatusDto = components["schemas"]["DerogationStatusDto"];
 
 /**
  * `pagination` renvoyé par l'API (voir club-manager-api/src/modules/matches/routes.ts)
@@ -78,4 +79,21 @@ export async function getMatch(fetcher: ApiFetcher, clubId: string, matchId: str
 export async function listMatchDocuments(fetcher: ApiFetcher, clubId: string, matchId: string): Promise<MatchDocumentDto[]> {
   const { documents } = await fetcher<{ documents: MatchDocumentDto[] }>(`/v1/clubs/${clubId}/matches/${matchId}/documents`);
   return documents;
+}
+
+/**
+ * GET /v1/clubs/:clubId/matches/:matchId/derogation — dernier état connu
+ * de la dérogation FBI de ce match (demande du club, voir docs/FBI.md
+ * côté club-manager-api : "faut qu'on gere les derog depuis l'outil",
+ * phase 1 lecture seule). `null` si jamais vérifié ou si la dernière
+ * vérification n'a rien trouvé — les deux cas sont normaux.
+ */
+export async function getMatchDerogation(fetcher: ApiFetcher, clubId: string, matchId: string): Promise<DerogationStatusDto | null> {
+  const { derogation } = await fetcher<{ derogation: DerogationStatusDto | null }>(`/v1/clubs/${clubId}/matches/${matchId}/derogation`);
+  return derogation;
+}
+
+/** POST /v1/clubs/:clubId/matches/:matchId/derogation/check (club_admin) — empile une vérification, consommée par processFbiJobs. */
+export async function checkMatchDerogation(fetcher: ApiFetcher, clubId: string, matchId: string): Promise<{ queued: true }> {
+  return fetcher<{ queued: true }>(`/v1/clubs/${clubId}/matches/${matchId}/derogation/check`, { method: "POST" });
 }
