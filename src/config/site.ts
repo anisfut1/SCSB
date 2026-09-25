@@ -21,9 +21,9 @@ export interface DashboardCardConfig {
 
 /**
  * Cartes placeholder du dashboard club pour les modules pas encore développés.
- * Le module Matchs est réel (voir /c/{slug}/matchs) et n'est plus listé ici.
+ * Les modules Matchs et Dérogations sont réels (voir /c/{slug}/matchs et
+ * /c/{slug}/admin/derogations) et ne sont plus listés ici — la carte
+ * "Dérogations : Bientôt disponible" restait affichée alors que la page
+ * existe déjà, un doublon relevé par le club.
  */
-export const DASHBOARD_PLACEHOLDER_CARDS: DashboardCardConfig[] = [
-  { title: "Tables de marque", description: "Bientôt disponible" },
-  { title: "Dérogations", description: "Bientôt disponible" },
-];
+export const DASHBOARD_PLACEHOLDER_CARDS: DashboardCardConfig[] = [{ title: "Tables de marque", description: "Bientôt disponible" }];

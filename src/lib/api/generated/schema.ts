@@ -2664,6 +2664,14 @@ export interface components {
             heure: string | null;
             domicile: string | null;
             visiteur: string | null;
+            demandeur: string | null;
+            motif: string | null;
+            dateRencontreDemandee: string | null;
+            heureDemandee: string | null;
+            adversaire: string | null;
+            dateReponse: string | null;
+            acceptation: string | null;
+            motifRefus: string | null;
             checkedAt: string;
         } | null;
         EmarqueImportDto: {
