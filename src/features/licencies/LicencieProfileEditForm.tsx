@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
 import type { LicencieDto } from "@/lib/api/licencies";
+import type { TeamDto } from "@/lib/api/clubs";
 
 type Status = { kind: "success" | "error"; text: string } | null;
 
@@ -18,7 +19,17 @@ type Status = { kind: "success" | "error"; text: string } | null;
  * docs/LICENCIES.md côté club-manager-api. `mode="admin"` expose
  * l'identité complète, `mode="self"` UNIQUEMENT le contact/la photo.
  */
-export function LicencieProfileEditForm({ clubId, licencie, mode }: { clubId: string; licencie: LicencieDto; mode: "admin" | "self" }) {
+export function LicencieProfileEditForm({
+  clubId,
+  licencie,
+  mode,
+  teams,
+}: {
+  clubId: string;
+  licencie: LicencieDto;
+  mode: "admin" | "self";
+  teams: TeamDto[];
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<Status>(null);
@@ -27,6 +38,7 @@ export function LicencieProfileEditForm({ clubId, licencie, mode }: { clubId: st
   const [licenseNumber, setLicenseNumber] = useState(licencie.licenseNumber ?? "");
   const [birthDate, setBirthDate] = useState(licencie.birthDate ?? "");
   const [active, setActive] = useState(licencie.active);
+  const [teamId, setTeamId] = useState(licencie.teamId ?? "");
   const [photoUrl, setPhotoUrl] = useState(licencie.photoUrl ?? "");
   const [email, setEmail] = useState(licencie.email ?? "");
   const [phone, setPhone] = useState(licencie.phone ?? "");
@@ -38,7 +50,10 @@ export function LicencieProfileEditForm({ clubId, licencie, mode }: { clubId: st
     startTransition(async () => {
       try {
         const contactFields = { photoUrl: photoUrl.trim() || null, email: email.trim() || null, phone: phone.trim() || null };
-        const body = mode === "admin" ? { ...contactFields, firstName, lastName, licenseNumber: licenseNumber.trim() || null, birthDate: birthDate || null, active } : contactFields;
+        const body =
+          mode === "admin"
+            ? { ...contactFields, firstName, lastName, licenseNumber: licenseNumber.trim() || null, birthDate: birthDate || null, active, teamId: teamId || null }
+            : contactFields;
 
         await browserApi.licencies.updateProfile(clubId, licencie.id, body);
         setStatus({ kind: "success", text: "Profil mis à jour." });
@@ -76,6 +91,17 @@ export function LicencieProfileEditForm({ clubId, licencie, mode }: { clubId: st
               <input type="date" className={inputClassName} value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
             </label>
           </div>
+          <label className={labelClassName}>
+            Équipe
+            <select className={inputClassName} value={teamId} onChange={(e) => setTeamId(e.target.value)}>
+              <option value="">Sans équipe</option>
+              {teams.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
             Licencié·e actif·ve

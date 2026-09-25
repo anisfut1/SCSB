@@ -7,6 +7,7 @@ import { isClubAdmin } from "@/lib/permissions/roles";
 import { Card } from "@/components/ui/Card";
 import { LicencieProfileEditForm } from "@/features/licencies/LicencieProfileEditForm";
 import type { LicencieMatchDto } from "@/lib/api/licencies";
+import type { TeamDto } from "@/lib/api/clubs";
 
 const MATCH_STATUS_LABELS: Record<string, string> = {
   scheduled: "À venir",
@@ -43,6 +44,8 @@ export default async function LicencieProfilePage({ params }: { params: Promise<
 
   const { licencie, matches, isSelf } = profile;
   const editMode: "admin" | "self" | null = isClubAdmin(club.roles) ? "admin" : isSelf ? "self" : null;
+  const teams: TeamDto[] = await api.clubs.teams(club.id);
+  const currentTeamName = teams.find((t) => t.id === licencie.teamId)?.name ?? null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -65,6 +68,7 @@ export default async function LicencieProfilePage({ params }: { params: Promise<
           </h1>
           <p className="text-sm text-black/60 dark:text-white/60">
             {licencie.licenseNumber ?? "Numéro de licence non renseigné"}
+            {currentTeamName ? ` · ${currentTeamName}` : ""}
             {!licencie.active ? " · inactif·ve" : ""}
           </p>
         </div>
@@ -73,7 +77,7 @@ export default async function LicencieProfilePage({ params }: { params: Promise<
       {editMode ? (
         <Card title="Profil">
           <div className="mt-2">
-            <LicencieProfileEditForm clubId={club.id} licencie={licencie} mode={editMode} />
+            <LicencieProfileEditForm clubId={club.id} licencie={licencie} mode={editMode} teams={editMode === "admin" ? teams : []} />
           </div>
         </Card>
       ) : (licencie.email || licencie.phone) ? (

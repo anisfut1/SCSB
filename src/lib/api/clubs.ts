@@ -5,6 +5,8 @@ export type ClubDto = components["schemas"]["ClubDto"];
 export type ClubRole = components["schemas"]["ClubRole"];
 export type ClubCapabilities = components["schemas"]["ClubCapabilities"];
 export type TeamDto = components["schemas"]["TeamDto"];
+export type CreateTeamDto = components["schemas"]["CreateTeamDto"];
+export type UpdateTeamDto = components["schemas"]["UpdateTeamDto"];
 
 /** GET /v1/clubs — clubs dont l'utilisateur est membre actif (§11 de la demande). */
 export async function listClubs(fetcher: ApiFetcher): Promise<ClubDto[]> {
@@ -22,8 +24,18 @@ export async function getClubCapabilities(fetcher: ApiFetcher, clubId: string): 
   return fetcher<ClubCapabilities>(`/v1/clubs/${clubId}/capabilities`);
 }
 
-/** GET /v1/clubs/:clubId/teams */
+/** GET /v1/clubs/:clubId/teams — TOUTES les équipes, y compris sans engagement FFBB (brassage), voir docs/TEAMS.md côté club-manager-api. */
 export async function listTeams(fetcher: ApiFetcher, clubId: string): Promise<TeamDto[]> {
   const { teams } = await fetcher<{ teams: TeamDto[] }>(`/v1/clubs/${clubId}/teams`);
   return teams;
+}
+
+/** POST /v1/clubs/:clubId/teams (club_admin) — enregistrer une équipe avant tout engagement FFBB confirmé. */
+export async function createTeam(fetcher: ApiFetcher, clubId: string, body: CreateTeamDto): Promise<TeamDto> {
+  return fetcher<TeamDto>(`/v1/clubs/${clubId}/teams`, { method: "POST", body });
+}
+
+/** PATCH /v1/clubs/:clubId/teams/:teamId (club_admin) — renommer/reclasser/activer-désactiver. */
+export async function updateTeam(fetcher: ApiFetcher, clubId: string, teamId: string, body: UpdateTeamDto): Promise<TeamDto> {
+  return fetcher<TeamDto>(`/v1/clubs/${clubId}/teams/${teamId}`, { method: "PATCH", body });
 }

@@ -14,6 +14,7 @@ export default async function ClubAdminLayout({ children, params }: { children: 
 
   const adminNav = [
     { href: `/c/${clubSlug}/admin/integrations`, label: "Intégrations" },
+    { href: `/c/${clubSlug}/admin/teams`, label: "Équipes" },
     { href: `/c/${clubSlug}/admin/sync`, label: "Synchronisation" },
     { href: `/c/${clubSlug}/admin/issues`, label: "Anomalies" },
     { href: `/c/${clubSlug}/admin/settings`, label: "Réglages" },

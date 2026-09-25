@@ -352,7 +352,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Équipes du club */
+                /** @description Équipes du club (y compris sans engagement FFBB, voir docs/TEAMS.md) */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -393,11 +393,170 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CreateTeamDto"];
+                };
+            };
+            responses: {
+                /** @description Équipe créée */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/clubs/{clubId}/teams/{teamId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                    teamId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["UpdateTeamDto"];
+                };
+            };
+            responses: {
+                /** @description Équipe mise à jour */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/v1/clubs/{clubId}/matches": {
@@ -2010,7 +2169,25 @@ export interface components {
             id: string;
             name: string;
             category: string | null;
+            /** @enum {string|null} */
+            sexe: "M" | "F" | null;
+            numeroEquipe: string | null;
             active: boolean;
+        };
+        CreateTeamDto: {
+            name: string;
+            category?: string | null;
+            /** @enum {string|null} */
+            sexe?: "M" | "F" | null;
+            numeroEquipe?: string | null;
+        };
+        UpdateTeamDto: {
+            name?: string;
+            category?: string | null;
+            /** @enum {string|null} */
+            sexe?: "M" | "F" | null;
+            numeroEquipe?: string | null;
+            active?: boolean;
         };
         MatchListItemDto: {
             /** Format: uuid */
@@ -2215,6 +2392,8 @@ export interface components {
             email: string | null;
             phone: string | null;
             photoUrl: string | null;
+            /** Format: uuid */
+            teamId: string | null;
             active: boolean;
         };
         LicencieProfileDto: {
@@ -2258,6 +2437,8 @@ export interface components {
             /** Format: date */
             birthDate?: string | null;
             licenseNumber?: string | null;
+            /** Format: uuid */
+            teamId?: string | null;
             active?: boolean;
         };
         IssueDto: {

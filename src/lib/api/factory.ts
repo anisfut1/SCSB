@@ -22,6 +22,8 @@ export function createApi(fetcher: ApiFetcher) {
       get: (clubId: string) => clubs.getClub(fetcher, clubId),
       capabilities: (clubId: string) => clubs.getClubCapabilities(fetcher, clubId),
       teams: (clubId: string) => clubs.listTeams(fetcher, clubId),
+      createTeam: (clubId: string, body: clubs.CreateTeamDto) => clubs.createTeam(fetcher, clubId, body),
+      updateTeam: (clubId: string, teamId: string, body: clubs.UpdateTeamDto) => clubs.updateTeam(fetcher, clubId, teamId, body),
     },
     matches: {
       list: (clubId: string, params?: matches.ListMatchesParams) => matches.listMatches(fetcher, clubId, params),
