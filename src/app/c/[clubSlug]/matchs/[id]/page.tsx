@@ -138,7 +138,7 @@ export default async function MatchDetailPage({
 
       {tab === "informations" ? <InformationsTab match={match} homeLabel={homeLabel} awayLabel={awayLabel} /> : null}
       {tab === "composition" ? <CompositionTab match={match} /> : null}
-      {tab === "statistiques" ? <StatistiquesTab match={match} /> : null}
+      {tab === "statistiques" ? <StatistiquesTab match={match} homeLabel={homeLabel} awayLabel={awayLabel} /> : null}
       {tab === "officiels" ? <OfficielsTab match={match} /> : null}
       {tab === "emarque" ? <EmarqueTab clubId={club.id} matchId={id} match={match} isAdmin={isAdmin} /> : null}
     </div>
@@ -221,21 +221,11 @@ function CompositionTab({ match }: { match: MatchDetailsDto }) {
   );
 }
 
-function StatistiquesTab({ match }: { match: MatchDetailsDto }) {
-  const { stats } = match;
-
-  if (stats.length === 0) {
-    return (
-      <Card title="Statistiques">
-        <p className="mt-1 text-sm text-black/60 dark:text-white/60">Statistiques pas encore disponibles pour ce match.</p>
-      </Card>
-    );
-  }
-
+function StatistiquesTeamTable({ title, rows }: { title: string; rows: MatchDetailsDto["stats"] }) {
   return (
-    <Card title="Statistiques individuelles">
+    <Card title={title}>
       <div className="mt-2 overflow-x-auto">
-        <table className="w-full min-w-[560px] text-left text-sm">
+        <table className="w-full min-w-[480px] text-left text-sm">
           <thead>
             <tr className="text-black/60 dark:text-white/60">
               <th className="pr-2">Joueur</th>
@@ -249,8 +239,8 @@ function StatistiquesTab({ match }: { match: MatchDetailsDto }) {
             </tr>
           </thead>
           <tbody>
-            {stats.map((row, index) => (
-              <tr key={index} className="border-t border-black/5 dark:border-white/10">
+            {rows.map((row) => (
+              <tr key={row.participantId} className="border-t border-black/5 dark:border-white/10">
                 <td className="py-1 pr-2">
                   #{row.jerseyNumber ?? "?"} {row.firstName ?? ""} {row.lastName ?? "(nom non lu)"}
                 </td>
@@ -266,10 +256,33 @@ function StatistiquesTab({ match }: { match: MatchDetailsDto }) {
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-black/50 dark:text-white/50">
+    </Card>
+  );
+}
+
+function StatistiquesTab({ match, homeLabel, awayLabel }: { match: MatchDetailsDto; homeLabel: string; awayLabel: string }) {
+  const { stats } = match;
+
+  if (stats.length === 0) {
+    return (
+      <Card title="Statistiques">
+        <p className="mt-1 text-sm text-black/60 dark:text-white/60">Statistiques pas encore disponibles pour ce match.</p>
+      </Card>
+    );
+  }
+
+  const bySide = { home: stats.filter((row) => row.teamSide === "home"), away: stats.filter((row) => row.teamSide === "away") };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <StatistiquesTeamTable title={homeLabel} rows={bySide.home} />
+        <StatistiquesTeamTable title={awayLabel} rows={bySide.away} />
+      </div>
+      <p className="text-xs text-black/50 dark:text-white/50">
         &laquo; — &raquo; signifie une donnée non lue avec certitude sur le document, jamais une valeur nulle supposée.
       </p>
-    </Card>
+    </div>
   );
 }
 
