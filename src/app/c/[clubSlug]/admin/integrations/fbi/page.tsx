@@ -5,6 +5,7 @@ import { FbiCredentialsForm } from "@/features/admin/FbiCredentialsForm";
 import { TestFbiConnectionButton } from "@/features/admin/TestFbiConnectionButton";
 import { ProcessFbiJobsButton } from "@/features/admin/ProcessFbiJobsButton";
 import { ParseFbiDocumentsButton } from "@/features/admin/ParseFbiDocumentsButton";
+import { ReconcileFbiScheduleButton } from "@/features/admin/ReconcileFbiScheduleButton";
 
 /**
  * §20/§21 de la demande. Le formulaire et le bouton de test appellent
@@ -67,6 +68,19 @@ export default async function FbiIntegrationPage({ params }: { params: Promise<{
               <p className="mb-1 text-xs font-medium uppercase tracking-wide text-black/40 dark:text-white/40">2. Traiter les documents téléchargés</p>
               <ParseFbiDocumentsButton clubId={club.id} />
             </div>
+          </div>
+        </Card>
+      ) : null}
+
+      {integrations.fbi.configured ? (
+        <Card title="Vérification du calendrier">
+          <p className="text-sm text-black/60 dark:text-white/60">
+            FFBB reste la seule source du calendrier — FBI est utilisé ici uniquement pour VÉRIFIER ce calendrier et
+            détecter d&apos;éventuelles anomalies (écart de date/heure, rencontre visible d&apos;un seul côté), jamais
+            pour le remplacer. Les anomalies détectées apparaissent sur la page Anomalies.
+          </p>
+          <div className="mt-3">
+            <ReconcileFbiScheduleButton clubId={club.id} />
           </div>
         </Card>
       ) : null}

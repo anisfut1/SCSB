@@ -85,6 +85,21 @@ export async function parseFbiDocuments(fetcher: ApiFetcher, clubId: string): Pr
 }
 
 /**
+ * POST /v1/clubs/:clubId/integrations/fbi/reconcile-schedule — rapprochement
+ * calendrier FFBB/FBI (demande du club, voir docs/FBI.md côté
+ * club-manager-api) : "FBI est l'info réelle. si ya une info sur fbi pour
+ * la même rencontre différente de ffbb, c'est une anomalie. si un match est
+ * sur fbi, et pas sur ffbb, c'est à alerter aussi." FFBB reste la SEULE
+ * source du calendrier — cet appel empile un job de VÉRIFICATION (jamais un
+ * remplacement), consommé ensuite par `processFbiJobs`. Les anomalies
+ * détectées apparaissent sur /admin/issues (IssueDto.integration ===
+ * "fbi_schedule").
+ */
+export async function triggerFbiScheduleReconciliation(fetcher: ApiFetcher, clubId: string): Promise<{ queued: true }> {
+  return fetcher<{ queued: true }>(`/v1/clubs/${clubId}/integrations/fbi/reconcile-schedule`, { method: "POST" });
+}
+
+/**
  * GET /v1/clubs/:clubId/integrations/sync-runs — la route vit sous
  * `integrationsRouter`, monté à `/v1/clubs/:clubId/integrations` côté
  * club-manager-api (voir `api/v1/index.ts`) : l'URL manquait `/integrations`

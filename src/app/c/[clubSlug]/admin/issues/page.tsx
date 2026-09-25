@@ -37,8 +37,11 @@ export default async function IssuesPage({ params }: { params: Promise<{ clubSlu
           <p className="mt-1 text-sm text-black/60 dark:text-white/60">Tout est à jour.</p>
         </Card>
       ) : (
-        issues.map((issue) => (
-          <Card key={issue.matchId} title={`Rencontre ${issue.numero ?? "?"} — vs ${issue.opponentName ?? "?"}`}>
+        issues.map((issue, index) => (
+          <Card
+            key={`${issue.integration}-${issue.type}-${issue.matchId ?? "none"}-${issue.numero ?? "none"}-${index}`}
+            title={`Rencontre ${issue.numero ?? "?"} — vs ${issue.opponentName ?? "?"}`}
+          >
             <dl className="grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">
               <div>
                 <dt className="text-black/60 dark:text-white/60">Date</dt>
@@ -56,13 +59,20 @@ export default async function IssuesPage({ params }: { params: Promise<{ clubSlu
 
             {issue.qualityWarnings.length > 0 ? (
               <ul className="mt-2 list-inside list-disc text-sm text-black/60 dark:text-white/60">
-                {issue.qualityWarnings.map((warning, index) => (
-                  <li key={`${issue.matchId}-${warning.code}-${index}`}>{warning.message}</li>
+                {issue.qualityWarnings.map((warning, warningIndex) => (
+                  <li key={`${issue.matchId ?? "none"}-${warning.code}-${warningIndex}`}>{warning.message}</li>
                 ))}
               </ul>
             ) : null}
 
-            <ResolveIssueButton clubId={club.id} matchId={issue.matchId} />
+            {issue.integration === "emarque" && issue.matchId ? (
+              <ResolveIssueButton clubId={club.id} matchId={issue.matchId} />
+            ) : issue.integration === "fbi_schedule" ? (
+              <p className="mt-4 text-xs text-black/50 dark:text-white/50">
+                Anomalie de rapprochement calendrier FFBB/FBI — se résout automatiquement dès que le calendrier FFBB
+                est corrigé et qu&apos;une nouvelle vérification est lancée (voir Intégrations → FBI).
+              </p>
+            ) : null}
           </Card>
         ))
       )}

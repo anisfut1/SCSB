@@ -1243,6 +1243,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/clubs/{clubId}/integrations/fbi/reconcile-schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Job de rapprochement calendrier FFBB/FBI empilé (un seul par club à la fois) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            queued: true;
+                        };
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/clubs/{clubId}/integrations/fbi/parse-documents": {
         parameters: {
             query?: never;
@@ -2443,14 +2511,14 @@ export interface components {
         };
         IssueDto: {
             /** Format: uuid */
-            matchId: string;
+            matchId: string | null;
             numero: string | null;
             opponentName: string | null;
             matchDatetime: string | null;
             /** @enum {string} */
-            integration: "emarque";
+            integration: "emarque" | "fbi_schedule";
             /** @enum {string} */
-            type: "emarque_import_error" | "emarque_needs_review";
+            type: "emarque_import_error" | "emarque_needs_review" | "fbi_schedule_mismatch" | "fbi_schedule_missing_in_ffbb" | "fbi_schedule_missing_in_fbi";
             /** @enum {string} */
             severity: "warning" | "error";
             /** @enum {string} */
@@ -2465,7 +2533,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            type: "test_connection" | "discover_emarque";
+            type: "test_connection" | "discover_emarque" | "reconcile_schedule";
             /** @enum {string} */
             status: "pending" | "claimed" | "running" | "succeeded" | "failed";
             attemptCount: number;
