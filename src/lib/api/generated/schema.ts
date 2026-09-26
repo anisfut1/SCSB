@@ -2728,6 +2728,7 @@ export interface components {
             matchId: string;
             opponentName: string | null;
             matchDatetime: string | null;
+            categoryLabel: string | null;
         };
         SyncRunDto: {
             /** Format: uuid */

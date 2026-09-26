@@ -68,7 +68,8 @@ export function DerogationsList({ clubSlug, derogations }: { clubSlug: string; d
               key={derogation.id}
               title={
                 <Link href={`/c/${clubSlug}/matchs/${derogation.matchId}`} className="hover:underline">
-                  Rencontre {derogation.numero ?? "?"} — vs {derogation.opponentName ?? "?"}
+                  Rencontre {derogation.numero ?? "?"}
+                  {derogation.categoryLabel ? ` (${derogation.categoryLabel})` : ""} — vs {derogation.opponentName ?? "?"}
                 </Link>
               }
             >
