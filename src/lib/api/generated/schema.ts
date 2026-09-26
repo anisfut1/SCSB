@@ -2729,6 +2729,7 @@ export interface components {
             opponentName: string | null;
             matchDatetime: string | null;
             categoryLabel: string | null;
+            teamName: string | null;
         };
         SyncRunDto: {
             /** Format: uuid */

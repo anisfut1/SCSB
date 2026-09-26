@@ -69,7 +69,16 @@ export function DerogationsList({ clubSlug, derogations }: { clubSlug: string; d
               title={
                 <Link href={`/c/${clubSlug}/matchs/${derogation.matchId}`} className="hover:underline">
                   Rencontre {derogation.numero ?? "?"}
-                  {derogation.categoryLabel ? ` (${derogation.categoryLabel})` : ""} — vs {derogation.opponentName ?? "?"}
+                  {/*
+                   * `teamName` (ex. "Seniors 2") plutôt que `categoryLabel`
+                   * (ex. "Seniors") — demande du club, 2026-09-26 : "faut
+                   * préciser quelle équipe, seniors ya 4 equipes SM1 SM2
+                   * SM3 SF, pareil sur dautres catégories". Repli sur
+                   * `categoryLabel` si l'équipe du club n'a pas pu être
+                   * résolue (match non retrouvé côté FFBB).
+                   */}
+                  {derogation.teamName ?? derogation.categoryLabel ? ` (${derogation.teamName ?? derogation.categoryLabel})` : ""} — vs{" "}
+                  {derogation.opponentName ?? "?"}
                 </Link>
               }
             >
