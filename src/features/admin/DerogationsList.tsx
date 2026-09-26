@@ -65,7 +65,7 @@ export function DerogationsList({ clubSlug, derogations }: { clubSlug: string; d
         ) : (
           filtered.map((derogation) => (
             <Card
-              key={derogation.matchId}
+              key={derogation.id}
               title={
                 <Link href={`/c/${clubSlug}/matchs/${derogation.matchId}`} className="hover:underline">
                   Rencontre {derogation.numero ?? "?"} — vs {derogation.opponentName ?? "?"}
@@ -77,6 +77,18 @@ export function DerogationsList({ clubSlug, derogations }: { clubSlug: string; d
                   <div>
                     <dt className="text-black/60 dark:text-white/60">État</dt>
                     <dd>{derogation.etat ?? "—"}</dd>
+                  </div>
+                  <div>
+                    {/*
+                     * Une même rencontre peut avoir PLUSIEURS dérogations
+                     * distinctes (§ "82 vs 51", docs/FBI.md côté
+                     * club-manager-api — export FBI du club : 82 lignes
+                     * réelles pour seulement 51 numéros uniques) — la date
+                     * de dépôt est ce qui les distingue visuellement quand
+                     * plusieurs cartes partagent le même numéro/adversaire.
+                     */}
+                    <dt className="text-black/60 dark:text-white/60">Date de dépôt</dt>
+                    <dd>{derogation.dateDepot ?? "—"}</dd>
                   </div>
                   <div>
                     <dt className="text-black/60 dark:text-white/60">Demandeur</dt>

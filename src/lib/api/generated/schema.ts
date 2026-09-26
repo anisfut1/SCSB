@@ -2723,6 +2723,8 @@ export interface components {
         };
         DerogationListItemDto: components["schemas"]["DerogationStatusDto"] & {
             /** Format: uuid */
+            id: string;
+            /** Format: uuid */
             matchId: string;
             opponentName: string | null;
             matchDatetime: string | null;
