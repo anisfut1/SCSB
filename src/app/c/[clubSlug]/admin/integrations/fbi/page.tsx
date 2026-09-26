@@ -91,8 +91,8 @@ export default async function FbiIntegrationPage({ params }: { params: Promise<{
           <p className="text-sm text-black/60 dark:text-white/60">
             Consultation en lecture seule de toutes les demandes de dérogation FBI du club (jamais de soumission ni de
             modification depuis cet outil). Une seule connexion FBI vérifie toutes les demandes d&apos;un coup plutôt
-            que match par match — état et dates apparaissent ensuite sur la page Dérogations. Pour le motif complet et
-            la réponse de l&apos;adversaire d&apos;une demande précise, ouvre son match et clique « Vérifier sur FBI ».
+            que match par match — état, dates, motif et réponse de l&apos;adversaire apparaissent ensuite sur la page
+            Dérogations. Pour une demande précise, tu peux aussi ouvrir son match et cliquer « Vérifier sur FBI ».
           </p>
           <div className="mt-3">
             <CheckAllDerogationsButton clubId={club.id} />
