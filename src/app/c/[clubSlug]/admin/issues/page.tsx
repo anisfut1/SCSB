@@ -40,7 +40,16 @@ export default async function IssuesPage({ params }: { params: Promise<{ clubSlu
         issues.map((issue, index) => (
           <Card
             key={`${issue.integration}-${issue.type}-${issue.matchId ?? "none"}-${issue.numero ?? "none"}-${index}`}
-            title={`Rencontre ${issue.numero ?? "?"} — vs ${issue.opponentName ?? "?"}`}
+            title={
+              <span className="flex flex-wrap items-center gap-2">
+                {`Rencontre ${issue.numero ?? "?"} — vs ${issue.opponentName ?? "?"}`}
+                {issue.status === "auto_corrected" ? (
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                    Corrigée automatiquement
+                  </span>
+                ) : null}
+              </span>
+            }
           >
             <dl className="grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">
               <div>
@@ -69,8 +78,9 @@ export default async function IssuesPage({ params }: { params: Promise<{ clubSlu
               <ResolveIssueButton clubId={club.id} matchId={issue.matchId} />
             ) : issue.integration === "fbi_schedule" ? (
               <p className="mt-4 text-xs text-black/50 dark:text-white/50">
-                Anomalie de rapprochement calendrier FFBB/FBI — se résout automatiquement dès que le calendrier FFBB
-                est corrigé et qu&apos;une nouvelle vérification est lancée (voir Intégrations → FBI).
+                {issue.status === "auto_corrected"
+                  ? "FBI fait référence en cas d'écart de date/heure ou de salle : le calendrier a été corrigé automatiquement avec la valeur FBI, aucune action nécessaire."
+                  : "Rencontre visible d'un seul côté (FBI ou FFBB) — FBI seul n'a pas assez d'information pour créer/compléter un match, une vérification manuelle est nécessaire (voir Intégrations → FBI)."}
               </p>
             ) : issue.integration === "scheduling" ? (
               <p className="mt-4 text-xs text-black/50 dark:text-white/50">

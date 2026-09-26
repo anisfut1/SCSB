@@ -2832,7 +2832,7 @@ export interface components {
             /** @enum {string} */
             severity: "warning" | "error";
             /** @enum {string} */
-            status: "open";
+            status: "open" | "auto_corrected";
             message: string;
             technicalCode: string;
             qualityWarnings: components["schemas"]["QualityWarningDto"][];
