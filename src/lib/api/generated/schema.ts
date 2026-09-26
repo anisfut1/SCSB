@@ -2728,6 +2728,7 @@ export interface components {
             numero: string | null;
             opponentName: string | null;
             matchDatetime: string;
+            teamName: string | null;
         };
         DerogationListItemDto: components["schemas"]["DerogationStatusDto"] & {
             /** Format: uuid */

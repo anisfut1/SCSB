@@ -108,8 +108,9 @@ export function DerogationsList({ clubSlug, derogations }: { clubSlug: string; d
                   <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-500/40 dark:bg-red-950/30 dark:text-red-300">
                     <p className="font-medium">Conflit de créneau (un créneau de match dure 2h)</p>
                     <p>
-                      Un match est déjà prévu sur le créneau {formatSlotRange(derogation.scheduleConflict.matchDatetime)} — Rencontre{" "}
-                      {derogation.scheduleConflict.numero ?? "?"} vs {derogation.scheduleConflict.opponentName ?? "?"}.
+                      Un match {derogation.scheduleConflict.teamName ? `de l'équipe ${derogation.scheduleConflict.teamName} ` : ""}est déjà prévu
+                      sur le créneau {formatSlotRange(derogation.scheduleConflict.matchDatetime)} — Rencontre {derogation.scheduleConflict.numero ?? "?"}{" "}
+                      vs {derogation.scheduleConflict.opponentName ?? "?"}.
                     </p>
                   </div>
                 ) : null}
