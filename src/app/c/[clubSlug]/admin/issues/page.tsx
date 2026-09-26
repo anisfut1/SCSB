@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { ResolveIssueButton } from "@/features/admin/ResolveIssueButton";
 
 function formatDateTime(value: string | null | undefined): string {
-  return value ? new Date(value).toLocaleString("fr-FR") : "—";
+  return value ? new Date(value).toLocaleString("fr-FR", { timeZone: "Europe/Paris" }) : "—";
 }
 
 /**

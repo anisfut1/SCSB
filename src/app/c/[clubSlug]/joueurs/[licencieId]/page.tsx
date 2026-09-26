@@ -26,7 +26,7 @@ function formatSecondsPlayed(seconds: number | null): string {
 
 function formatMatchDate(value: string | null): string {
   if (!value) return "Date à confirmer";
-  return new Date(value).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(value).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris", day: "2-digit", month: "short", year: "numeric" });
 }
 
 /** "fiche joueur" (demande du club) : identité + tous ses matchs + ses statistiques par match, voir docs/LICENCIES.md côté club-manager-api. */

@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { currentSeasonStart } from "@/lib/season";
 
 function formatDateTime(value: string | null | undefined): string {
-  return value ? new Date(value).toLocaleString("fr-FR") : "—";
+  return value ? new Date(value).toLocaleString("fr-FR", { timeZone: "Europe/Paris" }) : "—";
 }
 
 const EMARQUE_STATUS_LABELS: Record<string, string> = {

@@ -5,8 +5,15 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import type { DerogationListItemDto } from "@/lib/api/derogations";
 
+// `timeZone: "Europe/Paris"` explicite partout ci-dessous — jamais le
+// fuseau ambiant du runtime (UTC côté rendu serveur Vercel, potentiellement
+// différent aussi côté navigateur) : demande du club, 2026-09-27,
+// "elle est a 18h sur notre outil" alors que FBI/FFBB disent 20h pour la
+// MÊME rencontre — `match_datetime` était pourtant déjà stocké juste en
+// UTC, seul l'affichage oubliait de reconvertir en heure française. Le
+// basket géré ici n'existe qu'en France : toujours Europe/Paris.
 function formatDateTime(value: string | null | undefined): string {
-  return value ? new Date(value).toLocaleString("fr-FR") : "—";
+  return value ? new Date(value).toLocaleString("fr-FR", { timeZone: "Europe/Paris" }) : "—";
 }
 
 /**
@@ -17,9 +24,9 @@ function formatDateTime(value: string | null | undefined): string {
 function formatSlotRange(matchDatetimeIso: string): string {
   const start = new Date(matchDatetimeIso);
   const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
-  const dateLabel = start.toLocaleDateString("fr-FR");
-  const startLabel = start.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  const endLabel = end.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const dateLabel = start.toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" });
+  const startLabel = start.toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" });
+  const endLabel = end.toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" });
   return `${dateLabel} ${startLabel}–${endLabel}`;
 }
 
@@ -154,7 +161,7 @@ export function DerogationsList({ clubSlug, derogations }: { clubSlug: string; d
                   </div>
                   <div>
                     <dt className="text-black/60 dark:text-white/60">Dernière vérification</dt>
-                    <dd>{new Date(derogation.checkedAt).toLocaleString("fr-FR")}</dd>
+                    <dd>{formatDateTime(derogation.checkedAt)}</dd>
                   </div>
                 </dl>
 

@@ -72,7 +72,7 @@ export function DerogationCard({ clubId, matchId, derogation, isAdmin }: { clubI
             </div>
             <div>
               <dt className="text-black/60 dark:text-white/60">Dernière vérification</dt>
-              <dd>{new Date(derogation.checkedAt).toLocaleString("fr-FR")}</dd>
+              <dd>{new Date(derogation.checkedAt).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}</dd>
             </div>
           </dl>
 

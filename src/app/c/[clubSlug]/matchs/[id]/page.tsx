@@ -58,7 +58,17 @@ function TeamBadge({ src, alt }: { src: string | null; alt: string }) {
 
 function formatMatchDateTime(value: string | null): string {
   if (!value) return "Date à confirmer";
-  return new Date(value).toLocaleString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  // `timeZone` explicite — voir la même fonction dans ../page.tsx (liste des
+  // matchs) : jamais le fuseau ambiant du runtime (UTC côté serveur Vercel).
+  return new Date(value).toLocaleString("fr-FR", {
+    timeZone: "Europe/Paris",
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatSecondsPlayed(seconds: number | null): string {
@@ -379,7 +389,7 @@ async function EmarqueTab({ clubId, matchId, match, isAdmin }: { clubId: string;
         </div>
         <div>
           <dt className="text-black/60 dark:text-white/60">Dernière récupération</dt>
-          <dd>{match.emarque.lastRetrievedAt ? new Date(match.emarque.lastRetrievedAt).toLocaleString("fr-FR") : "—"}</dd>
+          <dd>{match.emarque.lastRetrievedAt ? new Date(match.emarque.lastRetrievedAt).toLocaleString("fr-FR", { timeZone: "Europe/Paris" }) : "—"}</dd>
         </div>
       </dl>
 

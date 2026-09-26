@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { TriggerFfbbSyncButton } from "@/features/admin/TriggerFfbbSyncButton";
 
 function formatDateTime(value: string | null | undefined): string {
-  return value ? new Date(value).toLocaleString("fr-FR") : "Jamais";
+  return value ? new Date(value).toLocaleString("fr-FR", { timeZone: "Europe/Paris" }) : "Jamais";
 }
 
 /**

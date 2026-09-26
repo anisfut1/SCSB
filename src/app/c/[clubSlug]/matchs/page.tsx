@@ -72,7 +72,13 @@ function currentWeekendRange(): { start: Date; end: Date } {
 
 function formatMatchDateTime(value: string | null): string {
   if (!value) return "Date à confirmer";
-  return new Date(value).toLocaleString("fr-FR", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  // `timeZone` explicite (jamais le fuseau ambiant du runtime, UTC côté
+  // serveur Vercel) — demande du club, 2026-09-27 : "elle est a 18h sur
+  // notre outil" alors que FBI/FFBB disent 20h, `match_datetime` stocké
+  // (correctement, en UTC) affichait son heure UTC brute faute de
+  // conversion. Le basket français n'existe qu'en France : toujours
+  // Europe/Paris, jamais le fuseau du club ou du serveur.
+  return new Date(value).toLocaleString("fr-FR", { timeZone: "Europe/Paris", weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 function buildFilterHref(
