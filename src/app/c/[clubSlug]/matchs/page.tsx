@@ -226,13 +226,20 @@ export default async function MatchsPage({
               <Link href={`/c/${clubSlug}/matchs/${match.id}`} className="block">
                 <Card
                   title={
-                    <MatchTitle
-                      clubName={match.teamName ?? "Sète"}
-                      clubLogoUrl={club.logoUrl}
-                      opponentName={match.opponentName ?? "?"}
-                      opponentLogoUrl={match.opponentLogoUrl}
-                      isHome={match.isHome === true}
-                    />
+                    <span className="flex flex-wrap items-center gap-2">
+                      <MatchTitle
+                        clubName={match.teamName ?? "Sète"}
+                        clubLogoUrl={club.logoUrl}
+                        opponentName={match.opponentName ?? "?"}
+                        opponentLogoUrl={match.opponentLogoUrl}
+                        isHome={match.isHome === true}
+                      />
+                      {match.hasPendingDerogation ? (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                          Dérog en cours
+                        </span>
+                      ) : null}
+                    </span>
                   }
                 >
                   <dl className="flex flex-wrap items-center justify-between gap-2 text-sm text-black/60 dark:text-white/60">

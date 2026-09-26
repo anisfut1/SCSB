@@ -10,6 +10,20 @@ function formatDateTime(value: string | null | undefined): string {
 }
 
 /**
+ * "en prenant le créneau du match de 15h" (demande du club, 2026-09-26) —
+ * affiche la plage 2h COMPLÈTE du match déjà prévu, jamais juste son heure
+ * de début, pour que l'alerte explique elle-même pourquoi il y a conflit.
+ */
+function formatSlotRange(matchDatetimeIso: string): string {
+  const start = new Date(matchDatetimeIso);
+  const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+  const dateLabel = start.toLocaleDateString("fr-FR");
+  const startLabel = start.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const endLabel = end.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  return `${dateLabel} ${startLabel}–${endLabel}`;
+}
+
+/**
  * "sur la page dérogation met moi un filtre avec des boutons pour choisir
  * par état" — les boutons sont générés DYNAMIQUEMENT à partir des `etat`
  * réellement présents dans la liste reçue de club-manager-api (jamais un
@@ -83,6 +97,16 @@ export function DerogationsList({ clubSlug, derogations }: { clubSlug: string; d
               }
             >
               <div className="flex flex-col gap-4">
+                {derogation.scheduleConflict ? (
+                  <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-500/40 dark:bg-red-950/30 dark:text-red-300">
+                    <p className="font-medium">Conflit de créneau (un créneau de match dure 2h)</p>
+                    <p>
+                      Un match est déjà prévu sur le créneau {formatSlotRange(derogation.scheduleConflict.matchDatetime)} — Rencontre{" "}
+                      {derogation.scheduleConflict.numero ?? "?"} vs {derogation.scheduleConflict.opponentName ?? "?"}.
+                    </p>
+                  </div>
+                ) : null}
+
                 <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                   <div>
                     <dt className="text-black/60 dark:text-white/60">État</dt>

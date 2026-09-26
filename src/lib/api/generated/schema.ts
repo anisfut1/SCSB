@@ -2545,6 +2545,7 @@ export interface components {
             /** @enum {string} */
             status: "scheduled" | "played" | "postponed" | "cancelled" | "forfeit";
             emarqueStatus: string;
+            hasPendingDerogation: boolean;
         };
         MatchesPaginationDto: {
             limit: number;
@@ -2721,6 +2722,13 @@ export interface components {
             enabled?: boolean;
             autoImportEmarque?: boolean;
         };
+        ScheduleConflictDto: {
+            /** Format: uuid */
+            matchId: string;
+            numero: string | null;
+            opponentName: string | null;
+            matchDatetime: string;
+        };
         DerogationListItemDto: components["schemas"]["DerogationStatusDto"] & {
             /** Format: uuid */
             id: string;
@@ -2730,6 +2738,7 @@ export interface components {
             matchDatetime: string | null;
             categoryLabel: string | null;
             teamName: string | null;
+            scheduleConflict: components["schemas"]["ScheduleConflictDto"] | null;
         };
         SyncRunDto: {
             /** Format: uuid */
