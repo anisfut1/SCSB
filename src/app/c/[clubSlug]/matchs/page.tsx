@@ -3,6 +3,7 @@ import { requireClubContext } from "@/lib/tenancy/club-context";
 import { api } from "@/lib/api/server";
 import { Card } from "@/components/ui/Card";
 import { currentSeasonStart } from "@/lib/season";
+import type { MatchListItemDto } from "@/lib/api/matches";
 
 type WhenFilter = "weekend" | "upcoming" | "past";
 type SideFilter = "all" | "home" | "away";
@@ -79,6 +80,25 @@ function formatMatchDateTime(value: string | null): string {
   // conversion. Le basket français n'existe qu'en France : toujours
   // Europe/Paris, jamais le fuseau du club ou du serveur.
   return new Date(value).toLocaleString("fr-FR", { timeZone: "Europe/Paris", weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+/**
+ * Badge coloré par état — demande du club, 2026-09-27 : "faut faire par
+ * couleur. acceptée = vert en cours = orange refusée = rouge". `null`
+ * (aucune dérogation connue, ou seulement "A Créer", du bruit) -> aucun
+ * badge.
+ */
+function derogationBadge(status: MatchListItemDto["derogationStatus"]): { label: string; className: string } | null {
+  switch (status) {
+    case "en_cours":
+      return { label: "Dérog en cours", className: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" };
+    case "acceptee":
+      return { label: "Dérog acceptée", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" };
+    case "refusee":
+      return { label: "Dérog refusée", className: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300" };
+    default:
+      return null;
+  }
 }
 
 function buildFilterHref(
@@ -227,46 +247,45 @@ export default async function MatchsPage({
         </Card>
       ) : (
         <ul className="flex flex-col gap-3">
-          {matches.map((match) => (
-            <li key={match.id}>
-              <Link href={`/c/${clubSlug}/matchs/${match.id}`} className="block">
-                <Card
-                  title={
-                    <span className="flex flex-wrap items-center gap-2">
-                      <MatchTitle
-                        clubName={match.teamName ?? "Sète"}
-                        clubLogoUrl={club.logoUrl}
-                        opponentName={match.opponentName ?? "?"}
-                        opponentLogoUrl={match.opponentLogoUrl}
-                        isHome={match.isHome === true}
-                      />
-                      {match.hasPendingDerogation ? (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                          Dérog en cours
-                        </span>
-                      ) : null}
-                    </span>
-                  }
-                >
-                  <dl className="flex flex-wrap items-center justify-between gap-2 text-sm text-black/60 dark:text-white/60">
-                    <dd>{formatMatchDateTime(match.matchDatetime)}</dd>
-                    <dd>{match.venueLabel ?? "Lieu à confirmer"}</dd>
-                    <dd>
-                      {match.scoreHome !== null && match.scoreAway !== null
-                        ? `${match.scoreHome} - ${match.scoreAway}`
-                        : match.status === "postponed"
-                          ? "Reporté"
-                          : match.status === "cancelled"
-                            ? "Annulé"
-                            : match.status === "forfeit"
-                              ? "Forfait"
-                              : "À venir"}
-                    </dd>
-                  </dl>
-                </Card>
-              </Link>
-            </li>
-          ))}
+          {matches.map((match) => {
+            const badge = derogationBadge(match.derogationStatus);
+            return (
+              <li key={match.id}>
+                <Link href={`/c/${clubSlug}/matchs/${match.id}`} className="block">
+                  <Card
+                    title={
+                      <span className="flex flex-wrap items-center gap-2">
+                        <MatchTitle
+                          clubName={match.teamName ?? "Sète"}
+                          clubLogoUrl={club.logoUrl}
+                          opponentName={match.opponentName ?? "?"}
+                          opponentLogoUrl={match.opponentLogoUrl}
+                          isHome={match.isHome === true}
+                        />
+                        {badge ? <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>{badge.label}</span> : null}
+                      </span>
+                    }
+                  >
+                    <dl className="flex flex-wrap items-center justify-between gap-2 text-sm text-black/60 dark:text-white/60">
+                      <dd>{formatMatchDateTime(match.matchDatetime)}</dd>
+                      <dd>{match.venueLabel ?? "Lieu à confirmer"}</dd>
+                      <dd>
+                        {match.scoreHome !== null && match.scoreAway !== null
+                          ? `${match.scoreHome} - ${match.scoreAway}`
+                          : match.status === "postponed"
+                            ? "Reporté"
+                            : match.status === "cancelled"
+                              ? "Annulé"
+                              : match.status === "forfeit"
+                                ? "Forfait"
+                                : "À venir"}
+                      </dd>
+                    </dl>
+                  </Card>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

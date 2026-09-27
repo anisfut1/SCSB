@@ -2545,7 +2545,7 @@ export interface components {
             /** @enum {string} */
             status: "scheduled" | "played" | "postponed" | "cancelled" | "forfeit";
             emarqueStatus: string;
-            hasPendingDerogation: boolean;
+            derogationStatus: "en_cours" | "acceptee" | "refusee" | null;
         };
         MatchesPaginationDto: {
             limit: number;
