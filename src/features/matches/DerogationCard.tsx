@@ -10,6 +10,19 @@ import type { DerogationStatusDto } from "@/lib/api/matches";
 type Status = { kind: "success" | "error" | "pending"; text: string };
 
 /**
+ * `demandeur` ("Domicile"/"Visiteur") est un jargon FBI relatif à CETTE
+ * rencontre précise, jamais toujours "notre équipe" — demande du club,
+ * 2026-09-27 : "c ecrit demandeur domicile mais je sais pas cest qui qui
+ * joue à domicile". Résolu vers le nom réel via `domicile`/`visiteur`
+ * (mêmes champs bruts FBI), jamais deviné.
+ */
+function resolveDemandeurTeam(derogation: { demandeur: string | null; domicile: string | null; visiteur: string | null }): string | null {
+  if (derogation.demandeur === "Domicile") return derogation.domicile;
+  if (derogation.demandeur === "Visiteur") return derogation.visiteur;
+  return null;
+}
+
+/**
  * Consultation en LECTURE SEULE de l'état d'une dérogation FBI pour ce
  * match (demande du club, voir docs/FBI.md côté club-manager-api : "faut
  * qu'on gere les derog depuis l'outil", phase 1). Jamais de soumission de
@@ -48,7 +61,10 @@ export function DerogationCard({ clubId, matchId, derogation, isAdmin }: { clubI
             </div>
             <div>
               <dt className="text-black/60 dark:text-white/60">Demandeur</dt>
-              <dd>{derogation.demandeur ?? "—"}</dd>
+              <dd>
+                {derogation.demandeur ?? "—"}
+                {resolveDemandeurTeam(derogation) ? ` (${resolveDemandeurTeam(derogation)})` : ""}
+              </dd>
             </div>
             <div>
               <dt className="text-black/60 dark:text-white/60">Rencontre initiale</dt>

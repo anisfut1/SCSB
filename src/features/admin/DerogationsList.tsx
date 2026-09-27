@@ -31,6 +31,23 @@ function formatSlotRange(matchDatetimeIso: string): string {
 }
 
 /**
+ * `demandeur` ("Domicile"/"Visiteur") est un jargon FBI relatif à CETTE
+ * rencontre précise, jamais toujours "notre équipe" — demande du club,
+ * 2026-09-27 : "c ecrit demandeur domicile mais je sais pas cest qui qui
+ * joue à domicile" (ex. rencontre 9538 : Montpellier est domicile, Sète
+ * est visiteur — "Domicile" y désigne donc Montpellier). Résolu vers le
+ * nom réel via `domicile`/`visiteur` (mêmes champs bruts FBI que la page
+ * de détail), jamais deviné : `null` si le libellé FBI n'est ni
+ * "Domicile" ni "Visiteur" (valeur imprévue) ou si le nom correspondant
+ * n'a pas pu être lu.
+ */
+function resolveDemandeurTeam(derogation: Pick<DerogationListItemDto, "demandeur" | "domicile" | "visiteur">): string | null {
+  if (derogation.demandeur === "Domicile") return derogation.domicile;
+  if (derogation.demandeur === "Visiteur") return derogation.visiteur;
+  return null;
+}
+
+/**
  * "sur la page dérogation met moi un filtre avec des boutons pour choisir
  * par état" — les boutons sont générés DYNAMIQUEMENT à partir des `etat`
  * réellement présents dans la liste reçue de club-manager-api (jamais un
@@ -134,7 +151,10 @@ export function DerogationsList({ clubSlug, derogations }: { clubSlug: string; d
                   </div>
                   <div>
                     <dt className="text-black/60 dark:text-white/60">Demandeur</dt>
-                    <dd>{derogation.demandeur ?? "—"}</dd>
+                    <dd>
+                      {derogation.demandeur ?? "—"}
+                      {resolveDemandeurTeam(derogation) ? ` (${resolveDemandeurTeam(derogation)})` : ""}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-black/60 dark:text-white/60">Rencontre initiale</dt>
