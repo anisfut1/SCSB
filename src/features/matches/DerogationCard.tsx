@@ -6,6 +6,7 @@ import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
 import { Card } from "@/components/ui/Card";
 import type { DerogationStatusDto } from "@/lib/api/matches";
+import { RespondToDerogationAction } from "@/features/derogations/RespondToDerogationAction";
 
 type Status = { kind: "success" | "error" | "pending"; text: string };
 
@@ -23,12 +24,15 @@ function resolveDemandeurTeam(derogation: { demandeur: string | null; domicile: 
 }
 
 /**
- * Consultation en LECTURE SEULE de l'état d'une dérogation FBI pour ce
- * match (demande du club, voir docs/FBI.md côté club-manager-api : "faut
- * qu'on gere les derog depuis l'outil", phase 1). Jamais de soumission de
- * dérogation ici — uniquement une vérification de l'état déjà connu par
- * FBI, `isAdmin` uniquement (même verrou que POST .../derogation/check
- * côté API).
+ * Consultation de l'état d'une dérogation FBI pour ce match (demande du
+ * club, voir docs/FBI.md côté club-manager-api : "faut qu'on gere les
+ * derog depuis l'outil"). `isAdmin` uniquement (même verrou que POST
+ * .../derogation/check côté API).
+ *
+ * Depuis 2026-09-27 ("je veux le faire via loutil"), une dérogation "En
+ * Cours" attendant une décision DU CLUB (`derogation.actionRequired`)
+ * affiche aussi le bouton Accepter/Refuser (`RespondToDerogationAction`)
+ * — ÉCRIT réellement sur FBI/FFBB, jamais annulable depuis cet outil.
  */
 export function DerogationCard({ clubId, matchId, derogation, isAdmin }: { clubId: string; matchId: string; derogation: DerogationStatusDto | null; isAdmin: boolean }) {
   const router = useRouter();
@@ -51,7 +55,16 @@ export function DerogationCard({ clubId, matchId, derogation, isAdmin }: { clubI
   }
 
   return (
-    <Card title="Dérogation">
+    <Card
+      title={
+        <span className="flex flex-wrap items-center gap-2">
+          Dérogation
+          {derogation?.actionRequired ? (
+            <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800 dark:bg-orange-900/40 dark:text-orange-300">Action requise</span>
+          ) : null}
+        </span>
+      }
+    >
       {derogation ? (
         <div className="flex flex-col gap-4">
           <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
@@ -115,6 +128,8 @@ export function DerogationCard({ clubId, matchId, derogation, isAdmin }: { clubI
               </dl>
             </div>
           ) : null}
+
+          {isAdmin && derogation.actionRequired && derogation.id ? <RespondToDerogationAction clubId={clubId} derogationId={derogation.id} /> : null}
         </div>
       ) : (
         <p className="mt-1 text-sm text-black/60 dark:text-white/60">

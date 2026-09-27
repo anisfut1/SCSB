@@ -46,6 +46,7 @@ export function createApi(fetcher: ApiFetcher) {
     },
     derogations: {
       list: (clubId: string) => derogations.listDerogations(fetcher, clubId),
+      respond: (clubId: string, derogationId: string, body: derogations.RespondToDerogationDto) => derogations.respondToDerogation(fetcher, clubId, derogationId, body),
     },
     issues: {
       list: (clubId: string) => issues.listIssues(fetcher, clubId),

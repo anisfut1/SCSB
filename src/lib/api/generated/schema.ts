@@ -2657,6 +2657,8 @@ export interface components {
             downloadUrl: string | null;
         };
         DerogationStatusDto: {
+            /** Format: uuid */
+            id: string | null;
             numero: string | null;
             etat: string | null;
             dateDepot: string | null;
@@ -2674,7 +2676,18 @@ export interface components {
             acceptation: string | null;
             motifRefus: string | null;
             checkedAt: string;
+            actionRequired: boolean;
         } | null;
+        RespondToDerogationDto: {
+            /** @enum {string} */
+            decision: "accepted" | "refused";
+            motifRefus?: string | null;
+        };
+        RespondToDerogationResultDto: {
+            /** @enum {string} */
+            outcome: "success" | "error" | "unknown";
+            message: string | null;
+        };
         EmarqueImportDto: {
             /** Format: uuid */
             id: string;

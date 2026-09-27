@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import type { DerogationListItemDto } from "@/lib/api/derogations";
+import { RespondToDerogationAction } from "@/features/derogations/RespondToDerogationAction";
 
 // `timeZone: "Europe/Paris"` explicite partout ci-dessous — jamais le
 // fuseau ambiant du runtime (UTC côté rendu serveur Vercel, potentiellement
@@ -56,7 +57,7 @@ function resolveDemandeurTeam(derogation: Pick<DerogationListItemDto, "demandeur
  * connues qu'à l'exécution). Filtre 100% client (la liste complète est déjà
  * chargée), aucun aller-retour serveur par clic.
  */
-export function DerogationsList({ clubSlug, derogations }: { clubSlug: string; derogations: DerogationListItemDto[] }) {
+export function DerogationsList({ clubId, clubSlug, derogations }: { clubId: string; clubSlug: string; derogations: DerogationListItemDto[] }) {
   const [selectedEtat, setSelectedEtat] = useState<string | null>(null);
 
   const etatCounts = useMemo(() => {
@@ -105,19 +106,34 @@ export function DerogationsList({ clubSlug, derogations }: { clubSlug: string; d
             <Card
               key={derogation.id}
               title={
-                <Link href={`/c/${clubSlug}/matchs/${derogation.matchId}`} className="hover:underline">
-                  Rencontre {derogation.numero ?? "?"}
+                <span className="flex flex-wrap items-center gap-2">
+                  <Link href={`/c/${clubSlug}/matchs/${derogation.matchId}`} className="hover:underline">
+                    Rencontre {derogation.numero ?? "?"}
+                    {/*
+                     * `teamName` (ex. "Seniors 2") plutôt que `categoryLabel`
+                     * (ex. "Seniors") — demande du club, 2026-09-26 : "faut
+                     * préciser quelle équipe, seniors ya 4 equipes SM1 SM2
+                     * SM3 SF, pareil sur dautres catégories". Repli sur
+                     * `categoryLabel` si l'équipe du club n'a pas pu être
+                     * résolue (match non retrouvé côté FFBB).
+                     */}
+                    {derogation.teamName ?? derogation.categoryLabel ? ` (${derogation.teamName ?? derogation.categoryLabel})` : ""} — vs{" "}
+                    {derogation.opponentName ?? "?"}
+                  </Link>
                   {/*
-                   * `teamName` (ex. "Seniors 2") plutôt que `categoryLabel`
-                   * (ex. "Seniors") — demande du club, 2026-09-26 : "faut
-                   * préciser quelle équipe, seniors ya 4 equipes SM1 SM2
-                   * SM3 SF, pareil sur dautres catégories". Repli sur
-                   * `categoryLabel` si l'équipe du club n'a pas pu être
-                   * résolue (match non retrouvé côté FFBB).
+                   * "sur la derog si action besoin de ma part, faut un badge
+                   * action requise" (demande du club, 2026-09-27) — voir
+                   * `actionRequired` (club-manager-api,
+                   * modules/derogations/action-required.ts) : vrai
+                   * uniquement quand c'est au CLUB de répondre, jamais
+                   * l'inverse.
                    */}
-                  {derogation.teamName ?? derogation.categoryLabel ? ` (${derogation.teamName ?? derogation.categoryLabel})` : ""} — vs{" "}
-                  {derogation.opponentName ?? "?"}
-                </Link>
+                  {derogation.actionRequired ? (
+                    <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800 dark:bg-orange-900/40 dark:text-orange-300">
+                      Action requise
+                    </span>
+                  ) : null}
+                </span>
               }
             >
               <div className="flex flex-col gap-4">
@@ -131,6 +147,8 @@ export function DerogationsList({ clubSlug, derogations }: { clubSlug: string; d
                     </p>
                   </div>
                 ) : null}
+
+                {derogation.actionRequired ? <RespondToDerogationAction clubId={clubId} derogationId={derogation.id} /> : null}
 
                 <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                   <div>
