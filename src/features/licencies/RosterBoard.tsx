@@ -33,35 +33,65 @@ function bucketsFor(licencies: LicencieDto[], teams: TeamDto[]): Bucket[] {
   return buckets;
 }
 
-function LicencieCard({ clubSlug, licencie, isAdmin }: { clubSlug: string; licencie: LicencieDto; isAdmin: boolean }) {
+/** "Sans équipe" — même valeur conventionnelle que `bucketsFor`/`assignTeam` : jamais une chaîne vide ambiguë avec un id réel. */
+const NO_TEAM_VALUE = "__no_team__";
+
+function LicencieCard({
+  clubSlug,
+  licencie,
+  teams,
+  isAdmin,
+  onAssignTeam,
+}: {
+  clubSlug: string;
+  licencie: LicencieDto;
+  teams: TeamDto[];
+  isAdmin: boolean;
+  onAssignTeam: (teamId: string | null) => void;
+}) {
   return (
-    <Link
-      href={`/c/${clubSlug}/joueurs/${licencie.id}`}
-      className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-black/5 dark:hover:bg-white/10"
-    >
-      <span className="flex items-center gap-3">
+    <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-black/5 dark:hover:bg-white/10">
+      <Link href={`/c/${clubSlug}/joueurs/${licencie.id}`} className="flex min-w-0 flex-1 items-center gap-3">
         {licencie.photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- URL de photo arbitraire fournie par le club, hors domaines Next configurés
           <img src={licencie.photoUrl} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
         ) : (
           <span className="h-8 w-8 shrink-0 rounded-full bg-black/10 dark:bg-white/10" aria-hidden />
         )}
-        <span>
+        <span className="truncate">
           {licencie.lastName} {licencie.firstName}
           {!licencie.active ? <span className="ml-2 text-xs text-black/40 dark:text-white/40">(inactif·ve)</span> : null}
-          {/* Catégorie/sexe FFBB — repère pour glisser la carte vers la bonne équipe (un club a souvent plusieurs équipes par catégorie, ex. SM1/SM2/SF). */}
+          {/* Catégorie/sexe FFBB — repère pour choisir la bonne équipe (un club a souvent plusieurs équipes par catégorie, ex. SM1/SM2/SF). */}
           {licencie.categoryLabel || licencie.sexe ? (
             <span className="ml-2 text-xs text-black/40 dark:text-white/40">
               {[licencie.categoryLabel, licencie.sexe].filter(Boolean).join(" · ")}
             </span>
           ) : null}
         </span>
-      </span>
-      <span className="flex items-center gap-2 text-sm text-black/40 dark:text-white/40">
-        {isAdmin ? <span aria-hidden>⠿</span> : null}
+      </Link>
+      <span className="flex shrink-0 items-center gap-2 text-sm text-black/40 dark:text-white/40">
+        {isAdmin ? (
+          <>
+            <span aria-hidden className="hidden sm:inline">
+              ⠿
+            </span>
+            <select
+              value={licencie.teamId ?? NO_TEAM_VALUE}
+              onChange={(e) => onAssignTeam(e.target.value === NO_TEAM_VALUE ? null : e.target.value)}
+              className="rounded-md border border-black/15 bg-white px-2 py-1 text-xs dark:border-white/20 dark:bg-black/20"
+            >
+              <option value={NO_TEAM_VALUE}>Sans équipe</option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </>
+        ) : null}
         {licencie.licenseNumber ?? "—"}
       </span>
-    </Link>
+    </div>
   );
 }
 
@@ -127,12 +157,14 @@ export function RosterBoard({
     });
   }
 
-  function handleDrop(teamId: string | null) {
-    setDragOverTeamId(undefined);
-    if (!isAdmin || !dragLicencieId) return;
-    const licencieId = dragLicencieId;
-    setDragLicencieId(null);
-
+  /**
+   * Partagée par le glisser-déposer ET le sélecteur d'équipe par ligne
+   * (demande du club, 2026-09-28 : "met moi un esepce de selecteur pour
+   * changer les gens dequipes ce sera bcp plus simple" — plus fiable que le
+   * glisser-déposer, notamment au clavier/tactile). Optimiste : la carte
+   * change de section IMMÉDIATEMENT, annulé si l'appel API échoue.
+   */
+  function assignTeam(licencieId: string, teamId: string | null) {
     const licencie = items.find((l) => l.id === licencieId);
     if (!licencie || licencie.teamId === teamId) return;
 
@@ -151,8 +183,17 @@ export function RosterBoard({
     });
   }
 
+  function handleDrop(teamId: string | null) {
+    setDragOverTeamId(undefined);
+    if (!isAdmin || !dragLicencieId) return;
+    const licencieId = dragLicencieId;
+    setDragLicencieId(null);
+    assignTeam(licencieId, teamId);
+  }
+
   const buckets = bucketsFor(items, teams);
   const unassignedCount = buckets.find((b) => b.teamId === null)?.licencies.length ?? 0;
+  const sortedTeams = [...teams].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="flex flex-col gap-8">
@@ -211,7 +252,7 @@ export function RosterBoard({
                   onDragEnd={isAdmin ? () => setDragLicencieId(null) : undefined}
                   className={isAdmin ? "cursor-grab active:cursor-grabbing" : undefined}
                 >
-                  <LicencieCard clubSlug={clubSlug} licencie={licencie} isAdmin={isAdmin} />
+                  <LicencieCard clubSlug={clubSlug} licencie={licencie} teams={sortedTeams} isAdmin={isAdmin} onAssignTeam={(teamId) => assignTeam(licencie.id, teamId)} />
                 </li>
               ))}
             </ul>
