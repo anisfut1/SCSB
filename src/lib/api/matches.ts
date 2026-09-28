@@ -93,7 +93,14 @@ export async function getMatchDerogation(fetcher: ApiFetcher, clubId: string, ma
   return derogation;
 }
 
-/** POST /v1/clubs/:clubId/matches/:matchId/derogation/check (club_admin) — empile une vérification, consommée par processFbiJobs. */
-export async function checkMatchDerogation(fetcher: ApiFetcher, clubId: string, matchId: string): Promise<{ queued: true }> {
-  return fetcher<{ queued: true }>(`/v1/clubs/${clubId}/matches/${matchId}/derogation/check`, { method: "POST" });
+/**
+ * POST /v1/clubs/:clubId/matches/:matchId/derogation/check (club_admin) —
+ * SYNCHRONE depuis 2026-09-28 ("doit y avoir rien en attente" : l'ancien
+ * modèle empilait un job traité séparément par processFbiJobs, source
+ * directe de confusion) : login/consulte FBI et renvoie le résultat réel
+ * dans cette même requête. `timeoutMs` généreux (le login + la recherche
+ * FBI peuvent prendre 30-60s en pratique).
+ */
+export async function checkMatchDerogation(fetcher: ApiFetcher, clubId: string, matchId: string): Promise<{ found: boolean }> {
+  return fetcher<{ found: boolean }>(`/v1/clubs/${clubId}/matches/${matchId}/derogation/check`, { method: "POST", timeoutMs: 90_000 });
 }

@@ -40,7 +40,7 @@ export function createApi(fetcher: ApiFetcher) {
       processFbiJobs: (clubId: string) => integrations.processFbiJobs(fetcher, clubId),
       parseFbiDocuments: (clubId: string) => integrations.parseFbiDocuments(fetcher, clubId),
       triggerFbiScheduleReconciliation: (clubId: string) => integrations.triggerFbiScheduleReconciliation(fetcher, clubId),
-      triggerCheckAllDerogations: (clubId: string) => integrations.triggerCheckAllDerogations(fetcher, clubId),
+      checkAllDerogations: (clubId: string) => integrations.checkAllDerogations(fetcher, clubId),
       triggerFfbbSync: (clubId: string) => integrations.triggerFfbbSync(fetcher, clubId),
       syncRuns: (clubId: string) => integrations.listSyncRuns(fetcher, clubId),
     },

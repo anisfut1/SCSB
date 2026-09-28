@@ -99,18 +99,29 @@ export async function triggerFbiScheduleReconciliation(fetcher: ApiFetcher, club
   return fetcher<{ queued: true }>(`/v1/clubs/${clubId}/integrations/fbi/reconcile-schedule`, { method: "POST" });
 }
 
+export interface CheckAllDerogationsResult {
+  derogationsFound: number;
+  matched: number;
+  unmatched: number;
+}
+
 /**
  * POST /v1/clubs/:clubId/integrations/fbi/check-all-derogations — "je veux
  * un bouton global qui check toutes les demandes, pas match par match" :
- * empile UN SEUL job `check_all_derogations` qui parcourt toutes les
- * dérogations connues de FBI en une seule connexion (recherche à numéro de
- * rencontre VIDE), au lieu de boucler un job par match (risque de blocage
- * anti-bot déjà constaté, voir ProcessFbiJobsButton.tsx). Lecture seule
- * uniquement — jamais de soumission/modification de dérogation vers FBI.
- * Les résultats apparaissent ensuite via `derogations.list` (derogations.ts).
+ * parcourt toutes les dérogations connues de FBI en une seule connexion
+ * (recherche à numéro de rencontre VIDE), au lieu de boucler un job par
+ * match (risque de blocage anti-bot déjà constaté, voir
+ * ProcessFbiJobsButton.tsx). SYNCHRONE depuis 2026-09-28 ("doit y avoir
+ * rien en attente" — l'ancien modèle empilait un job traité séparément,
+ * source directe de confusion quand un autre job du club se traitait à sa
+ * place) : login/consulte FBI et renvoie le résultat réel dans cette même
+ * requête. `timeoutMs` généreux (jusqu'à ~4-5 min en pratique pour un club
+ * avec beaucoup de dérogations). Lecture seule uniquement — jamais de
+ * soumission/modification de dérogation vers FBI. Les résultats détaillés
+ * apparaissent ensuite via `derogations.list` (derogations.ts).
  */
-export async function triggerCheckAllDerogations(fetcher: ApiFetcher, clubId: string): Promise<{ queued: true }> {
-  return fetcher<{ queued: true }>(`/v1/clubs/${clubId}/integrations/fbi/check-all-derogations`, { method: "POST" });
+export async function checkAllDerogations(fetcher: ApiFetcher, clubId: string): Promise<CheckAllDerogationsResult> {
+  return fetcher<CheckAllDerogationsResult>(`/v1/clubs/${clubId}/integrations/fbi/check-all-derogations`, { method: "POST", timeoutMs: 280_000 });
 }
 
 /**

@@ -10,19 +10,6 @@ import { RespondToDerogationAction } from "@/features/derogations/RespondToDerog
 
 type Status = { kind: "success" | "error" | "pending"; text: string };
 
-// Mêmes garde-fous que ProcessFbiJobsButton.tsx/CheckAllDerogationsButton.tsx
-// (voir leur doc) — un seul appel `process-jobs` ne traite qu'UN job du
-// club, potentiellement plus ancien que celui que CE clic vient d'empiler ;
-// boucler ici vide la file dans ce même clic au lieu de forcer plusieurs
-// clics à l'aveugle.
-const MAX_ROUNDS = 100;
-const ROUND_DELAY_MS = 5_000;
-const MAX_CONSECUTIVE_FULL_FAILURES = 2;
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 /**
  * `demandeur` ("Domicile"/"Visiteur") est un jargon FBI relatif à CETTE
  * rencontre précise, jamais toujours "notre équipe" — demande du club,
@@ -40,7 +27,10 @@ function resolveDemandeurTeam(derogation: { demandeur: string | null; domicile: 
  * Consultation de l'état d'une dérogation FBI pour ce match (demande du
  * club, voir docs/FBI.md côté club-manager-api : "faut qu'on gere les
  * derog depuis l'outil"). `isAdmin` uniquement (même verrou que POST
- * .../derogation/check côté API).
+ * .../derogation/check côté API). "Vérifier sur FBI" est SYNCHRONE depuis
+ * 2026-09-28 ("doit y avoir rien en attente") : login/consulte FBI et
+ * affiche le résultat réel de CE clic, jamais un job à espérer voir
+ * traité par ailleurs.
  *
  * Depuis 2026-09-27 ("je veux le faire via loutil"), une dérogation "En
  * Cours" attendant une décision DU CLUB (`derogation.actionRequired`)
@@ -57,38 +47,8 @@ export function DerogationCard({ clubId, matchId, derogation, isAdmin }: { clubI
       setStatus({ kind: "pending", text: "Vérification en cours…" });
 
       try {
-        await browserApi.matches.checkDerogation(clubId, matchId);
-
-        let claimed = 0;
-        let failed = 0;
-        let consecutiveFullFailures = 0;
-        let stoppedOnCircuitBreaker = false;
-
-        for (let round = 0; round < MAX_ROUNDS; round += 1) {
-          if (round > 0) await delay(ROUND_DELAY_MS);
-
-          setStatus({ kind: "pending", text: claimed > 0 ? `Vérification en cours… (${claimed} job${claimed > 1 ? "s" : ""} traité${claimed > 1 ? "s" : ""} jusqu'ici)` : "Vérification en cours…" });
-
-          const result = await browserApi.integrations.processFbiJobs(clubId);
-          claimed += result.claimed;
-          failed += result.failed;
-
-          if (result.claimed === 0) break;
-
-          consecutiveFullFailures = result.succeeded === 0 ? consecutiveFullFailures + 1 : 0;
-          if (consecutiveFullFailures >= MAX_CONSECUTIVE_FULL_FAILURES) {
-            stoppedOnCircuitBreaker = true;
-            break;
-          }
-        }
-
-        if (stoppedOnCircuitBreaker) {
-          setStatus({ kind: "error", text: "Arrêté après plusieurs échecs consécutifs — vérifie le statut FBI avant de recliquer." });
-        } else if (failed > 0 && claimed === failed) {
-          setStatus({ kind: "error", text: "La vérification a échoué." });
-        } else {
-          setStatus({ kind: "success", text: "Vérification terminée." });
-        }
+        const result = await browserApi.matches.checkDerogation(clubId, matchId);
+        setStatus({ kind: "success", text: result.found ? "Vérification terminée." : "Vérification terminée — aucune dérogation trouvée pour ce match sur FBI." });
         router.refresh();
       } catch (error) {
         setStatus({ kind: "error", text: error instanceof ApiError ? error.message : "Vérification impossible." });
