@@ -10,6 +10,19 @@ import { RespondToDerogationAction } from "@/features/derogations/RespondToDerog
 
 type Status = { kind: "success" | "error" | "pending"; text: string };
 
+// Mêmes garde-fous que ProcessFbiJobsButton.tsx/CheckAllDerogationsButton.tsx
+// (voir leur doc) — un seul appel `process-jobs` ne traite qu'UN job du
+// club, potentiellement plus ancien que celui que CE clic vient d'empiler ;
+// boucler ici vide la file dans ce même clic au lieu de forcer plusieurs
+// clics à l'aveugle.
+const MAX_ROUNDS = 100;
+const ROUND_DELAY_MS = 5_000;
+const MAX_CONSECUTIVE_FULL_FAILURES = 2;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * `demandeur` ("Domicile"/"Visiteur") est un jargon FBI relatif à CETTE
  * rencontre précise, jamais toujours "notre équipe" — demande du club,
@@ -45,8 +58,37 @@ export function DerogationCard({ clubId, matchId, derogation, isAdmin }: { clubI
 
       try {
         await browserApi.matches.checkDerogation(clubId, matchId);
-        await browserApi.integrations.processFbiJobs(clubId);
-        setStatus({ kind: "success", text: "Vérification terminée." });
+
+        let claimed = 0;
+        let failed = 0;
+        let consecutiveFullFailures = 0;
+        let stoppedOnCircuitBreaker = false;
+
+        for (let round = 0; round < MAX_ROUNDS; round += 1) {
+          if (round > 0) await delay(ROUND_DELAY_MS);
+
+          setStatus({ kind: "pending", text: claimed > 0 ? `Vérification en cours… (${claimed} job${claimed > 1 ? "s" : ""} traité${claimed > 1 ? "s" : ""} jusqu'ici)` : "Vérification en cours…" });
+
+          const result = await browserApi.integrations.processFbiJobs(clubId);
+          claimed += result.claimed;
+          failed += result.failed;
+
+          if (result.claimed === 0) break;
+
+          consecutiveFullFailures = result.succeeded === 0 ? consecutiveFullFailures + 1 : 0;
+          if (consecutiveFullFailures >= MAX_CONSECUTIVE_FULL_FAILURES) {
+            stoppedOnCircuitBreaker = true;
+            break;
+          }
+        }
+
+        if (stoppedOnCircuitBreaker) {
+          setStatus({ kind: "error", text: "Arrêté après plusieurs échecs consécutifs — vérifie le statut FBI avant de recliquer." });
+        } else if (failed > 0 && claimed === failed) {
+          setStatus({ kind: "error", text: "La vérification a échoué." });
+        } else {
+          setStatus({ kind: "success", text: "Vérification terminée." });
+        }
         router.refresh();
       } catch (error) {
         setStatus({ kind: "error", text: error instanceof ApiError ? error.message : "Vérification impossible." });
