@@ -93,10 +93,39 @@ export function RosterBoard({
 }) {
   const router = useRouter();
   const [items, setItems] = useState(licencies);
-  const [, startTransition] = useTransition();
+  // Resynchronise l'état local sur les props fraîches après un
+  // `router.refresh()` (déplacement ou répartition automatique) — mise à
+  // jour PENDANT le rendu (jamais dans un Effect, voir la doc React
+  // "Adjusting state when a prop changes") : sans ça, `items` resterait
+  // figé sur le snapshot initial du montage.
+  const [prevLicencies, setPrevLicencies] = useState(licencies);
+  if (licencies !== prevLicencies) {
+    setPrevLicencies(licencies);
+    setItems(licencies);
+  }
+  const [isPending, startTransition] = useTransition();
   const [dragLicencieId, setDragLicencieId] = useState<string | null>(null);
   const [dragOverTeamId, setDragOverTeamId] = useState<string | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [autoAssignStatus, setAutoAssignStatus] = useState<string | null>(null);
+
+  function handleAutoAssign() {
+    setError(null);
+    setAutoAssignStatus(null);
+    startTransition(async () => {
+      try {
+        const result = await browserApi.licencies.autoAssignTeams(clubId);
+        setAutoAssignStatus(
+          result.total === 0
+            ? "Aucun·e licencié·e sans équipe avec une catégorie connue."
+            : `${result.assigned} licencié·e·s affecté·e·s automatiquement sur ${result.total} sans équipe${result.skipped > 0 ? ` (${result.skipped} restent sans équipe correspondante, à traiter à la main)` : ""}.`,
+        );
+        router.refresh();
+      } catch (e) {
+        setAutoAssignStatus(e instanceof ApiError ? e.message : "Répartition automatique impossible.");
+      }
+    });
+  }
 
   function handleDrop(teamId: string | null) {
     setDragOverTeamId(undefined);
@@ -123,9 +152,24 @@ export function RosterBoard({
   }
 
   const buckets = bucketsFor(items, teams);
+  const unassignedCount = buckets.find((b) => b.teamId === null)?.licencies.length ?? 0;
 
   return (
     <div className="flex flex-col gap-8">
+      {isAdmin && unassignedCount > 0 ? (
+        <div className="flex flex-col items-start gap-2">
+          <button
+            type="button"
+            onClick={handleAutoAssign}
+            disabled={isPending}
+            className="rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10"
+          >
+            {isPending ? "Répartition en cours…" : "Répartir automatiquement par catégorie"}
+          </button>
+          {autoAssignStatus ? <p className="text-sm text-black/60 dark:text-white/60">{autoAssignStatus}</p> : null}
+        </div>
+      ) : null}
+
       {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
 
       {buckets.map((bucket) => (

@@ -2870,6 +2870,11 @@ export interface components {
             inserted: number;
             skipped: number;
         };
+        AutoAssignTeamsResultDto: {
+            total: number;
+            assigned: number;
+            skipped: number;
+        };
         IssueDto: {
             /** Format: uuid */
             matchId: string | null;

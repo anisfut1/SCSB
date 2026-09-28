@@ -8,6 +8,7 @@ export type UpdateLicencieProfileDto = components["schemas"]["UpdateLicencieProf
 export type ImportLicencieRowDto = components["schemas"]["ImportLicencieRowDto"];
 export type ImportLicenciesDto = components["schemas"]["ImportLicenciesDto"];
 export type ImportLicenciesResultDto = components["schemas"]["ImportLicenciesResultDto"];
+export type AutoAssignTeamsResultDto = components["schemas"]["AutoAssignTeamsResultDto"];
 
 /** GET /v1/clubs/:clubId/licencies — roster du club (tri par nom, voir docs/LICENCIES.md côté club-manager-api). */
 export async function listLicencies(fetcher: ApiFetcher, clubId: string): Promise<LicencieDto[]> {
@@ -41,4 +42,17 @@ export async function updateLicencieProfile(fetcher: ApiFetcher, clubId: string,
  */
 export async function importLicencies(fetcher: ApiFetcher, clubId: string, body: ImportLicenciesDto): Promise<ImportLicenciesResultDto> {
   return fetcher<ImportLicenciesResultDto>(`/v1/clubs/${clubId}/licencies/import`, { method: "POST", body, timeoutMs: 60_000 });
+}
+
+/**
+ * POST /v1/clubs/:clubId/licencies/auto-assign-teams (club_admin) —
+ * répartition automatique best-effort des licenciés sans équipe, à partir
+ * de la catégorie/du sexe FFBB connus ("on a une info pour commencer déjà
+ * a les mettre dans les équipes, si ya 2 equipes pour 1 catégorie, met
+ * tous dans 1 seule pour linstant", demande du club, 2026-09-28). Reste un
+ * point de départ, jamais une vérité définitive — voir docs/LICENCIES.md
+ * côté club-manager-api.
+ */
+export async function autoAssignTeams(fetcher: ApiFetcher, clubId: string): Promise<AutoAssignTeamsResultDto> {
+  return fetcher<AutoAssignTeamsResultDto>(`/v1/clubs/${clubId}/licencies/auto-assign-teams`, { method: "POST", timeoutMs: 30_000 });
 }

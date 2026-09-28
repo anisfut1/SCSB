@@ -62,6 +62,7 @@ export function createApi(fetcher: ApiFetcher) {
       get: (clubId: string, licencieId: string) => licencies.getLicencieProfile(fetcher, clubId, licencieId),
       updateProfile: (clubId: string, licencieId: string, body: licencies.UpdateLicencieProfileDto) => licencies.updateLicencieProfile(fetcher, clubId, licencieId, body),
       import: (clubId: string, body: licencies.ImportLicenciesDto) => licencies.importLicencies(fetcher, clubId, body),
+      autoAssignTeams: (clubId: string) => licencies.autoAssignTeams(fetcher, clubId),
     },
     platform: {
       listClubs: () => platform.listPlatformClubs(fetcher),
