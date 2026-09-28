@@ -42,12 +42,20 @@ function LicencieCard({
   teams,
   isAdmin,
   onAssignTeam,
+  isConfirmingDelete,
+  onRequestDelete,
+  onConfirmDelete,
+  onCancelDelete,
 }: {
   clubSlug: string;
   licencie: LicencieDto;
   teams: TeamDto[];
   isAdmin: boolean;
   onAssignTeam: (teamId: string | null) => void;
+  isConfirmingDelete: boolean;
+  onRequestDelete: () => void;
+  onConfirmDelete: () => void;
+  onCancelDelete: () => void;
 }) {
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-black/5 dark:hover:bg-white/10">
@@ -90,6 +98,36 @@ function LicencieCard({
           </>
         ) : null}
         {licencie.licenseNumber ?? "—"}
+        {isAdmin ? (
+          isConfirmingDelete ? (
+            <span className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={onConfirmDelete}
+                className="rounded-md bg-red-700 px-2 py-1 text-xs font-medium text-white hover:bg-red-800"
+              >
+                Confirmer
+              </button>
+              <button
+                type="button"
+                onClick={onCancelDelete}
+                className="rounded-md border border-black/15 px-2 py-1 text-xs hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+              >
+                Annuler
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={onRequestDelete}
+              title="Supprimer ce licencié"
+              aria-label="Supprimer ce licencié"
+              className="rounded-md px-1.5 py-1 text-black/40 hover:bg-red-50 hover:text-red-700 dark:text-white/40 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+            >
+              🗑
+            </button>
+          )
+        ) : null}
       </span>
     </div>
   );
@@ -138,6 +176,7 @@ export function RosterBoard({
   const [dragOverTeamId, setDragOverTeamId] = useState<string | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [autoAssignStatus, setAutoAssignStatus] = useState<string | null>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
   function handleAutoAssign() {
     setError(null);
@@ -179,6 +218,30 @@ export function RosterBoard({
       } catch (e) {
         setItems(previous);
         setError(e instanceof ApiError ? e.message : "Déplacement impossible.");
+      }
+    });
+  }
+
+  /**
+   * "faut aussi un bouton pour supprimer un licencié" (demande du club,
+   * 2026-09-28) — suppression DÉFINITIVE (voir docs/LICENCIES.md côté
+   * club-manager-api : sûre sans condition, jamais de perte d'historique
+   * de match). Confirmation obligatoire (voir `LicencieCard`) avant cet
+   * appel, jamais un clic unique irréversible.
+   */
+  function handleDelete(licencieId: string) {
+    setConfirmingDeleteId(null);
+    const previous = items;
+    setError(null);
+    setItems(items.filter((l) => l.id !== licencieId));
+
+    startTransition(async () => {
+      try {
+        await browserApi.licencies.remove(clubId, licencieId);
+        router.refresh();
+      } catch (e) {
+        setItems(previous);
+        setError(e instanceof ApiError ? e.message : "Suppression impossible.");
       }
     });
   }
@@ -252,7 +315,17 @@ export function RosterBoard({
                   onDragEnd={isAdmin ? () => setDragLicencieId(null) : undefined}
                   className={isAdmin ? "cursor-grab active:cursor-grabbing" : undefined}
                 >
-                  <LicencieCard clubSlug={clubSlug} licencie={licencie} teams={sortedTeams} isAdmin={isAdmin} onAssignTeam={(teamId) => assignTeam(licencie.id, teamId)} />
+                  <LicencieCard
+                    clubSlug={clubSlug}
+                    licencie={licencie}
+                    teams={sortedTeams}
+                    isAdmin={isAdmin}
+                    onAssignTeam={(teamId) => assignTeam(licencie.id, teamId)}
+                    isConfirmingDelete={confirmingDeleteId === licencie.id}
+                    onRequestDelete={() => setConfirmingDeleteId(licencie.id)}
+                    onConfirmDelete={() => handleDelete(licencie.id)}
+                    onCancelDelete={() => setConfirmingDeleteId(null)}
+                  />
                 </li>
               ))}
             </ul>

@@ -9,6 +9,7 @@ export type ImportLicencieRowDto = components["schemas"]["ImportLicencieRowDto"]
 export type ImportLicenciesDto = components["schemas"]["ImportLicenciesDto"];
 export type ImportLicenciesResultDto = components["schemas"]["ImportLicenciesResultDto"];
 export type AutoAssignTeamsResultDto = components["schemas"]["AutoAssignTeamsResultDto"];
+export type DeleteLicencieResultDto = components["schemas"]["DeleteLicencieResultDto"];
 
 /** GET /v1/clubs/:clubId/licencies — roster du club (tri par nom, voir docs/LICENCIES.md côté club-manager-api). */
 export async function listLicencies(fetcher: ApiFetcher, clubId: string): Promise<LicencieDto[]> {
@@ -55,4 +56,17 @@ export async function importLicencies(fetcher: ApiFetcher, clubId: string, body:
  */
 export async function autoAssignTeams(fetcher: ApiFetcher, clubId: string): Promise<AutoAssignTeamsResultDto> {
   return fetcher<AutoAssignTeamsResultDto>(`/v1/clubs/${clubId}/licencies/auto-assign-teams`, { method: "POST", timeoutMs: 30_000 });
+}
+
+/**
+ * DELETE /v1/clubs/:clubId/licencies/:licencieId (club_admin) — supprime
+ * DÉFINITIVEMENT la fiche ("faut aussi un bouton pour supprimer un
+ * licencié", demande du club, 2026-09-28). Sûre sans condition — voir
+ * docs/LICENCIES.md côté club-manager-api (l'historique de match n'est
+ * jamais perdu). Pour archiver un·e licencié·e qui a quitté le club sans
+ * perdre sa fiche, `updateLicencieProfile(..., { active: false })` reste
+ * le bon geste.
+ */
+export async function deleteLicencie(fetcher: ApiFetcher, clubId: string, licencieId: string): Promise<DeleteLicencieResultDto> {
+  return fetcher<DeleteLicencieResultDto>(`/v1/clubs/${clubId}/licencies/${licencieId}`, { method: "DELETE" });
 }

@@ -2875,6 +2875,9 @@ export interface components {
             assigned: number;
             skipped: number;
         };
+        DeleteLicencieResultDto: {
+            deleted: true;
+        };
         IssueDto: {
             /** Format: uuid */
             matchId: string | null;

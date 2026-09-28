@@ -63,6 +63,7 @@ export function createApi(fetcher: ApiFetcher) {
       updateProfile: (clubId: string, licencieId: string, body: licencies.UpdateLicencieProfileDto) => licencies.updateLicencieProfile(fetcher, clubId, licencieId, body),
       import: (clubId: string, body: licencies.ImportLicenciesDto) => licencies.importLicencies(fetcher, clubId, body),
       autoAssignTeams: (clubId: string) => licencies.autoAssignTeams(fetcher, clubId),
+      remove: (clubId: string, licencieId: string) => licencies.deleteLicencie(fetcher, clubId, licencieId),
     },
     platform: {
       listClubs: () => platform.listPlatformClubs(fetcher),
