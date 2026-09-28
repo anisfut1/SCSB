@@ -878,15 +878,14 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Job de vérification de dérogation empilé (un seul par match à la fois) */
+                /** @description Résultat immédiat de la vérification FBI de ce match */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": {
-                            /** @enum {boolean} */
-                            queued: true;
+                            found: boolean;
                         };
                     };
                 };
@@ -1469,15 +1468,16 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Job de vérification globale des dérogations empilé (un seul par club à la fois) */
+                /** @description Résultat immédiat de la vérification globale FBI */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": {
-                            /** @enum {boolean} */
-                            queued: true;
+                            derogationsFound: number;
+                            matched: number;
+                            unmatched: number;
                         };
                     };
                 };
@@ -1577,6 +1577,585 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/clubs/{clubId}/derogations/{derogationId}/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                    derogationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["RespondToDerogationDto"];
+                };
+            };
+            responses: {
+                /** @description Résultat RÉEL renvoyé par FBI (success/error/unknown) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RespondToDerogationResultDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/clubs/{clubId}/matches/{matchId}/derogation/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                    matchId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["RespondToDerogationDto"];
+                };
+            };
+            responses: {
+                /** @description Résultat RÉEL renvoyé par FBI (success/error/unknown) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RespondToDerogationResultDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/clubs/{clubId}/matches/{matchId}/table-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    role: components["schemas"]["TableAssignmentRole"];
+                };
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                    matchId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Candidats classés (recommandés/disponibles/indisponibles) pour ce rôle sur ce match */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TableSuggestionsDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/clubs/{clubId}/matches/{matchId}/table-assignments/{role}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                    matchId: string;
+                    role: components["schemas"]["TableAssignmentRole"];
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PutTableAssignmentDto"];
+                };
+            };
+            responses: {
+                /** @description Affectation enregistrée */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TableAssignmentResultDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                    matchId: string;
+                    role: components["schemas"]["TableAssignmentRole"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Affectation retirée (poste remis à 'À attribuer') */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            removed: true;
+                        };
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/clubs/{clubId}/table-assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    from?: string;
+                    to?: string;
+                };
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Matchs à domicile du club, avec leurs 3 postes (affectés ou 'à attribuer') */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TableAssignmentsListDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/clubs/{clubId}/matches/{matchId}/derogation/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                    matchId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CreateDerogationDto"];
+                };
+            };
+            responses: {
+                /** @description Résultat RÉEL renvoyé par FBI (success/error/unknown) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CreateDerogationResultDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -2007,7 +2586,57 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                    licencieId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Licencié supprimé */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeleteLicencieResultDto"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -2099,6 +2728,158 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/v1/clubs/{clubId}/licencies/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ImportLicenciesDto"];
+                };
+            };
+            responses: {
+                /** @description Import terminé (total/inserted/skipped) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ImportLicenciesResultDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/clubs/{clubId}/licencies/auto-assign-teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Répartition terminée (total/assigned/skipped) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AutoAssignTeamsResultDto"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/clubs/{clubId}/issues": {
@@ -2545,6 +3326,7 @@ export interface components {
             /** @enum {string} */
             status: "scheduled" | "played" | "postponed" | "cancelled" | "forfeit";
             emarqueStatus: string;
+            /** @enum {string|null} */
             derogationStatus: "en_cours" | "acceptee" | "refusee" | null;
         };
         MatchesPaginationDto: {
@@ -2678,30 +3460,6 @@ export interface components {
             checkedAt: string;
             actionRequired: boolean;
         } | null;
-        RespondToDerogationDto: {
-            /** @enum {string} */
-            decision: "accepted" | "refused";
-            motifRefus?: string | null;
-        };
-        RespondToDerogationResultDto: {
-            /** @enum {string} */
-            outcome: "success" | "error" | "unknown";
-            message: string | null;
-        };
-        CreateDerogationDto: {
-            motif: string;
-            modifierDate: boolean;
-            dateDerogation?: string | null;
-            modifierHoraire: boolean;
-            horaire?: string | null;
-            inverserRencontre: boolean;
-            inverserEquipe: boolean;
-        };
-        CreateDerogationResultDto: {
-            /** @enum {string} */
-            outcome: "success" | "error" | "unknown";
-            message: string | null;
-        };
         EmarqueImportDto: {
             /** Format: uuid */
             id: string;
@@ -2749,6 +3507,17 @@ export interface components {
             enabled?: boolean;
             autoImportEmarque?: boolean;
         };
+        DerogationListItemDto: components["schemas"]["DerogationStatusDto"] & {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            matchId: string;
+            opponentName: string | null;
+            matchDatetime: string | null;
+            categoryLabel: string | null;
+            teamName: string | null;
+            scheduleConflict: components["schemas"]["ScheduleConflictDto"];
+        };
         ScheduleConflictDto: {
             /** Format: uuid */
             matchId: string;
@@ -2756,17 +3525,116 @@ export interface components {
             opponentName: string | null;
             matchDatetime: string;
             teamName: string | null;
+        } | null;
+        RespondToDerogationResultDto: {
+            /** @enum {string} */
+            outcome: "success" | "error" | "unknown";
+            message: string | null;
         };
-        DerogationListItemDto: components["schemas"]["DerogationStatusDto"] & {
+        RespondToDerogationDto: {
+            /** @enum {string} */
+            decision: "accepted" | "refused";
+            motifRefus?: string | null;
+        };
+        TableSuggestionsDto: {
+            recommended: components["schemas"]["TableSuggestionCandidateDto"][];
+            available: components["schemas"]["TableSuggestionCandidateDto"][];
+            unavailable: components["schemas"]["TableUnavailableCandidateDto"][];
+        };
+        TableSuggestionCandidateDto: {
+            licencie: components["schemas"]["TableLicencieRefDto"];
+            teams: components["schemas"]["TableTeamRefDto"][];
+            /** @enum {string} */
+            eligibility: "RECOMMENDED" | "POTENTIALLY_AVAILABLE";
+            priorityTier: components["schemas"]["PriorityTier"];
+            score: number;
+            reasons: components["schemas"]["SuggestionReasonDto"][];
+            seasonAssignmentCount: number;
+            sameDayAssignmentCount: number;
+            isCurrentHolder: boolean;
+        };
+        TableLicencieRefDto: {
             /** Format: uuid */
             id: string;
+            firstName: string;
+            lastName: string;
+        };
+        TableTeamRefDto: {
             /** Format: uuid */
-            matchId: string;
-            opponentName: string | null;
+            id: string;
+            name: string;
+        };
+        /** @enum {string} */
+        PriorityTier: "ADJACENT_NEXT_HOME" | "ADJACENT_PREVIOUS_HOME" | "AVAILABLE_OTHER";
+        SuggestionReasonDto: {
+            code: components["schemas"]["SuggestionReasonCode"];
+            label: string;
+        };
+        /** @enum {string} */
+        SuggestionReasonCode: "NEXT_HOME_MATCH" | "PREVIOUS_HOME_MATCH" | "SAME_VENUE" | "SEASON_DUTY_COUNT";
+        TableUnavailableCandidateDto: {
+            licencie: components["schemas"]["TableLicencieRefDto"];
+            teams: components["schemas"]["TableTeamRefDto"][];
+            /** @enum {string} */
+            eligibility: "UNAVAILABLE";
+            reasonCode: components["schemas"]["UnavailableReasonCode"];
+            reason: string;
+            /** Format: uuid */
+            conflictingMatchId: string | null;
+        };
+        /** @enum {string} */
+        UnavailableReasonCode: "MATCH_CONFLICT" | "TABLE_ASSIGNMENT_CONFLICT" | "ALREADY_ASSIGNED_ON_MATCH";
+        /** @enum {string} */
+        TableAssignmentRole: "SCORER" | "TIMEKEEPER" | "CLUB_DELEGATE";
+        TableAssignmentResultDto: {
+            assignment: components["schemas"]["TableAssignmentSlotDto"];
+        };
+        TableAssignmentSlotDto: {
+            /** Format: uuid */
+            id: string;
+            licencie: components["schemas"]["TableLicencieRefDto"];
+            teams: components["schemas"]["TableTeamRefDto"][];
+            hasConflict: boolean;
+            conflictReason: string | null;
+        };
+        PutTableAssignmentDto: {
+            /** Format: uuid */
+            licencieId: string;
+        };
+        TableAssignmentsListDto: {
+            matches: components["schemas"]["TableAssignmentsForMatchDto"][];
+        };
+        TableAssignmentsForMatchDto: {
+            match: components["schemas"]["TableMatchRefDto"];
+            assignments: {
+                scorer: components["schemas"]["TableAssignmentSlotDto"] & unknown;
+                timekeeper: components["schemas"]["TableAssignmentSlotDto"] & unknown;
+                clubDelegate: components["schemas"]["TableAssignmentSlotDto"] & unknown;
+            };
+            hasConflict: boolean;
+        };
+        TableMatchRefDto: {
+            /** Format: uuid */
+            id: string;
+            numero: string | null;
             matchDatetime: string | null;
-            categoryLabel: string | null;
             teamName: string | null;
-            scheduleConflict: components["schemas"]["ScheduleConflictDto"] | null;
+            opponentName: string | null;
+            venueLabel: string | null;
+        };
+        CreateDerogationResultDto: {
+            /** @enum {string} */
+            outcome: "success" | "error" | "unknown";
+            message: string | null;
+        };
+        CreateDerogationDto: {
+            motif: string;
+            modifierDate: boolean;
+            dateDerogation?: string | null;
+            modifierHoraire: boolean;
+            horaire?: string | null;
+            inverserRencontre: boolean;
+            inverserEquipe: boolean;
         };
         SyncRunDto: {
             /** Format: uuid */
@@ -2851,24 +3719,23 @@ export interface components {
             teamId?: string | null;
             active?: boolean;
         };
-        ImportLicencieRowDto: {
-            ffbbLicenceId: string;
-            licenseNumber?: string | null;
-            firstName: string;
-            lastName: string;
-            /** Format: date */
-            birthDate?: string | null;
-            categoryLabel?: string | null;
-            /** @enum {string|null} */
-            sexe?: "M" | "F" | null;
-        };
-        ImportLicenciesDto: {
-            licencies: components["schemas"]["ImportLicencieRowDto"][];
-        };
         ImportLicenciesResultDto: {
             total: number;
             inserted: number;
             skipped: number;
+        };
+        ImportLicenciesDto: {
+            licencies: {
+                ffbbLicenceId: string;
+                licenseNumber?: string | null;
+                firstName: string;
+                lastName: string;
+                /** Format: date */
+                birthDate?: string | null;
+                categoryLabel?: string | null;
+                /** @enum {string|null} */
+                sexe?: "M" | "F" | null;
+            }[];
         };
         AutoAssignTeamsResultDto: {
             total: number;
@@ -2876,6 +3743,7 @@ export interface components {
             skipped: number;
         };
         DeleteLicencieResultDto: {
+            /** @enum {boolean} */
             deleted: true;
         };
         IssueDto: {

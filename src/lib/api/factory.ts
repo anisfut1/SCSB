@@ -7,6 +7,7 @@ import * as jobs from "./jobs";
 import * as licencies from "./licencies";
 import * as platform from "./platform";
 import * as derogations from "./derogations";
+import * as tables from "./tables";
 
 /**
  * Fonctions ergonomiques (§40 de la demande) : un composant appelle
@@ -68,6 +69,12 @@ export function createApi(fetcher: ApiFetcher) {
     platform: {
       listClubs: () => platform.listPlatformClubs(fetcher),
       createClub: (body: platform.CreateClubDto) => platform.createClub(fetcher, body),
+    },
+    tables: {
+      list: (clubId: string, params?: tables.ListTableAssignmentsParams) => tables.listTableAssignments(fetcher, clubId, params),
+      suggestions: (clubId: string, matchId: string, role: tables.TableAssignmentRole) => tables.getTableSuggestions(fetcher, clubId, matchId, role),
+      assign: (clubId: string, matchId: string, role: tables.TableAssignmentRole, body: tables.PutTableAssignmentDto) => tables.putTableAssignment(fetcher, clubId, matchId, role, body),
+      unassign: (clubId: string, matchId: string, role: tables.TableAssignmentRole) => tables.deleteTableAssignment(fetcher, clubId, matchId, role),
     },
   };
 }

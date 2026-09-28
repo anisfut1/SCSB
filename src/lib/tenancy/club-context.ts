@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
-import { isClubAdmin } from "@/lib/permissions/roles";
+import { hasAnyRole, isClubAdmin, type ClubRole } from "@/lib/permissions/roles";
 import { api } from "@/lib/api/server";
 import type { ClubDto } from "@/lib/api/clubs";
 
@@ -44,6 +44,22 @@ export async function requireClubAdminContext(slug: string): Promise<ClubDto> {
   const club = await requireClubContext(slug);
 
   if (!isClubAdmin(club.roles)) {
+    redirect(`/c/${slug}/dashboard`);
+  }
+
+  return club;
+}
+
+/**
+ * Variante stricte pour un ENSEMBLE de rôles équivalents sur un module
+ * (ex: Tables de marque, §31 de la demande : club_admin OU
+ * responsable_tables — même porte d'entrée que club-manager-api,
+ * `requireAnyClubRole`, voir routes.ts côté API).
+ */
+export async function requireAnyClubRoleContext(slug: string, roles: readonly ClubRole[]): Promise<ClubDto> {
+  const club = await requireClubContext(slug);
+
+  if (!hasAnyRole(club.roles, roles)) {
     redirect(`/c/${slug}/dashboard`);
   }
 

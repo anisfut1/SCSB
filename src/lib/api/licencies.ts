@@ -5,8 +5,15 @@ export type LicencieDto = components["schemas"]["LicencieDto"];
 export type LicencieProfileDto = components["schemas"]["LicencieProfileDto"];
 export type LicencieMatchDto = components["schemas"]["LicencieMatchDto"];
 export type UpdateLicencieProfileDto = components["schemas"]["UpdateLicencieProfileDto"];
-export type ImportLicencieRowDto = components["schemas"]["ImportLicencieRowDto"];
 export type ImportLicenciesDto = components["schemas"]["ImportLicenciesDto"];
+/**
+ * `ImportLicencieRowDtoSchema` n'est jamais `.openapi(...)`-enregistré
+ * séparément côté club-manager-api (il n'existe qu'imbriqué dans
+ * `ImportLicenciesDto.licencies`, voir contracts/licencies.ts) — dérivé ici
+ * par indexation plutôt que par un nom de composant qui n'existe pas
+ * réellement dans le contrat OpenAPI généré.
+ */
+export type ImportLicencieRowDto = ImportLicenciesDto["licencies"][number];
 export type ImportLicenciesResultDto = components["schemas"]["ImportLicenciesResultDto"];
 export type AutoAssignTeamsResultDto = components["schemas"]["AutoAssignTeamsResultDto"];
 export type DeleteLicencieResultDto = components["schemas"]["DeleteLicencieResultDto"];

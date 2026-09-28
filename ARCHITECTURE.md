@@ -102,6 +102,18 @@ flowchart LR
 
 Ces 8 modules correspondent à 8 "domaines" de code (voir §13) et peuvent avancer indépendamment une fois le socle (Phase 0-2) posé.
 
+> **Module 3 "Tables de marque" implémenté (2026-09-28)** — V1 volontairement
+> plus étroit que la description ci-dessus : 3 rôles (marqueur,
+> chronométreur, délégué de club), moteur de suggestion EXPLICABLE mais
+> **jamais auto-affectant** ("le logiciel suggère, le responsable
+> décide"), aucun buffer de trajet ni compétence par rôle pour l'instant
+> (architecturé pour, pas construit). Logique métier entièrement dans
+> club-manager-api (`modules/tables/`, voir son `docs/TABLE_ASSIGNMENTS.md`) ;
+> ce repository ne fait qu'appeler `GET/PUT/DELETE
+> /v1/clubs/:clubId/(matches/:matchId/)table-assignments...` — voir
+> `/c/{slug}/tables` (`src/app/c/[clubSlug]/tables/page.tsx`,
+> `src/features/tables/`).
+
 ---
 
 ## 3. Flux FFBB ↔ application

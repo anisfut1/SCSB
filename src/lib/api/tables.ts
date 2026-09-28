@@ -1,0 +1,94 @@
+import type { ApiFetcher } from "./client";
+import type { components } from "./generated/schema";
+
+/**
+ * Module Tables de marque (demande du club, 2026-09-28) — voir
+ * club-manager-api/docs/TABLE_ASSIGNMENTS.md pour la logique métier
+ * complète (120 min, chevauchement strict, rangs, équité). Ce fichier ne
+ * fait qu'exposer des fonctions ergonomiques typées vers les 4 routes déjà
+ * exposées par club-manager-api — aucun `fetch()` en dur, aucune requête
+ * Supabase directe (§6/§93 : SCSB → club-manager-api → Supabase, jamais
+ * l'inverse).
+ */
+
+export type TableAssignmentRole = components["schemas"]["TableAssignmentRole"];
+export type TableSuggestionCandidateDto = components["schemas"]["TableSuggestionCandidateDto"];
+export type TableUnavailableCandidateDto = components["schemas"]["TableUnavailableCandidateDto"];
+export type SuggestionReasonCode = components["schemas"]["SuggestionReasonCode"];
+export type UnavailableReasonCode = components["schemas"]["UnavailableReasonCode"];
+export type PriorityTier = components["schemas"]["PriorityTier"];
+export type TableSuggestionsDto = components["schemas"]["TableSuggestionsDto"];
+export type TableAssignmentSlotDto = components["schemas"]["TableAssignmentSlotDto"];
+export type TableMatchRefDto = components["schemas"]["TableMatchRefDto"];
+export type PutTableAssignmentDto = components["schemas"]["PutTableAssignmentDto"];
+export type TableAssignmentResultDto = components["schemas"]["TableAssignmentResultDto"];
+
+/**
+ * `assignments.scorer/timekeeper/clubDelegate` sont `.nullable()` côté
+ * contrat Zod (`TableAssignmentSlotDtoSchema.nullable()`, un poste vide =
+ * "à attribuer") mais openapi-typescript régénère ce nullable imbriqué en
+ * `TableAssignmentSlotDto & unknown` (le `| null` est perdu) — retypé ici
+ * manuellement plutôt que de toucher au fichier auto-généré, même pattern
+ * que `opponentLogoUrl` dans matches.ts.
+ */
+export interface TableAssignmentsForMatchDto {
+  match: TableMatchRefDto;
+  assignments: {
+    scorer: TableAssignmentSlotDto | null;
+    timekeeper: TableAssignmentSlotDto | null;
+    clubDelegate: TableAssignmentSlotDto | null;
+  };
+  hasConflict: boolean;
+}
+
+export interface ListTableAssignmentsParams {
+  /** Filtre `match_datetime >= from` (ISO 8601). Sans bornes, l'API renvoie les prochains matchs à domicile (voir routes.ts côté club-manager-api). */
+  from?: string;
+  to?: string;
+}
+
+/**
+ * GET /v1/clubs/:clubId/table-assignments — matchs à DOMICILE uniquement
+ * (§4/§36 : un match extérieur ne sert qu'à calculer l'indisponibilité,
+ * jamais à afficher une table de marque), avec leurs 3 postes (affectés ou
+ * "à attribuer").
+ */
+export async function listTableAssignments(fetcher: ApiFetcher, clubId: string, params: ListTableAssignmentsParams = {}): Promise<TableAssignmentsForMatchDto[]> {
+  const search = new URLSearchParams();
+  if (params.from) search.set("from", params.from);
+  if (params.to) search.set("to", params.to);
+  const query = search.toString();
+  const { matches } = await fetcher<{ matches: TableAssignmentsForMatchDto[] }>(`/v1/clubs/${clubId}/table-assignments${query ? `?${query}` : ""}`);
+  return matches;
+}
+
+/**
+ * GET /v1/clubs/:clubId/matches/:matchId/table-suggestions?role= — §39 :
+ * STRICTEMENT en lecture, ne crée JAMAIS d'affectation (aucun effet de
+ * bord, jamais appelée en boucle/cron). Un seul rôle à la fois — la vue
+ * "choisir un marqueur" n'a besoin que des suggestions pour ce rôle-là.
+ */
+export async function getTableSuggestions(fetcher: ApiFetcher, clubId: string, matchId: string, role: TableAssignmentRole): Promise<TableSuggestionsDto> {
+  return fetcher<TableSuggestionsDto>(`/v1/clubs/${clubId}/matches/${matchId}/table-suggestions?role=${role}`);
+}
+
+/**
+ * PUT /v1/clubs/:clubId/matches/:matchId/table-assignments/:role — la
+ * SEULE action qui transforme une suggestion en affectation réelle (§40),
+ * toujours déclenchée par un clic explicite ("Choisir"), jamais par un
+ * automatisme. club-manager-api revalide les conflits au moment de
+ * l'écriture (§42) : un 409 `TABLE_ASSIGNMENT_CONFLICT` /
+ * `ALREADY_ASSIGNED_ON_MATCH` est attendu et normal si le candidat n'est
+ * plus disponible entre l'affichage des suggestions et le clic.
+ */
+export async function putTableAssignment(fetcher: ApiFetcher, clubId: string, matchId: string, role: TableAssignmentRole, body: PutTableAssignmentDto): Promise<TableAssignmentResultDto> {
+  return fetcher<TableAssignmentResultDto>(`/v1/clubs/${clubId}/matches/${matchId}/table-assignments/${role}`, {
+    method: "PUT",
+    body,
+  });
+}
+
+/** DELETE /v1/clubs/:clubId/matches/:matchId/table-assignments/:role — remet le poste à "à attribuer" (§41). */
+export async function deleteTableAssignment(fetcher: ApiFetcher, clubId: string, matchId: string, role: TableAssignmentRole): Promise<void> {
+  await fetcher<{ removed: true }>(`/v1/clubs/${clubId}/matches/${matchId}/table-assignments/${role}`, { method: "DELETE" });
+}
