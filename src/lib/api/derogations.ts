@@ -31,12 +31,16 @@ export async function listDerogations(fetcher: ApiFetcher, clubId: string): Prom
  * login FBI + soumission + relecture de l'état à jour, laissant le bouton
  * bloqué sur "Envoi en cours…" sans jamais afficher le résultat (pourtant
  * bien reçu et journalisé côté serveur, voir fbi_derogation_responses) —
- * l'admin n'avait alors AUCUN moyen de savoir si l'action avait réussi.
+ * l'admin n'avait alors AUCUN moyen de savoir si l'action avait réussi. Porté
+ * à 120s le même jour (au-delà du login + des 45s d'attente de confirmation
+ * FBI côté serveur, browser-client.ts, elle-même portée de 20s à 45s après
+ * confirmation du club que l'action avait réussi malgré un premier
+ * `outcome: "unknown"`).
  */
 export async function respondToDerogation(fetcher: ApiFetcher, clubId: string, derogationId: string, body: RespondToDerogationDto): Promise<RespondToDerogationResultDto> {
   return fetcher<RespondToDerogationResultDto>(`/v1/clubs/${clubId}/derogations/${derogationId}/respond`, {
     method: "POST",
     body,
-    timeoutMs: 90_000,
+    timeoutMs: 120_000,
   });
 }
