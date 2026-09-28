@@ -13,6 +13,8 @@ export type MatchListItemDto = components["schemas"]["MatchListItemDto"] & { opp
 export type MatchDetailsDto = components["schemas"]["MatchDetailsDto"] & { opponentLogoUrl: string | null };
 export type MatchDocumentDto = components["schemas"]["MatchDocumentDto"];
 export type DerogationStatusDto = components["schemas"]["DerogationStatusDto"];
+export type CreateDerogationDto = components["schemas"]["CreateDerogationDto"];
+export type CreateDerogationResultDto = components["schemas"]["CreateDerogationResultDto"];
 
 /**
  * `pagination` renvoyé par l'API (voir club-manager-api/src/modules/matches/routes.ts)
@@ -103,4 +105,25 @@ export async function getMatchDerogation(fetcher: ApiFetcher, clubId: string, ma
  */
 export async function checkMatchDerogation(fetcher: ApiFetcher, clubId: string, matchId: string): Promise<{ found: boolean }> {
   return fetcher<{ found: boolean }>(`/v1/clubs/${clubId}/matches/${matchId}/derogation/check`, { method: "POST", timeoutMs: 90_000 });
+}
+
+/**
+ * POST /v1/clubs/:clubId/matches/:matchId/derogation/create (club_admin) —
+ * ÉCRIT réellement sur FBI/FFBB : crée une NOUVELLE demande de dérogation
+ * pour ce match (demande du club, 2026-09-28 : "sur chaque rencontre faut
+ * un bouton 'Créer une dérogation'... on remplit et choisi le motif, et on
+ * envoie de la meme facon que pour accpter ou refuser"). Action réelle et
+ * engageante, jamais annulable une fois confirmée par FBI — voir `outcome`
+ * ("unknown" n'est jamais un succès, même contrat que respondToDerogation).
+ *
+ * `timeoutMs` généreux, même raisonnement que `respondToDerogation` (le
+ * login FBI + la recherche de la rencontre "à créer" + la soumission
+ * peuvent prendre au-delà de 20-45s en pratique).
+ */
+export async function createDerogation(fetcher: ApiFetcher, clubId: string, matchId: string, body: CreateDerogationDto): Promise<CreateDerogationResultDto> {
+  return fetcher<CreateDerogationResultDto>(`/v1/clubs/${clubId}/matches/${matchId}/derogation/create`, {
+    method: "POST",
+    body,
+    timeoutMs: 120_000,
+  });
 }

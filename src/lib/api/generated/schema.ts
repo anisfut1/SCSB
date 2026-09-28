@@ -2688,6 +2688,20 @@ export interface components {
             outcome: "success" | "error" | "unknown";
             message: string | null;
         };
+        CreateDerogationDto: {
+            motif: string;
+            modifierDate: boolean;
+            dateDerogation?: string | null;
+            modifierHoraire: boolean;
+            horaire?: string | null;
+            inverserRencontre: boolean;
+            inverserEquipe: boolean;
+        };
+        CreateDerogationResultDto: {
+            /** @enum {string} */
+            outcome: "success" | "error" | "unknown";
+            message: string | null;
+        };
         EmarqueImportDto: {
             /** Format: uuid */
             id: string;

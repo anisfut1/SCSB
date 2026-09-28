@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api/client";
 import { Card } from "@/components/ui/Card";
 import type { DerogationStatusDto } from "@/lib/api/matches";
 import { RespondToDerogationAction } from "@/features/derogations/RespondToDerogationAction";
+import { CreateDerogationAction } from "@/features/derogations/CreateDerogationAction";
 
 type Status = { kind: "success" | "error" | "pending"; text: string };
 
@@ -140,15 +141,17 @@ export function DerogationCard({ clubId, matchId, derogation, isAdmin }: { clubI
       )}
 
       {isAdmin ? (
-        <div className="mt-3 flex flex-col items-start gap-2">
-          <button
-            type="button"
-            onClick={handleCheck}
-            disabled={isPending}
-            className="rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10"
-          >
-            {isPending ? "Vérification en cours…" : "Vérifier sur FBI"}
-          </button>
+        <div className="mt-3 flex flex-col items-start gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCheck}
+              disabled={isPending}
+              className="rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10"
+            >
+              {isPending ? "Vérification en cours…" : "Vérifier sur FBI"}
+            </button>
+          </div>
           {status ? (
             <p
               role="status"
@@ -159,6 +162,8 @@ export function DerogationCard({ clubId, matchId, derogation, isAdmin }: { clubI
               {status.text}
             </p>
           ) : null}
+          {/* "sur chaque rencontre faut un bouton 'Créer une dérogation'" (demande du club, 2026-09-28) — toujours disponible, indépendamment d'une dérogation déjà connue ou non pour ce match. */}
+          <CreateDerogationAction clubId={clubId} matchId={matchId} />
         </div>
       ) : null}
     </Card>

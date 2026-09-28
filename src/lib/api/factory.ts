@@ -32,6 +32,7 @@ export function createApi(fetcher: ApiFetcher) {
       documents: (clubId: string, matchId: string) => matches.listMatchDocuments(fetcher, clubId, matchId),
       derogation: (clubId: string, matchId: string) => matches.getMatchDerogation(fetcher, clubId, matchId),
       checkDerogation: (clubId: string, matchId: string) => matches.checkMatchDerogation(fetcher, clubId, matchId),
+      createDerogation: (clubId: string, matchId: string, body: matches.CreateDerogationDto) => matches.createDerogation(fetcher, clubId, matchId, body),
     },
     integrations: {
       get: (clubId: string) => integrations.getIntegrationStatus(fetcher, clubId),
