@@ -3,7 +3,8 @@ import { requireClubContext } from "@/lib/tenancy/club-context";
 import { api } from "@/lib/api/server";
 import { Card } from "@/components/ui/Card";
 import { currentSeasonStart } from "@/lib/season";
-import type { MatchListItemDto } from "@/lib/api/matches";
+import { MatchTitle, derogationBadge, formatMatchDateTime, matchResultLabel } from "@/features/matches/match-display";
+import { HomeMatchesAgenda } from "@/features/matches/HomeMatchesAgenda";
 
 type WhenFilter = "weekend" | "upcoming" | "past";
 type SideFilter = "all" | "home" | "away";
@@ -20,44 +21,6 @@ const SIDE_OPTIONS: { value: SideFilter; label: string }[] = [
   { value: "away", label: "Extérieur" },
 ];
 
-/**
- * Petit logo rond (club ou adverse) — `null` accepté (venue/logo pas toujours connus côté FFBB) :
- * dans ce cas un simple espace réservé neutre évite de casser l'alignement "Sète vs X".
- */
-function TeamBadge({ src, alt }: { src: string | null; alt: string }) {
-  if (!src) return <span className="h-5 w-5 shrink-0 rounded-full bg-black/10 dark:bg-white/10" aria-hidden />;
-  // eslint-disable-next-line @next/next/no-img-element -- logos hébergés par api.ffbb.app, hors domaines Next configurés
-  return <img src={src} alt={alt} className="h-5 w-5 shrink-0 rounded-full object-contain" />;
-}
-
-/** Titre visuel "Sète vs X" / "X vs Sète" avec les deux logos, dans l'ordre domicile/extérieur. */
-function MatchTitle({
-  clubName,
-  clubLogoUrl,
-  opponentName,
-  opponentLogoUrl,
-  isHome,
-}: {
-  clubName: string;
-  clubLogoUrl: string | null;
-  opponentName: string;
-  opponentLogoUrl: string | null;
-  isHome: boolean;
-}) {
-  const club = { name: clubName, logoUrl: clubLogoUrl };
-  const opponent = { name: opponentName, logoUrl: opponentLogoUrl };
-  const [left, right] = isHome ? [club, opponent] : [opponent, club];
-  return (
-    <span className="flex items-center gap-2">
-      <TeamBadge src={left.logoUrl} alt={left.name} />
-      <span>
-        {left.name} vs {right.name}
-      </span>
-      <TeamBadge src={right.logoUrl} alt={right.name} />
-    </span>
-  );
-}
-
 /** Samedi 00:00 -> lundi 00:00 de la semaine courante (Europe/Paris implicite : dates stockées en UTC, affichées en heure locale). */
 function currentWeekendRange(): { start: Date; end: Date } {
   const now = new Date();
@@ -69,36 +32,6 @@ function currentWeekendRange(): { start: Date; end: Date } {
   const end = new Date(start);
   end.setDate(end.getDate() + 2);
   return { start, end };
-}
-
-function formatMatchDateTime(value: string | null): string {
-  if (!value) return "Date à confirmer";
-  // `timeZone` explicite (jamais le fuseau ambiant du runtime, UTC côté
-  // serveur Vercel) — demande du club, 2026-09-27 : "elle est a 18h sur
-  // notre outil" alors que FBI/FFBB disent 20h, `match_datetime` stocké
-  // (correctement, en UTC) affichait son heure UTC brute faute de
-  // conversion. Le basket français n'existe qu'en France : toujours
-  // Europe/Paris, jamais le fuseau du club ou du serveur.
-  return new Date(value).toLocaleString("fr-FR", { timeZone: "Europe/Paris", weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-}
-
-/**
- * Badge coloré par état — demande du club, 2026-09-27 : "faut faire par
- * couleur. acceptée = vert en cours = orange refusée = rouge". `null`
- * (aucune dérogation connue, ou seulement "A Créer", du bruit) -> aucun
- * badge.
- */
-function derogationBadge(status: MatchListItemDto["derogationStatus"]): { label: string; className: string } | null {
-  switch (status) {
-    case "en_cours":
-      return { label: "Dérog en cours", className: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" };
-    case "acceptee":
-      return { label: "Dérog acceptée", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" };
-    case "refusee":
-      return { label: "Dérog refusée", className: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300" };
-    default:
-      return null;
-  }
 }
 
 function buildFilterHref(
@@ -175,6 +108,14 @@ export default async function MatchsPage({
 
   const currentFilters = { when, side, team };
 
+  // "Pour les matchs à domicile, faut faire 2 colonnes car là il y a 2
+  // gymnases pour le club de sète. Je veux un rendu type agenda carré
+  // propre premium" (demande du club, 2026-09-28) — voir HomeMatchesAgenda.
+  // Les matchs à domicile ont leur propre rendu ; le reste (extérieur, ou
+  // domicile de statut inconnu) garde la liste existante.
+  const homeMatches = matches.filter((m) => m.isHome === true);
+  const otherMatches = matches.filter((m) => m.isHome !== true);
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-lg font-semibold">Matchs</h1>
@@ -246,47 +187,51 @@ export default async function MatchsPage({
           <p className="mt-1 text-sm text-black/60 dark:text-white/60">Aucun match ne correspond à ces filtres.</p>
         </Card>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {matches.map((match) => {
-            const badge = derogationBadge(match.derogationStatus);
-            return (
-              <li key={match.id}>
-                <Link href={`/c/${clubSlug}/matchs/${match.id}`} className="block">
-                  <Card
-                    title={
-                      <span className="flex flex-wrap items-center gap-2">
-                        <MatchTitle
-                          clubName={match.teamName ?? "Sète"}
-                          clubLogoUrl={club.logoUrl}
-                          opponentName={match.opponentName ?? "?"}
-                          opponentLogoUrl={match.opponentLogoUrl}
-                          isHome={match.isHome === true}
-                        />
-                        {badge ? <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>{badge.label}</span> : null}
-                      </span>
-                    }
-                  >
-                    <dl className="flex flex-wrap items-center justify-between gap-2 text-sm text-black/60 dark:text-white/60">
-                      <dd>{formatMatchDateTime(match.matchDatetime)}</dd>
-                      <dd>{match.venueLabel ?? "Lieu à confirmer"}</dd>
-                      <dd>
-                        {match.scoreHome !== null && match.scoreAway !== null
-                          ? `${match.scoreHome} - ${match.scoreAway}`
-                          : match.status === "postponed"
-                            ? "Reporté"
-                            : match.status === "cancelled"
-                              ? "Annulé"
-                              : match.status === "forfeit"
-                                ? "Forfait"
-                                : "À venir"}
-                      </dd>
-                    </dl>
-                  </Card>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="flex flex-col gap-8">
+          {homeMatches.length > 0 ? (
+            <section className="flex flex-col gap-3">
+              <h2 className="text-sm font-semibold text-black/70 dark:text-white/70">Matchs à domicile</h2>
+              <HomeMatchesAgenda matches={homeMatches} clubSlug={clubSlug} clubName="Sète" clubLogoUrl={club.logoUrl} />
+            </section>
+          ) : null}
+
+          {otherMatches.length > 0 ? (
+            <section className="flex flex-col gap-3">
+              {homeMatches.length > 0 ? <h2 className="text-sm font-semibold text-black/70 dark:text-white/70">Matchs à l&apos;extérieur</h2> : null}
+              <ul className="flex flex-col gap-3">
+                {otherMatches.map((match) => {
+                  const badge = derogationBadge(match.derogationStatus);
+                  return (
+                    <li key={match.id}>
+                      <Link href={`/c/${clubSlug}/matchs/${match.id}`} className="block">
+                        <Card
+                          title={
+                            <span className="flex flex-wrap items-center gap-2">
+                              <MatchTitle
+                                clubName={match.teamName ?? "Sète"}
+                                clubLogoUrl={club.logoUrl}
+                                opponentName={match.opponentName ?? "?"}
+                                opponentLogoUrl={match.opponentLogoUrl}
+                                isHome={match.isHome === true}
+                              />
+                              {badge ? <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>{badge.label}</span> : null}
+                            </span>
+                          }
+                        >
+                          <dl className="flex flex-wrap items-center justify-between gap-2 text-sm text-black/60 dark:text-white/60">
+                            <dd>{formatMatchDateTime(match.matchDatetime)}</dd>
+                            <dd>{match.venueLabel ?? "Lieu à confirmer"}</dd>
+                            <dd>{matchResultLabel(match)}</dd>
+                          </dl>
+                        </Card>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : null}
+        </div>
       )}
     </div>
   );
