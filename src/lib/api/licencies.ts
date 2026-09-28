@@ -5,6 +5,9 @@ export type LicencieDto = components["schemas"]["LicencieDto"];
 export type LicencieProfileDto = components["schemas"]["LicencieProfileDto"];
 export type LicencieMatchDto = components["schemas"]["LicencieMatchDto"];
 export type UpdateLicencieProfileDto = components["schemas"]["UpdateLicencieProfileDto"];
+export type ImportLicencieRowDto = components["schemas"]["ImportLicencieRowDto"];
+export type ImportLicenciesDto = components["schemas"]["ImportLicenciesDto"];
+export type ImportLicenciesResultDto = components["schemas"]["ImportLicenciesResultDto"];
 
 /** GET /v1/clubs/:clubId/licencies — roster du club (tri par nom, voir docs/LICENCIES.md côté club-manager-api). */
 export async function listLicencies(fetcher: ApiFetcher, clubId: string): Promise<LicencieDto[]> {
@@ -25,4 +28,17 @@ export async function getLicencieProfile(fetcher: ApiFetcher, clubId: string, li
  */
 export async function updateLicencieProfile(fetcher: ApiFetcher, clubId: string, licencieId: string, body: UpdateLicencieProfileDto): Promise<LicencieDto> {
   return fetcher<LicencieDto>(`/v1/clubs/${clubId}/licencies/${licencieId}/profile`, { method: "PATCH", body });
+}
+
+/**
+ * POST /v1/clubs/:clubId/licencies/import (club_admin) — import en masse
+ * depuis un export FBI collé/importé ("Voici la liste des licenciés,
+ * ajoute les tous stp, a lavenir yen aura dautres, faudra ignorer les
+ * doublons dans les exports", demande du club, 2026-09-28). Dédoublonné
+ * côté serveur par `ffbbLicenceId` ("N° national") — voir docs/LICENCIES.md
+ * côté club-manager-api. `timeoutMs` généreux : un import peut porter sur
+ * plusieurs centaines de lignes.
+ */
+export async function importLicencies(fetcher: ApiFetcher, clubId: string, body: ImportLicenciesDto): Promise<ImportLicenciesResultDto> {
+  return fetcher<ImportLicenciesResultDto>(`/v1/clubs/${clubId}/licencies/import`, { method: "POST", body, timeoutMs: 60_000 });
 }

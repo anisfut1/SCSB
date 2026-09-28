@@ -2801,6 +2801,10 @@ export interface components {
             /** Format: uuid */
             teamId: string | null;
             active: boolean;
+            ffbbLicenceId: string | null;
+            categoryLabel: string | null;
+            /** @enum {string|null} */
+            sexe: "M" | "F" | null;
         };
         LicencieProfileDto: {
             licencie: components["schemas"]["LicencieDto"];
@@ -2846,6 +2850,25 @@ export interface components {
             /** Format: uuid */
             teamId?: string | null;
             active?: boolean;
+        };
+        ImportLicencieRowDto: {
+            ffbbLicenceId: string;
+            licenseNumber?: string | null;
+            firstName: string;
+            lastName: string;
+            /** Format: date */
+            birthDate?: string | null;
+            categoryLabel?: string | null;
+            /** @enum {string|null} */
+            sexe?: "M" | "F" | null;
+        };
+        ImportLicenciesDto: {
+            licencies: components["schemas"]["ImportLicencieRowDto"][];
+        };
+        ImportLicenciesResultDto: {
+            total: number;
+            inserted: number;
+            skipped: number;
         };
         IssueDto: {
             /** Format: uuid */
