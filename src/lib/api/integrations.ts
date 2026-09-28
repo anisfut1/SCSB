@@ -45,9 +45,23 @@ export async function testFbiConnection(fetcher: ApiFetcher, clubId: string): Pr
   return fetcher<TestFbiConnectionResult>(`/v1/clubs/${clubId}/integrations/fbi/test`, { method: "POST" });
 }
 
-/** POST /v1/clubs/:clubId/integrations/ffbb/sync — §22 de la demande : outil de diagnostic admin, le cron backend fait déjà tourner ce même service. */
+/**
+ * POST /v1/clubs/:clubId/integrations/ffbb/sync — §22 de la demande : outil
+ * de diagnostic admin, le cron backend fait déjà tourner ce même service.
+ *
+ * `timeoutMs` généreux, même raisonnement que `processFbiJobs`/
+ * `checkAllDerogations` : `syncFfbb` (club-manager-api) traite chaque match
+ * du club un par un (lecture + upsert + historique), ce qui dépasse
+ * largement les 20s par défaut dès que le club a plusieurs centaines de
+ * matchs sur la saison — constaté en production, 2026-09-28 : "Relancer
+ * maintenant" affichait "Synchronisation impossible. Réessaie." (timeout
+ * client) pendant que la synchro continuait de réussir côté serveur
+ * (`sync_runs.status = 'success'`), même classe de bug que celle déjà
+ * corrigée pour `.../fbi/process-jobs`. `maxDuration: 300` côté
+ * club-manager-api (vercel.json) : marge de 20s sous ce plafond.
+ */
 export async function triggerFfbbSync(fetcher: ApiFetcher, clubId: string): Promise<{ syncRunId: string; status: string; stats: unknown }> {
-  return fetcher(`/v1/clubs/${clubId}/integrations/ffbb/sync`, { method: "POST" });
+  return fetcher(`/v1/clubs/${clubId}/integrations/ffbb/sync`, { method: "POST", timeoutMs: 280_000 });
 }
 
 /**
