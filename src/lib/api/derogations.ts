@@ -24,10 +24,19 @@ export async function listDerogations(fetcher: ApiFetcher, clubId: string): Prom
  * "je veux le faire via loutil". Action réelle et engageante, jamais
  * annulable une fois confirmée par FBI — voir `outcome` ("unknown" n'est
  * jamais un succès, voir club-manager-api/docs/FBI.md).
+ *
+ * `timeoutMs` généreux — BUG constaté en production le 2026-09-28 (rencontre
+ * 9538, "comment savoir si ca a marché ? jai pas eu de confirmation") : le
+ * délai par défaut (20s, voir client.ts) expirait AVANT la fin réelle du
+ * login FBI + soumission + relecture de l'état à jour, laissant le bouton
+ * bloqué sur "Envoi en cours…" sans jamais afficher le résultat (pourtant
+ * bien reçu et journalisé côté serveur, voir fbi_derogation_responses) —
+ * l'admin n'avait alors AUCUN moyen de savoir si l'action avait réussi.
  */
 export async function respondToDerogation(fetcher: ApiFetcher, clubId: string, derogationId: string, body: RespondToDerogationDto): Promise<RespondToDerogationResultDto> {
   return fetcher<RespondToDerogationResultDto>(`/v1/clubs/${clubId}/derogations/${derogationId}/respond`, {
     method: "POST",
     body,
+    timeoutMs: 90_000,
   });
 }
