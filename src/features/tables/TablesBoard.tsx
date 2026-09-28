@@ -6,11 +6,12 @@ import type { TableAssignmentsForMatchDto } from "@/lib/api/tables";
 import { TableMatchCard } from "./TableMatchCard";
 
 /**
- * Wrapper client de la vue "par jour" (§64 de la demande) : centralise le
+ * Wrapper client de la vue "par journée" (§64 de la demande — une journée
+ * de championnat = tout le week-end, samedi + dimanche) : centralise le
  * toast de confirmation ("Thomas Martin affecté comme marqueur.", §76) et
- * le `router.refresh()` après affectation/retrait, pour que le résumé du
- * jour (calculé côté serveur dans page.tsx) reste toujours exact — jamais
- * de compteur mis à jour localement en divergence avec le serveur.
+ * le `router.refresh()` après affectation/retrait, pour que le résumé de
+ * la journée (calculé côté serveur dans page.tsx) reste toujours exact —
+ * jamais de compteur mis à jour localement en divergence avec le serveur.
  */
 export function TablesBoard({ clubId, matches }: { clubId: string; matches: TableAssignmentsForMatchDto[] }) {
   const router = useRouter();
@@ -28,7 +29,7 @@ export function TablesBoard({ clubId, matches }: { clubId: string; matches: Tabl
   }
 
   if (matches.length === 0) {
-    return <p className="rounded-lg border border-black/10 bg-black/[0.02] p-4 text-sm text-black/60 dark:border-white/10 dark:bg-white/5 dark:text-white/60">Aucun match à domicile ce jour-là.</p>;
+    return <p className="rounded-lg border border-black/10 bg-black/[0.02] p-4 text-sm text-black/60 dark:border-white/10 dark:bg-white/5 dark:text-white/60">Aucun match à domicile cette journée.</p>;
   }
 
   return (
