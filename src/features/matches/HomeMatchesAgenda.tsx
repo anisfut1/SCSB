@@ -84,8 +84,6 @@ function AgendaTile({
         <span>{parts?.time ?? "Heure à confirmer"}</span>
         <span className="font-medium">{matchResultLabel(match)}</span>
       </div>
-      {/* DEBUG TEMPORAIRE — à retirer une fois le rapprochement de salle diagnostiqué en prod (2026-09-28). Pas de troncature : on veut la chaîne complète. */}
-      <p className="mt-1 whitespace-normal break-all text-[10px] text-red-600 dark:text-red-400">venueLabel={JSON.stringify(match.venueLabel)}</p>
     </Link>
   );
 }
