@@ -27,11 +27,25 @@ import { CheckAllDerogationsButton } from "@/features/admin/CheckAllDerogationsB
  * volontairement pas ajoutée dans cette phase (§56 de la demande : ne pas
  * contourner le backend, documenter le manque).
  */
+/** Libellé lisible par type de job FBI — voir `FbiActiveJobDto` côté club-manager-api. */
+const FBI_JOB_TYPE_LABELS: Record<string, string> = {
+  test_connection: "Test de connexion FBI",
+  discover_emarque: "Téléchargement d'un document e-Marque",
+  reconcile_schedule: "Vérification du calendrier",
+  check_derogation: "Vérification d'une dérogation",
+  check_all_derogations: "Vérification de toutes les dérogations",
+};
+
+function minutesSince(iso: string): number {
+  return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+}
+
 export default async function FbiIntegrationPage({ params }: { params: Promise<{ clubSlug: string }> }) {
   const { clubSlug } = await params;
   const club = await requireClubAdminContext(clubSlug);
 
   const integrations = await api.integrations.get(club.id);
+  const activeJob = integrations.fbi.activeJob;
 
   return (
     <div className="flex flex-col gap-6">
@@ -42,6 +56,24 @@ export default async function FbiIntegrationPage({ params }: { params: Promise<{
           calendrier FFBB déjà en place — {club.name} fonctionne normalement sans FBI.
         </p>
       </div>
+
+      {/*
+       * Retour du club, 2026-09-29 : "il me faut un truc pour savoir quand
+       * ya un truc en cours" — une seule session FBI active à la fois par
+       * club (voir claim_next_fbi_job côté club-manager-api) faisait
+       * afficher "rien en attente" sur les deux boutons sans jamais dire
+       * QU'un autre job (dérogations, calendrier...) tournait déjà.
+       * Rendu côté serveur (page non auto-rafraîchie) : recharge la page
+       * pour une mise à jour, pas de polling client ici — évite la
+       * complexité pour un indicatif, pas un flux temps réel critique.
+       */}
+      {activeJob ? (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          <span className="font-medium">En cours :</span> {FBI_JOB_TYPE_LABELS[activeJob.type] ?? activeJob.type} — depuis {minutesSince(activeJob.startedAt)} min. Une seule
+          connexion FBI à la fois pour ce club : les autres actions (téléchargement e-Marque, dérogations, calendrier)
+          attendent que celle-ci se termine. Recharge la page pour actualiser.
+        </div>
+      ) : null}
 
       <Card title="Identifiant / mot de passe">
         <FbiCredentialsForm clubId={club.id} />

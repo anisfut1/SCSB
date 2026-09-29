@@ -4604,6 +4604,11 @@ export interface components {
             };
             fbi: components["schemas"]["FbiIntegrationStatusDto"];
         };
+        FbiActiveJobDto: {
+            /** @enum {string} */
+            type: "test_connection" | "discover_emarque" | "reconcile_schedule" | "check_derogation" | "check_all_derogations";
+            startedAt: string;
+        };
         FbiIntegrationStatusDto: {
             configured: boolean;
             username: string | null;
@@ -4611,6 +4616,7 @@ export interface components {
             lastLoginAt: string | null;
             autoImportEmarque: boolean;
             lastError: string | null;
+            activeJob: components["schemas"]["FbiActiveJobDto"] | null;
         };
         SaveFbiCredentialsResponseDto: {
             /** @enum {boolean} */
