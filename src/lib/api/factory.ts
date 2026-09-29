@@ -69,6 +69,8 @@ export function createApi(fetcher: ApiFetcher) {
     platform: {
       listClubs: () => platform.listPlatformClubs(fetcher),
       createClub: (body: platform.CreateClubDto) => platform.createClub(fetcher, body),
+      purgeEmarqueDocuments: () => platform.purgeEmarqueDocuments(fetcher),
+      deleteOldSeasons: (clubId: string) => platform.deleteOldSeasons(fetcher, clubId),
     },
     tables: {
       list: (clubId: string, params?: tables.ListTableAssignmentsParams) => tables.listTableAssignments(fetcher, clubId, params),

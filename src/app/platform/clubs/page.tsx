@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getPlatformClubs } from "@/lib/auth/platform";
 import { Card } from "@/components/ui/Card";
 import { CreateClubForm } from "@/features/platform/CreateClubForm";
+import { MaintenanceActions } from "@/features/platform/MaintenanceActions";
 
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -65,6 +66,10 @@ export default async function PlatformClubsPage() {
 
       <Card title="Créer un club">
         <CreateClubForm />
+      </Card>
+
+      <Card title="Maintenance stockage">
+        <MaintenanceActions clubs={clubs} />
       </Card>
     </div>
   );
