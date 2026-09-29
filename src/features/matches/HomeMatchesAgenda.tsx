@@ -48,12 +48,12 @@ function resolveVenueColumnKey(venueLabel: string | null): (typeof HOME_VENUES)[
 
 function AgendaTile({
   match,
-  clubSlug,
+  basePath,
   clubName,
   clubLogoUrl,
 }: {
   match: MatchListItemDto;
-  clubSlug: string;
+  basePath: string;
   clubName: string;
   clubLogoUrl: string | null;
 }) {
@@ -62,7 +62,7 @@ function AgendaTile({
 
   return (
     <Link
-      href={`/c/${clubSlug}/matchs/${match.id}`}
+      href={`${basePath}/${match.id}`}
       className="group flex aspect-square flex-col justify-between rounded-2xl border border-black/10 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-white/5"
     >
       <div className="flex items-start justify-between gap-2">
@@ -91,13 +91,13 @@ function AgendaTile({
 function AgendaColumn({
   label,
   matches,
-  clubSlug,
+  basePath,
   clubName,
   clubLogoUrl,
 }: {
   label: string;
   matches: MatchListItemDto[];
-  clubSlug: string;
+  basePath: string;
   clubName: string;
   clubLogoUrl: string | null;
 }) {
@@ -111,7 +111,7 @@ function AgendaColumn({
       ) : (
         <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
           {matches.map((match) => (
-            <AgendaTile key={match.id} match={match} clubSlug={clubSlug} clubName={clubName} clubLogoUrl={clubLogoUrl} />
+            <AgendaTile key={match.id} match={match} basePath={basePath} clubName={clubName} clubLogoUrl={clubLogoUrl} />
           ))}
         </div>
       )}
@@ -126,12 +126,13 @@ function AgendaColumn({
  */
 export function HomeMatchesAgenda({
   matches,
-  clubSlug,
+  basePath,
   clubName,
   clubLogoUrl,
 }: {
   matches: MatchListItemDto[];
-  clubSlug: string;
+  /** Préfixe des liens vers la fiche match — `/c/{clubSlug}/matchs` (vue admin) ou `/public/{clubSlug}/matchs` (vue publique sans compte, retour du club, 2026-09-29). */
+  basePath: string;
   clubName: string;
   clubLogoUrl: string | null;
 }) {
@@ -144,10 +145,10 @@ export function HomeMatchesAgenda({
   return (
     <div className={`grid grid-cols-1 gap-6 ${autreMatches.length > 0 ? "lg:grid-cols-3" : "md:grid-cols-2"}`}>
       {columns.map((column) => (
-        <AgendaColumn key={column.key} label={column.label} matches={column.matches} clubSlug={clubSlug} clubName={clubName} clubLogoUrl={clubLogoUrl} />
+        <AgendaColumn key={column.key} label={column.label} matches={column.matches} basePath={basePath} clubName={clubName} clubLogoUrl={clubLogoUrl} />
       ))}
       {autreMatches.length > 0 ? (
-        <AgendaColumn label="Autre salle" matches={autreMatches} clubSlug={clubSlug} clubName={clubName} clubLogoUrl={clubLogoUrl} />
+        <AgendaColumn label="Autre salle" matches={autreMatches} basePath={basePath} clubName={clubName} clubLogoUrl={clubLogoUrl} />
       ) : null}
     </div>
   );

@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { requireClubContext } from "@/lib/tenancy/club-context";
-import { api } from "@/lib/api/server";
+import { notFound } from "next/navigation";
+import { getPublicClub } from "@/lib/api/publicTables";
+import { listPublicMatches, listPublicTeams } from "@/lib/api/publicMatches";
+import { ApiError } from "@/lib/api/client";
 import { Card } from "@/components/ui/Card";
 import { currentSeasonStart } from "@/lib/season";
 import { MatchTitle, derogationBadge, formatMatchDateTime, matchResultLabel } from "@/features/matches/match-display";
@@ -21,10 +23,10 @@ const SIDE_OPTIONS: { value: SideFilter; label: string }[] = [
   { value: "away", label: "Extérieur" },
 ];
 
-/** Samedi 00:00 -> lundi 00:00 de la semaine courante (Europe/Paris implicite : dates stockées en UTC, affichées en heure locale). */
+/** Même logique que `../../../c/[clubSlug]/matchs/page.tsx` (dupliquée volontairement, deux pages indépendantes sans design system partagé — voir aussi TeamBadge dans la fiche match). */
 function currentWeekendRange(): { start: Date; end: Date } {
   const now = new Date();
-  const day = now.getDay(); // 0 = dimanche ... 6 = samedi
+  const day = now.getDay();
   const daysUntilSaturday = (6 - day) % 7;
   const start = new Date(now);
   start.setHours(0, 0, 0, 0);
@@ -45,24 +47,18 @@ function buildFilterHref(
   if (next.side !== "all") search.set("side", next.side);
   if (next.team) search.set("team", next.team);
   const query = search.toString();
-  return query ? `/c/${clubSlug}/matchs?${query}` : `/c/${clubSlug}/matchs`;
+  return query ? `/public/${clubSlug}/matchs?${query}` : `/public/${clubSlug}/matchs`;
 }
 
 /**
- * Vue "Ce week-end" + filtres (ARCHITECTURE.md §3, Module 1), scopée au
- * club de l'URL. Lecture seule, via club-manager-api (§14 de la demande) —
- * ce frontend n'interroge plus jamais `matches`/`teams` directement.
- *
- * `api.matches.list` filtre déjà sur la saison en cours côté API
- * (`from: currentSeasonStart()`, voir `src/lib/api/matches.ts`) — les
- * saisons passées restent en base (jamais supprimées côté API) mais ne
- * sont pas chargées par cette page, ni par défaut ni sur les filtres
- * when/side/team ci-dessous (elle ne portent que sur la saison déjà
- * filtrée). Volontaire : demande explicite de ne pas afficher/charger
- * l'historique, et ça évite de récupérer des centaines/milliers de
- * matchs à chaque visite à mesure que l'historique du club grandit.
+ * Vue PUBLIQUE en lecture seule des matchs (retour du club, 2026-09-29 :
+ * "je veux une vue publique avec toutes les infos en vue directe, sans les
+ * boutons etc, en gros sans les fonctions admin, et sans compte, en libre
+ * service") — même mise en page que `/c/{clubSlug}/matchs`, sans session
+ * Supabase : toutes les données viennent de `GET /v1/public/clubs/{clubSlug}/...`
+ * (voir club-manager-api/docs/PUBLIC_MATCHES.md), aucune action possible.
  */
-export default async function MatchsPage({
+export default async function PublicMatchsPage({
   params,
   searchParams,
 }: {
@@ -70,7 +66,14 @@ export default async function MatchsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { clubSlug } = await params;
-  const club = await requireClubContext(clubSlug);
+
+  let club;
+  try {
+    club = await getPublicClub(clubSlug);
+  } catch (error) {
+    if (error instanceof ApiError && error.isNotFound) notFound();
+    throw error;
+  }
 
   const resolvedSearchParams = await searchParams;
   const when: WhenFilter = resolvedSearchParams.when === "upcoming" || resolvedSearchParams.when === "past" ? resolvedSearchParams.when : "weekend";
@@ -78,10 +81,7 @@ export default async function MatchsPage({
   const team = typeof resolvedSearchParams.team === "string" ? resolvedSearchParams.team : null;
 
   const seasonStart = currentSeasonStart();
-  const [teams, matches0] = await Promise.all([
-    api.clubs.teams(club.id),
-    api.matches.list(club.id, { from: seasonStart.toISOString() }),
-  ]);
+  const [teams, matches0] = await Promise.all([listPublicTeams(clubSlug), listPublicMatches(clubSlug, { from: seasonStart.toISOString() })]);
 
   let matches = matches0;
   if (team) {
@@ -107,25 +107,13 @@ export default async function MatchsPage({
   });
 
   const currentFilters = { when, side, team };
-
-  // "Pour les matchs à domicile, faut faire 2 colonnes car là il y a 2
-  // gymnases pour le club de sète. Je veux un rendu type agenda carré
-  // propre premium" (demande du club, 2026-09-28) — voir HomeMatchesAgenda.
-  // Les matchs à domicile ont leur propre rendu ; le reste (extérieur, ou
-  // domicile de statut inconnu) garde la liste existante.
   const homeMatches = matches.filter((m) => m.isHome === true);
   const otherMatches = matches.filter((m) => m.isHome !== true);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <h1 className="text-lg font-semibold">Matchs</h1>
-        <Link
-          href={`/public/${clubSlug}/matchs`}
-          className="shrink-0 rounded-md border border-black/15 px-3 py-1.5 text-xs font-medium hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
-        >
-          Vue publique (à partager, sans compte)
-        </Link>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
+      <div>
+        <h1 className="text-lg font-semibold">Matchs — {club.name}</h1>
       </div>
 
       <div className="flex flex-col gap-3 text-sm">
@@ -199,7 +187,7 @@ export default async function MatchsPage({
           {homeMatches.length > 0 ? (
             <section className="flex flex-col gap-3">
               <h2 className="text-sm font-semibold text-black/70 dark:text-white/70">Matchs à domicile</h2>
-              <HomeMatchesAgenda matches={homeMatches} basePath={`/c/${clubSlug}/matchs`} clubName="Sète" clubLogoUrl={club.logoUrl} />
+              <HomeMatchesAgenda matches={homeMatches} basePath={`/public/${clubSlug}/matchs`} clubName={club.name} clubLogoUrl={club.logoUrl} />
             </section>
           ) : null}
 
@@ -211,12 +199,12 @@ export default async function MatchsPage({
                   const badge = derogationBadge(match.derogationStatus);
                   return (
                     <li key={match.id}>
-                      <Link href={`/c/${clubSlug}/matchs/${match.id}`} className="block">
+                      <Link href={`/public/${clubSlug}/matchs/${match.id}`} className="block">
                         <Card
                           title={
                             <span className="flex flex-wrap items-center gap-2">
                               <MatchTitle
-                                clubName={match.teamName ?? "Sète"}
+                                clubName={match.teamName ?? club.name}
                                 clubLogoUrl={club.logoUrl}
                                 opponentName={match.opponentName ?? "?"}
                                 opponentLogoUrl={match.opponentLogoUrl}
