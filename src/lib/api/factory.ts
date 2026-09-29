@@ -76,6 +76,8 @@ export function createApi(fetcher: ApiFetcher) {
       assign: (clubId: string, matchId: string, role: tables.TableAssignmentRole, body: tables.PutTableAssignmentDto) => tables.putTableAssignment(fetcher, clubId, matchId, role, body),
       unassign: (clubId: string, matchId: string, role: tables.TableAssignmentRole) => tables.deleteTableAssignment(fetcher, clubId, matchId, role),
       setRefereeStatus: (clubId: string, matchId: string, noRefereeNeeded: boolean) => tables.setRefereeStatus(fetcher, clubId, matchId, noRefereeNeeded),
+      listPublicAccess: (clubId: string) => tables.listPublicAccess(fetcher, clubId),
+      resetPublicAccess: (clubId: string, licencieId: string) => tables.resetPublicAccess(fetcher, clubId, licencieId),
     },
   };
 }

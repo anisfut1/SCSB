@@ -12,7 +12,12 @@ export const PLATFORM_NAME = "Basket Club Manager";
  * routes protégées à maintenir à chaque nouveau module, on maintient une
  * liste courte des routes publiques.
  */
-export const PUBLIC_PATHS = ["/login"];
+/**
+ * `/public` (retour du club, 2026-09-29) : accès sans compte aux Tables de
+ * marque, voir club-manager-api/docs/PUBLIC_TABLE_ACCESS.md — l'identité
+ * vient d'un jeton personnel, jamais d'une session Supabase.
+ */
+export const PUBLIC_PATHS = ["/login", "/public"];
 
 export interface DashboardCardConfig {
   title: string;

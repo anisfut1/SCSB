@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAnyClubRoleContext } from "@/lib/tenancy/club-context";
+import { isClubAdmin } from "@/lib/permissions/roles";
 import { api } from "@/lib/api/server";
 import { addDaysToDateString, currentOrNextWeekendSaturday, formatWeekendLabel, weekendRangeForSaturday } from "@/lib/timezone";
 import { DaySummary } from "@/features/tables/DaySummary";
@@ -42,9 +43,19 @@ export default async function TablesPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-lg font-semibold">Tables de marque</h1>
-        <p className="mt-1 text-sm text-black/60 dark:text-white/60">{formatWeekendLabel(saturday)}</p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h1 className="text-lg font-semibold">Tables de marque</h1>
+          <p className="mt-1 text-sm text-black/60 dark:text-white/60">{formatWeekendLabel(saturday)}</p>
+        </div>
+        {isClubAdmin(club.roles) ? (
+          <Link
+            href={`/c/${clubSlug}/tables/public-access`}
+            className="shrink-0 rounded-md border border-black/15 px-3 py-1.5 text-xs font-medium hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+          >
+            Gérer les accès publics
+          </Link>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">

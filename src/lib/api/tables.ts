@@ -24,6 +24,7 @@ export type PutTableAssignmentDto = components["schemas"]["PutTableAssignmentDto
 export type TableAssignmentResultDto = components["schemas"]["TableAssignmentResultDto"];
 export type PutRefereeStatusDto = components["schemas"]["PutRefereeStatusDto"];
 export type RefereeStatusResultDto = components["schemas"]["RefereeStatusResultDto"];
+export type PublicAccessEntryDto = components["schemas"]["PublicAccessEntryDto"];
 
 /**
  * `assignments.scorer/timekeeper/clubDelegate/referee` sont `.nullable()`
@@ -115,4 +116,25 @@ export async function setRefereeStatus(fetcher: ApiFetcher, clubId: string, matc
     method: "PUT",
     body: { noRefereeNeeded } satisfies PutRefereeStatusDto,
   });
+}
+
+/**
+ * GET /v1/clubs/:clubId/table-assignments/public-access — retour du club,
+ * 2026-09-29 : vue admin de qui a déjà revendiqué son lien personnel sans
+ * compte (`club_admin` uniquement côté API). Sert à savoir qui
+ * réinitialiser en cas de lien perdu signalé.
+ */
+export async function listPublicAccess(fetcher: ApiFetcher, clubId: string): Promise<PublicAccessEntryDto[]> {
+  const { entries } = await fetcher<{ entries: PublicAccessEntryDto[] }>(`/v1/clubs/${clubId}/table-assignments/public-access`);
+  return entries;
+}
+
+/**
+ * POST /v1/clubs/:clubId/table-assignments/public-access/:licencieId/reset
+ * — révoque le jeton actif du licencié (lien perdu, etc.) : le nom
+ * redevient choisissable, les affectations déjà existantes ne sont
+ * jamais touchées (voir club-manager-api/docs/PUBLIC_TABLE_ACCESS.md).
+ */
+export async function resetPublicAccess(fetcher: ApiFetcher, clubId: string, licencieId: string): Promise<void> {
+  await fetcher<{ reset: true }>(`/v1/clubs/${clubId}/table-assignments/public-access/${licencieId}/reset`, { method: "POST" });
 }
