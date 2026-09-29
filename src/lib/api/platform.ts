@@ -5,6 +5,7 @@ export type PlatformClubDto = components["schemas"]["PlatformClubDto"];
 export type CreateClubDto = components["schemas"]["CreateClubDto"];
 export type PurgeEmarqueDocumentsResultDto = components["schemas"]["PurgeEmarqueDocumentsResultDto"];
 export type DeleteOldSeasonsResultDto = components["schemas"]["DeleteOldSeasonsResultDto"];
+export type RetryFailedEmarqueImportsResultDto = components["schemas"]["RetryFailedEmarqueImportsResultDto"];
 
 /** GET /v1/platform/clubs — §24 de la demande, réservé platform_admin (vérifié côté backend). */
 export async function listPlatformClubs(fetcher: ApiFetcher): Promise<PlatformClubDto[]> {
@@ -37,4 +38,17 @@ export async function purgeEmarqueDocuments(fetcher: ApiFetcher): Promise<PurgeE
  */
 export async function deleteOldSeasons(fetcher: ApiFetcher, clubId: string): Promise<DeleteOldSeasonsResultDto> {
   return fetcher(`/v1/platform/maintenance/delete-old-seasons`, { method: "POST", body: { clubId } });
+}
+
+/**
+ * POST /v1/platform/maintenance/retry-failed-emarque-imports — retour du
+ * club, 2026-09-29 : "faut que ce soit fait sur tous les matchs, sans bug,
+ * sans interruption". Relance les matchs e-Marque restés en erreur en
+ * réutilisant le fichier déjà téléchargé (jamais un nouveau login FBI) —
+ * voir docs/EMARQUE.md côté club-manager-api. Sans effet sur les matchs
+ * `needs_review` (fichier déjà purgé, nécessiterait un nouveau
+ * téléchargement).
+ */
+export async function retryFailedEmarqueImports(fetcher: ApiFetcher): Promise<RetryFailedEmarqueImportsResultDto> {
+  return fetcher(`/v1/platform/maintenance/retry-failed-emarque-imports`, { method: "POST" });
 }

@@ -17,9 +17,11 @@ export function MaintenanceActions({ clubs }: { clubs: PlatformClubDto[] }) {
   const router = useRouter();
   const [isPurging, startPurge] = useTransition();
   const [isDeleting, startDelete] = useTransition();
+  const [isRetrying, startRetry] = useTransition();
   const [selectedClubId, setSelectedClubId] = useState(clubs[0]?.id ?? "");
   const [purgeMessage, setPurgeMessage] = useState<{ success: boolean; text: string } | null>(null);
   const [deleteMessage, setDeleteMessage] = useState<{ success: boolean; text: string } | null>(null);
+  const [retryMessage, setRetryMessage] = useState<{ success: boolean; text: string } | null>(null);
 
   function handlePurge() {
     if (!window.confirm("Purger tous les documents e-Marque déjà stockés (tous clubs confondus) ? Les statistiques déjà extraites en base ne sont jamais touchées — seuls les fichiers originaux disparaissent de Storage.")) {
@@ -35,6 +37,21 @@ export function MaintenanceActions({ clubs }: { clubs: PlatformClubDto[] }) {
         });
       } catch (error) {
         setPurgeMessage({ success: false, text: error instanceof ApiError ? error.message : "Purge impossible. Réessaie." });
+      }
+    });
+  }
+
+  function handleRetryFailedImports() {
+    startRetry(async () => {
+      try {
+        const result = await browserApi.platform.retryFailedEmarqueImports();
+        setRetryMessage({
+          success: true,
+          text: `${result.matchesRetried} match(s) relancé(s) sur ${result.matchesExamined} en erreur${result.matchesSkippedNoFile > 0 ? ` (${result.matchesSkippedNoFile} ignoré(s), fichier déjà purgé — nécessite un nouveau téléchargement)` : ""}. Le prochain passage du parsing e-Marque les reprendra automatiquement.`,
+        });
+        router.refresh();
+      } catch (error) {
+        setRetryMessage({ success: false, text: error instanceof ApiError ? error.message : "Nouvelle tentative impossible. Réessaie." });
       }
     });
   }
@@ -79,6 +96,25 @@ export function MaintenanceActions({ clubs }: { clubs: PlatformClubDto[] }) {
         {purgeMessage ? (
           <p role="status" className={`text-sm ${purgeMessage.success ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
             {purgeMessage.text}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="flex flex-col gap-2 border-t border-black/10 pt-4 dark:border-white/10">
+        <p className="text-sm text-black/60 dark:text-white/60">
+          Relance le parsing des matchs e-Marque restés en erreur (tous clubs confondus), en réutilisant le fichier déjà téléchargé — jamais un nouveau login FBI. Sans effet sur les imports déjà réussis avec avertissement (fichier déjà purgé, voir docs/EMARQUE.md).
+        </p>
+        <button
+          type="button"
+          disabled={isRetrying}
+          onClick={handleRetryFailedImports}
+          className="self-start rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10"
+        >
+          {isRetrying ? "Nouvelle tentative en cours…" : "Relancer les imports e-Marque en erreur"}
+        </button>
+        {retryMessage ? (
+          <p role="status" className={`text-sm ${retryMessage.success ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+            {retryMessage.text}
           </p>
         ) : null}
       </div>
