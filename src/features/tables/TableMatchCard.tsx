@@ -9,11 +9,12 @@ import type { TableAssignmentRole, TableAssignmentResultDto, TableAssignmentsFor
 import { formatMatchDateTime } from "@/features/matches/match-display";
 import { TableAssignmentSlot } from "./TableAssignmentSlot";
 import { TableSuggestionsSheet } from "./TableSuggestionsSheet";
-import { TABLE_ROLES } from "./role-labels";
+import { TABLE_ROLES, TABLE_ROLE_LABELS } from "./role-labels";
 
 /**
- * Card d'un match à domicile avec ses 3 postes (§64-§66 de la demande).
- * Le rafraîchissement après affectation/retrait passe par `onChanged`
+ * Card d'un match à domicile avec ses 4 postes (§64-§66 de la demande,
+ * Arbitre ajouté le 2026-09-28). Le rafraîchissement après
+ * affectation/retrait/bascule "pas besoin d'arbitre" passe par `onChanged`
  * (fourni par `TablesBoard`, qui appelle `router.refresh()` + affiche un
  * toast) — jamais de ré-affectation locale silencieuse qui divergerait de
  * l'état réel côté serveur.
@@ -21,11 +22,17 @@ import { TABLE_ROLES } from "./role-labels";
 export function TableMatchCard({ clubId, match, onChanged }: { clubId: string; match: TableAssignmentsForMatchDto; onChanged: (message: string) => void }) {
   const [openRole, setOpenRole] = useState<TableAssignmentRole | null>(null);
   const [removingRole, setRemovingRole] = useState<TableAssignmentRole | null>(null);
+  const [togglingReferee, setTogglingReferee] = useState(false);
 
-  const slotByRole = { SCORER: match.assignments.scorer, TIMEKEEPER: match.assignments.timekeeper, CLUB_DELEGATE: match.assignments.clubDelegate } as const;
+  const slotByRole = {
+    SCORER: match.assignments.scorer,
+    TIMEKEEPER: match.assignments.timekeeper,
+    CLUB_DELEGATE: match.assignments.clubDelegate,
+    REFEREE: match.assignments.referee,
+  } as const;
 
   async function handleAssigned(role: TableAssignmentRole, result: TableAssignmentResultDto) {
-    onChanged(`${result.assignment.licencie.firstName} ${result.assignment.licencie.lastName} affecté·e comme ${role === "SCORER" ? "marqueur" : role === "TIMEKEEPER" ? "chronométreur" : "délégué de club"}.`);
+    onChanged(`${result.assignment.licencie.firstName} ${result.assignment.licencie.lastName} affecté·e comme ${TABLE_ROLE_LABELS[role].toLowerCase()}.`);
   }
 
   async function handleRemove(role: TableAssignmentRole) {
@@ -41,6 +48,24 @@ export function TableMatchCard({ clubId, match, onChanged }: { clubId: string; m
       onChanged(error instanceof ApiError ? error.message : "Retrait impossible.");
     } finally {
       setRemovingRole(null);
+    }
+  }
+
+  /**
+   * Retour du club, 2026-09-28 : "il est possible qu'un arbitre officiel
+   * soit désigné, donc avoir la possibilité de cocher un truc style pas
+   * besoin d'arbitre". N'affecte jamais aucun licencié — voir
+   * club-manager-api/docs/TABLE_ASSIGNMENTS.md, match_referee_overrides.
+   */
+  async function handleToggleRefereeNotNeeded(noRefereeNeeded: boolean) {
+    setTogglingReferee(true);
+    try {
+      await browserApi.tables.setRefereeStatus(clubId, match.match.id, noRefereeNeeded);
+      onChanged(noRefereeNeeded ? "Marqué « pas besoin d'arbitre »." : "Un arbitre du club est de nouveau nécessaire.");
+    } catch (error) {
+      onChanged(error instanceof ApiError ? error.message : "Mise à jour du statut arbitre impossible.");
+    } finally {
+      setTogglingReferee(false);
     }
   }
 
@@ -71,6 +96,20 @@ export function TableMatchCard({ clubId, match, onChanged }: { clubId: string; m
             onChoose={() => setOpenRole(role)}
             onRemove={() => handleRemove(role)}
             removing={removingRole === role}
+            headerExtra={
+              role === "REFEREE" ? (
+                <label className="flex items-center gap-1.5 text-xs text-black/60 dark:text-white/60">
+                  <input
+                    type="checkbox"
+                    checked={match.refereeNotNeeded}
+                    disabled={togglingReferee}
+                    onChange={(e) => handleToggleRefereeNotNeeded(e.target.checked)}
+                  />
+                  Pas besoin d&apos;arbitre
+                </label>
+              ) : undefined
+            }
+            notice={role === "REFEREE" && match.refereeNotNeeded ? "Arbitre officiel FFBB déjà désigné — aucune affectation nécessaire." : undefined}
           />
         ))}
       </div>

@@ -1,10 +1,26 @@
 import type { TableAssignmentsForMatchDto } from "@/lib/api/tables";
 
-/** Fonction pure isolée pour être testable indépendamment du rendu (même principe que le moteur de suggestion côté club-manager-api). */
+/**
+ * Fonction pure isolée pour être testable indépendamment du rendu (même
+ * principe que le moteur de suggestion côté club-manager-api).
+ *
+ * `refereeNotNeeded` (retour du club, 2026-09-28 : "pas besoin d'arbitre")
+ * retire le poste Arbitre du compte pour CE match, dans les deux sens :
+ * ni compté dans `totalSlots`, ni dans `toAssign`, même s'il vaut `null` —
+ * un club qui n'a jamais besoin d'arbitre ne doit jamais voir de "postes à
+ * attribuer" fantômes.
+ */
 export function computeDaySummary(matches: TableAssignmentsForMatchDto[]): { matchCount: number; totalSlots: number; assignedSlots: number; toAssign: number; conflictSlots: number } {
-  const totalSlots = matches.length * 3;
-  const assignedSlots = matches.reduce((count, m) => count + [m.assignments.scorer, m.assignments.timekeeper, m.assignments.clubDelegate].filter(Boolean).length, 0);
-  const conflictSlots = matches.reduce((count, m) => count + [m.assignments.scorer, m.assignments.timekeeper, m.assignments.clubDelegate].filter((s) => s?.hasConflict).length, 0);
+  let totalSlots = 0;
+  let assignedSlots = 0;
+  let conflictSlots = 0;
+
+  for (const m of matches) {
+    const requiredSlots = [m.assignments.scorer, m.assignments.timekeeper, m.assignments.clubDelegate, ...(m.refereeNotNeeded ? [] : [m.assignments.referee])];
+    totalSlots += requiredSlots.length;
+    assignedSlots += requiredSlots.filter(Boolean).length;
+    conflictSlots += [m.assignments.scorer, m.assignments.timekeeper, m.assignments.clubDelegate, m.assignments.referee].filter((s) => s?.hasConflict).length;
+  }
 
   return { matchCount: matches.length, totalSlots, assignedSlots, toAssign: totalSlots - assignedSlots, conflictSlots };
 }

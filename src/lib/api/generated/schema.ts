@@ -2010,7 +2010,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Matchs à domicile du club, avec leurs 3 postes (affectés ou 'à attribuer') */
+                /** @description Matchs à domicile du club, avec leurs 4 postes (affectés ou 'à attribuer') */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2067,6 +2067,94 @@ export interface paths {
             };
         };
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/clubs/{clubId}/matches/{matchId}/referee-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                    matchId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PutRefereeStatusDto"];
+                };
+            };
+            responses: {
+                /** @description Statut arbitre enregistré */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RefereeStatusResultDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
         post?: never;
         delete?: never;
         options?: never;
@@ -3585,7 +3673,7 @@ export interface components {
         /** @enum {string} */
         UnavailableReasonCode: "MATCH_CONFLICT" | "TABLE_ASSIGNMENT_CONFLICT" | "ALREADY_ASSIGNED_ON_MATCH";
         /** @enum {string} */
-        TableAssignmentRole: "SCORER" | "TIMEKEEPER" | "CLUB_DELEGATE";
+        TableAssignmentRole: "SCORER" | "TIMEKEEPER" | "CLUB_DELEGATE" | "REFEREE";
         TableAssignmentResultDto: {
             assignment: components["schemas"]["TableAssignmentSlotDto"];
         };
@@ -3610,7 +3698,9 @@ export interface components {
                 scorer: components["schemas"]["TableAssignmentSlotDto"] & unknown;
                 timekeeper: components["schemas"]["TableAssignmentSlotDto"] & unknown;
                 clubDelegate: components["schemas"]["TableAssignmentSlotDto"] & unknown;
+                referee: components["schemas"]["TableAssignmentSlotDto"] & unknown;
             };
+            refereeNotNeeded: boolean;
             hasConflict: boolean;
         };
         TableMatchRefDto: {
@@ -3621,6 +3711,12 @@ export interface components {
             teamName: string | null;
             opponentName: string | null;
             venueLabel: string | null;
+        };
+        RefereeStatusResultDto: {
+            refereeNotNeeded: boolean;
+        };
+        PutRefereeStatusDto: {
+            noRefereeNeeded: boolean;
         };
         CreateDerogationResultDto: {
             /** @enum {string} */

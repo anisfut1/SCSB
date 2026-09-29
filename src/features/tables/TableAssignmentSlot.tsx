@@ -1,14 +1,21 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { TriangleAlert, UserRound } from "lucide-react";
 import type { TableAssignmentRole, TableAssignmentSlotDto } from "@/lib/api/tables";
 import { TABLE_ROLE_LABELS } from "./role-labels";
 
 /**
- * Un des 3 postes d'un match (§65/§66 de la demande) : affecté (avec
+ * Un des postes d'un match (§65/§66 de la demande) : affecté (avec
  * éventuel conflit détecté, jamais corrigé automatiquement — §45/§79) ou
  * "À attribuer". Purement présentationnel ; l'ouverture du panneau de
  * suggestions et le retrait sont pilotés par `TableMatchCard`.
+ *
+ * `headerExtra`/`notice` : réservés au poste Arbitre (§ retour du club,
+ * 2026-09-28 : "possibilité de cocher pas besoin d'arbitre") — `headerExtra`
+ * porte la case à cocher, `notice` remplace le contenu habituel (affecté/à
+ * attribuer) quand elle est cochée. `undefined` pour les 3 autres rôles :
+ * ce composant reste sinon identique à avant leur ajout.
  */
 export function TableAssignmentSlot({
   role,
@@ -16,26 +23,35 @@ export function TableAssignmentSlot({
   onChoose,
   onRemove,
   removing,
+  headerExtra,
+  notice,
 }: {
   role: TableAssignmentRole;
   slot: TableAssignmentSlotDto | null;
   onChoose: () => void;
   onRemove: () => void;
   removing: boolean;
+  headerExtra?: ReactNode;
+  notice?: ReactNode;
 }) {
   return (
     <div className={`flex flex-col gap-1.5 rounded-lg border p-3 ${slot?.hasConflict ? "border-red-300 bg-red-50 dark:border-red-900/60 dark:bg-red-950/30" : "border-black/10 bg-black/[0.02] dark:border-white/10 dark:bg-white/[0.03]"}`}>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-black/50 dark:text-white/50">{TABLE_ROLE_LABELS[role]}</span>
-        {slot?.hasConflict ? (
-          <span className="flex items-center gap-1 text-xs font-medium text-red-700 dark:text-red-400">
-            <TriangleAlert className="h-3.5 w-3.5" aria-hidden />
-            Conflit détecté
-          </span>
-        ) : null}
+        <div className="flex items-center gap-3">
+          {slot?.hasConflict ? (
+            <span className="flex items-center gap-1 text-xs font-medium text-red-700 dark:text-red-400">
+              <TriangleAlert className="h-3.5 w-3.5" aria-hidden />
+              Conflit détecté
+            </span>
+          ) : null}
+          {headerExtra}
+        </div>
       </div>
 
-      {slot ? (
+      {notice ? (
+        <p className="text-sm text-black/40 dark:text-white/40">{notice}</p>
+      ) : slot ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <UserRound className="h-4 w-4 shrink-0 text-black/40 dark:text-white/40" aria-hidden />

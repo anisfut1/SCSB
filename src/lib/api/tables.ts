@@ -22,14 +22,16 @@ export type TableAssignmentSlotDto = components["schemas"]["TableAssignmentSlotD
 export type TableMatchRefDto = components["schemas"]["TableMatchRefDto"];
 export type PutTableAssignmentDto = components["schemas"]["PutTableAssignmentDto"];
 export type TableAssignmentResultDto = components["schemas"]["TableAssignmentResultDto"];
+export type PutRefereeStatusDto = components["schemas"]["PutRefereeStatusDto"];
+export type RefereeStatusResultDto = components["schemas"]["RefereeStatusResultDto"];
 
 /**
- * `assignments.scorer/timekeeper/clubDelegate` sont `.nullable()` côté
- * contrat Zod (`TableAssignmentSlotDtoSchema.nullable()`, un poste vide =
- * "à attribuer") mais openapi-typescript régénère ce nullable imbriqué en
- * `TableAssignmentSlotDto & unknown` (le `| null` est perdu) — retypé ici
- * manuellement plutôt que de toucher au fichier auto-généré, même pattern
- * que `opponentLogoUrl` dans matches.ts.
+ * `assignments.scorer/timekeeper/clubDelegate/referee` sont `.nullable()`
+ * côté contrat Zod (`TableAssignmentSlotDtoSchema.nullable()`, un poste
+ * vide = "à attribuer") mais openapi-typescript régénère ce nullable
+ * imbriqué en `TableAssignmentSlotDto & unknown` (le `| null` est perdu) —
+ * retypé ici manuellement plutôt que de toucher au fichier auto-généré,
+ * même pattern que `opponentLogoUrl` dans matches.ts.
  */
 export interface TableAssignmentsForMatchDto {
   match: TableMatchRefDto;
@@ -37,7 +39,16 @@ export interface TableAssignmentsForMatchDto {
     scorer: TableAssignmentSlotDto | null;
     timekeeper: TableAssignmentSlotDto | null;
     clubDelegate: TableAssignmentSlotDto | null;
+    referee: TableAssignmentSlotDto | null;
   };
+  /**
+   * Retour du club, 2026-09-28 : "il est possible qu'un arbitre officiel
+   * soit désigné [par la FFBB], donc avoir la possibilité de cocher un
+   * truc style pas besoin d'arbitre". `true` -> le poste `referee`
+   * ci-dessus n'est PAS compté comme "à attribuer" côté UI, même s'il
+   * vaut `null`. Ne concerne QUE ce poste.
+   */
+  refereeNotNeeded: boolean;
   hasConflict: boolean;
 }
 
@@ -91,4 +102,17 @@ export async function putTableAssignment(fetcher: ApiFetcher, clubId: string, ma
 /** DELETE /v1/clubs/:clubId/matches/:matchId/table-assignments/:role — remet le poste à "à attribuer" (§41). */
 export async function deleteTableAssignment(fetcher: ApiFetcher, clubId: string, matchId: string, role: TableAssignmentRole): Promise<void> {
   await fetcher<{ removed: true }>(`/v1/clubs/${clubId}/matches/${matchId}/table-assignments/${role}`, { method: "DELETE" });
+}
+
+/**
+ * PUT /v1/clubs/:clubId/matches/:matchId/referee-status — retour du club,
+ * 2026-09-28 : bascule "pas besoin d'arbitre" (arbitre officiel FFBB déjà
+ * désigné, hors de ce club). N'affecte JAMAIS aucun licencié — distinct
+ * d'une affectation, voir club-manager-api/docs/TABLE_ASSIGNMENTS.md.
+ */
+export async function setRefereeStatus(fetcher: ApiFetcher, clubId: string, matchId: string, noRefereeNeeded: boolean): Promise<RefereeStatusResultDto> {
+  return fetcher<RefereeStatusResultDto>(`/v1/clubs/${clubId}/matches/${matchId}/referee-status`, {
+    method: "PUT",
+    body: { noRefereeNeeded } satisfies PutRefereeStatusDto,
+  });
 }
