@@ -90,6 +90,11 @@ L'accent vient de `club.accentColor` (API). Repli plateforme : **cobalt électri
 | `--club-accent-border` | `color-mix` 28 % | filet d'élément actif / focus |
 | `--club-accent-glow` | `color-mix` 22 % | halos (voir §7) |
 
+**Portée** : le shell pose `--club-accent`, `--club-accent-ink`, `--club-accent-text` en style inline
+**et** la classe `.accent-scope`. Les dérivés (`soft`, `border`, `glow`, `glow-*`) sont déclarés sous
+`:root, .accent-scope` : une variable définie via `var()` est résolue là où elle est déclarée puis
+héritée figée — sans ce second sélecteur, les dérivés garderaient la couleur de repli.
+
 **Règle de dosage** : l'accent touche au maximum ~5 % de la surface d'un écran (état actif de la nav,
 action primaire, sélection, focus, un détail de hero). Un club rouge n'a jamais une interface rouge.
 Un club jaune voit son texte accentué automatiquement assombri.
@@ -230,18 +235,29 @@ Décoratives → `aria-hidden`. Boutons icône seuls → `aria-label`.
 | Card, CardHeader | `ui/Card.tsx` | variantes `default`, `interactive`, `glow`, `muted` |
 | StatusBadge | `ui/Badge.tsx` | success/warning/danger/info/neutral/accent + point ou icône |
 | Input, Textarea, Select, Field (label + hint + erreur) | `ui/Field.tsx` | focus = anneau accent + glow-xs ; erreurs liées par `aria-describedby` |
-| Switch, Checkbox | `ui/Switch.tsx` | cible 44 px |
+| Switch | `ui/Switch.tsx` | `role=switch`, cible 44 px |
+| Checkbox | `ui/Field.tsx` | case native teintée `accent-color`, cible 44 px |
 | Tabs (liens) | `ui/Tabs.tsx` | soulignement accent + glow ; `aria-current="page"` |
 | SegmentedControl (liens) | `ui/SegmentedControl.tsx` | piste `--surface-muted`, pastille active flottante |
 | PageHeader, SectionHeader, BackButton | `ui/PageHeader.tsx` | titre serif, eyebrow, actions |
 | EmptyState, ErrorState | `ui/States.tsx` | icône en médaillon, titre, texte, action |
 | Skeleton | `ui/Skeleton.tsx` | shimmer désactivé en reduced-motion |
 | Table | `ui/Table.tsx` | en-tête léger, lignes aérées, pas de quadrillage ; cartes sur mobile quand pertinent |
-| Sheet | `ui/Sheet.tsx` | bottom sheet mobile, panneau latéral desktop |
+| Sheet | `ui/Sheet.tsx` | bottom sheet mobile, panneau latéral desktop, piège de focus, Échap |
+| ConfirmDialog / `useConfirm` | `ui/Dialog.tsx` | `alertdialog` remplaçant `window.confirm` (même contrat bloquant) |
+| Portal | `ui/Portal.tsx` | calques rendus dans `#overlay-root` (hors des contextes d'empilement des cartes) |
+| Toast | `ui/Toast.tsx` | confirmation flottante `role=status`, au-dessus de la barre du bas |
+| ActionStatus, FormMessage | `ui/ActionStatus.tsx`, `ui/Field.tsx` | retour d'action icône + texte, jamais `alert()` |
+| DataList | `ui/DataList.tsx` | métadonnées libellé/valeur, « — » explicite si absent |
+| PersonAvatar | `ui/Avatar.tsx` | photo `object-cover` ou initiales |
+| Popover | `ui/Popover.tsx` | menus (workspace, compte, filtres), Échap + clic extérieur |
 | ClubLogo / TeamLogo | `ui/Logo.tsx` | image `object-contain` sur médaillon, repli monogramme — jamais de faux logo |
 | StatCard | `ui/StatCard.tsx` | chiffre grotesk dominant, variations de composition |
 | Notice | `ui/Notice.tsx` | bandeau info/warning/danger/success avec icône |
-| MatchCard | `features/matches/MatchCard.tsx` | pièce signature — futur (heure dominante) / terminé (score dominant) |
+| MatchCard | `features/matches/MatchCard.tsx` | pièce signature — futur (heure dominante) / terminé (score dominant), variantes `row` / `tile` |
+| MatchFilters | `features/matches/MatchFilters.tsx` | période segmentée + Lieu (menu) + Équipe (combobox) ; feuille « Filtres » en mobile |
+| Scoreboard | `features/matches/detail/Scoreboard.tsx` | fiche match, carte `glow` + motif terrain |
+| IntegrationCard | `features/admin/IntegrationCard.tsx` | FFBB / FBI / e-Marque, statut icône + libellé |
 
 ---
 

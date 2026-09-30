@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, CalendarClock, CalendarDays, ClipboardList, House, Trophy, Users } from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarClock, CalendarDays, CalendarRange, ClipboardList, Trophy, Users } from "lucide-react";
 import { requireClubContext } from "@/lib/tenancy/club-context";
 import { hasAnyRole, isClubAdmin } from "@/lib/permissions/roles";
 import { api } from "@/lib/api/server";
@@ -65,7 +65,7 @@ export default async function ClubDashboardPage({ params }: { params: Promise<{ 
 
       <section aria-label="Indicateurs" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard label="Ce week-end" value={weekend.length} icon={<CalendarDays />} hint={`dont ${weekend.filter((m) => m.isHome === true).length} à domicile`} href={`${base}/matchs`} />
-        <StatCard label="À venir" value={upcoming.length} icon={<House />} hint="matchs restants cette saison" href={`${base}/matchs?when=upcoming`} tone="neutral" />
+        <StatCard label="À venir" value={upcoming.length} icon={<CalendarRange />} hint="matchs restants cette saison" href={`${base}/matchs?when=upcoming`} tone="neutral" />
         {openIssues ? (
           <StatCard label="Anomalies" value={openIssues.length} icon={<AlertTriangle />} hint={openIssues.length ? "à examiner" : "rien à signaler"} href={`${base}/admin/issues`} tone={openIssues.length ? "warning" : "success"} />
         ) : (

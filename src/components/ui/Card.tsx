@@ -45,7 +45,7 @@ export function CardHeader({
   as?: "h2" | "h3";
 }) {
   return (
-    <div className={cn("flex items-start gap-3", className)}>
+    <div className={cn("flex gap-3", description ? "items-start" : "items-center", className)}>
       {icon ? <IconMedallion>{icon}</IconMedallion> : null}
       <div className="text-reflow flex-1">
         <Heading className="type-card text-foreground">{title}</Heading>

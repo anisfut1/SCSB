@@ -65,7 +65,7 @@ export default async function HomePage() {
             </div>
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {clubs.map((club) => (
-                <li key={club.id} style={clubAccentStyle(club.accentColor)}>
+                <li key={club.id} style={clubAccentStyle(club.accentColor)} className="accent-scope">
                   <Link href={`/c/${club.slug}/dashboard`} data-interactive="true" className="surface-card group flex items-center gap-4 p-4">
                     <ClubLogo name={club.name} src={club.logoUrl} size="lg" />
                     <span className="flex min-w-0 flex-1 flex-col">

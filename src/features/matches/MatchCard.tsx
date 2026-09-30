@@ -13,14 +13,16 @@ export interface MatchCardClub {
 
 interface Side {
   name: string;
+  /** Nom servant au monogramme : le club (identité) plutôt que le libellé d'équipe. */
+  logoName: string;
   logoUrl: string | null;
   score: number | null;
   isClub: boolean;
 }
 
 function sides(match: MatchListItemDto, club: MatchCardClub): [Side, Side] {
-  const ours: Side = { name: match.teamName ?? club.name, logoUrl: club.logoUrl, score: null, isClub: true };
-  const theirs: Side = { name: match.opponentName ?? "Adversaire à confirmer", logoUrl: match.opponentLogoUrl, score: null, isClub: false };
+  const ours: Side = { name: match.teamName ?? club.name, logoName: club.name, logoUrl: club.logoUrl, score: null, isClub: true };
+  const theirs: Side = { name: match.opponentName ?? "Adversaire à confirmer", logoName: match.opponentName ?? "?", logoUrl: match.opponentLogoUrl, score: null, isClub: false };
   // Ordre FFBB : domicile d'abord. Côté inconnu (null) : le club d'abord, sans badge de côté.
   const [home, away] = match.isHome === false ? [theirs, ours] : [ours, theirs];
   return [
@@ -32,8 +34,8 @@ function sides(match: MatchListItemDto, club: MatchCardClub): [Side, Side] {
 function TeamLine({ side, size, emphasis, showScore }: { side: Side; size: "sm" | "md"; emphasis: "win" | "lose" | "neutral"; showScore: boolean }) {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
-      <TeamLogo name={side.name} src={side.logoUrl} size={size === "md" ? "sm" : "xs"} accent={side.isClub} />
-      <span className={cn("min-w-0 flex-1 truncate", size === "md" ? "text-[15px]" : "text-sm", emphasis === "lose" ? "text-muted" : "font-medium text-foreground")}>{side.name}</span>
+      <TeamLogo name={side.logoName} src={side.logoUrl} size={size === "md" ? "sm" : "xs"} accent={side.isClub} />
+      <span className={cn("line-clamp-2 min-w-0 flex-1 break-words leading-tight", size === "md" ? "text-sm sm:text-[15px]" : "text-sm", emphasis === "lose" ? "text-muted" : "font-medium text-foreground")}>{side.name}</span>
       {showScore ? (
         <span className={cn("type-numeric shrink-0 tabular-nums", size === "md" ? "text-2xl" : "text-lg", emphasis === "win" ? "font-semibold text-foreground" : "text-muted")}>{side.score}</span>
       ) : null}
@@ -89,9 +91,9 @@ export function MatchCard({ match, href, club, variant = "row" }: { match: Match
 
   if (variant === "tile") {
     return (
-      <Link href={href} aria-label={label} data-interactive="true" className="surface-card group flex h-full min-h-[208px] flex-col gap-4 p-4">
-        <div className="flex items-start justify-between gap-2">
-          <p className="type-eyebrow pt-0.5">{parts ? `${parts.weekday} ${parts.day} ${parts.month}` : "Date à confirmer"}</p>
+      <Link href={href} aria-label={label} data-interactive="true" className="surface-card group flex h-full min-h-[188px] flex-col gap-4 p-4">
+        <div className="flex h-6 items-center justify-between gap-2">
+          <p className="type-eyebrow">{parts ? `${parts.weekday} ${parts.day} ${parts.month}` : "Date à confirmer"}</p>
           {derog ? (
             <StatusBadge tone={derog.tone} icon={derog.icon} size="sm">
               {derog.label.replace("Dérog ", "")}
@@ -125,7 +127,7 @@ export function MatchCard({ match, href, club, variant = "row" }: { match: Match
   return (
     <Link href={href} aria-label={label} data-interactive="true" className="surface-card group flex overflow-hidden">
       {/* Rail de date : relief en creux, jour en chiffres de données */}
-      <div className={cn("flex w-[76px] shrink-0 flex-col items-center justify-center gap-1 border-r border-border px-2 py-4 sm:w-[88px]", played ? "bg-surface" : "bg-[color-mix(in_oklab,var(--club-accent)_4%,var(--surface))]")}>
+      <div className={cn("flex w-16 shrink-0 flex-col items-center justify-center gap-1 border-r border-border px-1.5 py-4 sm:w-[88px]", played ? "bg-surface" : "bg-[color-mix(in_oklab,var(--club-accent)_4%,var(--surface))]")}>
         <span className="type-eyebrow">{parts?.weekday ?? "—"}</span>
         <span className="type-numeric text-[1.75rem] font-medium leading-none text-foreground">{parts?.day ?? "--"}</span>
         <span className="type-eyebrow">{parts?.month ?? ""}</span>
@@ -141,14 +143,14 @@ export function MatchCard({ match, href, club, variant = "row" }: { match: Match
           ) : null}
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <TeamLine side={home} size="md" emphasis={emphasis(home)} showScore={played} />
             <TeamLine side={away} size="md" emphasis={emphasis(away)} showScore={played} />
           </div>
           {!played ? (
-            <div className="flex shrink-0 flex-col items-end border-l border-border pl-4">
-              <span className="type-numeric text-[1.75rem] font-medium leading-none text-foreground sm:text-[2rem]">{parts?.time ?? "--:--"}</span>
+            <div className="flex shrink-0 flex-col items-end border-l border-border pl-3 sm:pl-4">
+              <span className="type-numeric text-2xl font-medium leading-none text-foreground sm:text-[2rem]">{parts?.time ?? "--:--"}</span>
               <span className="type-meta mt-1">{parts ? "Coup d'envoi" : "Heure à confirmer"}</span>
             </div>
           ) : null}

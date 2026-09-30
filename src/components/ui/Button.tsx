@@ -7,7 +7,7 @@ export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "dan
 export type ButtonSize = "sm" | "md" | "lg";
 
 const base =
-  "relative inline-flex shrink-0 select-none items-center justify-center gap-2 whitespace-nowrap font-medium transition-[background-color,border-color,box-shadow,color,transform] duration-150 ease-out disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 active:scale-[0.98] [&_svg]:shrink-0";
+  "relative inline-flex max-w-full shrink-0 select-none items-center justify-center gap-2 text-center font-medium transition-[background-color,border-color,box-shadow,color,transform] duration-150 ease-out disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 active:scale-[0.98] [&_svg]:shrink-0";
 
 const variants: Record<ButtonVariant, string> = {
   primary:
@@ -21,9 +21,10 @@ const variants: Record<ButtonVariant, string> = {
 };
 
 const sizes: Record<ButtonSize, string> = {
-  sm: "h-9 rounded-[10px] px-3 text-[13px] [&_svg]:size-4",
-  md: "h-11 rounded-md px-4 text-sm sm:h-10 [&_svg]:size-[18px]",
-  lg: "h-12 rounded-md px-5 text-[15px] [&_svg]:size-5",
+  sm: "h-9 whitespace-nowrap rounded-[10px] px-3 text-[13px] [&_svg]:size-4",
+  // hauteur minimale (et non fixe) : un libellé long passe à la ligne au lieu de déborder en mobile
+  md: "min-h-11 rounded-md px-4 py-2 text-sm leading-snug sm:min-h-10 [&_svg]:size-[18px]",
+  lg: "min-h-12 rounded-md px-5 py-2.5 text-[15px] leading-snug [&_svg]:size-5",
 };
 
 export function buttonClasses({ variant = "secondary", size = "md", className }: { variant?: ButtonVariant; size?: ButtonSize; className?: string } = {}): string {

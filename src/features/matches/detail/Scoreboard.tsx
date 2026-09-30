@@ -7,6 +7,8 @@ import { formatMatchLongDate, journeeLabel, matchDateParts, matchOutcome, matchS
 
 export interface ScoreboardTeam {
   name: string;
+  /** Nom servant au monogramme (club plutôt qu'équipe). */
+  logoName: string;
   logoUrl: string | null;
   isClub: boolean;
 }
@@ -14,7 +16,7 @@ export interface ScoreboardTeam {
 function TeamColumn({ team, align, sideLabel, dim }: { team: ScoreboardTeam; align: "start" | "end"; sideLabel: string; dim: boolean }) {
   return (
     <div className={cn("flex min-w-0 flex-col items-center gap-3 text-center sm:flex-row sm:gap-4", align === "end" ? "sm:flex-row-reverse sm:text-right" : "sm:text-left")}>
-      <TeamLogo name={team.name} src={team.logoUrl} size="lg" accent={team.isClub} className="sm:size-16" />
+      <TeamLogo name={team.logoName} src={team.logoUrl} size="lg" accent={team.isClub} className="sm:size-16" />
       <div className="text-reflow flex min-w-0 flex-col gap-1">
         <p className="type-eyebrow">{sideLabel}</p>
         <p className={cn("text-[15px] font-semibold leading-tight sm:text-lg", dim ? "text-muted" : "text-foreground")}>{team.name}</p>

@@ -48,7 +48,7 @@ function OptionMenu({ label, icon, options }: { label: string; icon: React.React
 }
 
 /** Combobox équipe : champ de recherche + liste filtrée (navigation clavier native par Tab). */
-function TeamCombobox({ options, onPick }: { options: FilterOption[]; onPick?: () => void }) {
+function TeamCombobox({ options, onPick, autoFocus = true }: { options: FilterOption[]; onPick?: () => void; autoFocus?: boolean }) {
   const [query, setQuery] = useState("");
   const router = useRouter();
   const filtered = useMemo(() => {
@@ -63,7 +63,7 @@ function TeamCombobox({ options, onPick }: { options: FilterOption[]; onPick?: (
         <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle" />
         <input
           type="search"
-          autoFocus
+          autoFocus={autoFocus}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -149,7 +149,7 @@ export function MatchFilters({ when, side, teams, resetHref }: { when: SegmentIt
           {teams.length > 1 ? (
             <fieldset className="flex flex-col gap-2">
               <legend className="type-eyebrow mb-2">Équipe</legend>
-              <TeamCombobox options={teams} onPick={() => setSheetOpen(false)} />
+              <TeamCombobox options={teams} onPick={() => setSheetOpen(false)} autoFocus={false} />
             </fieldset>
           ) : null}
         </div>

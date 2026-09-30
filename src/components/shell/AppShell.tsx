@@ -36,7 +36,7 @@ export function AppShell({
 }) {
   const primary = buildMobilePrimary(sections);
   return (
-    <div style={clubAccentStyle(accentColor)} className="flex min-h-full flex-1 flex-col">
+    <div style={clubAccentStyle(accentColor)} className="accent-scope flex min-h-full flex-1 flex-col">
       <a
         href="#main"
         className="sr-only z-[80] rounded-md bg-surface-raised px-4 py-2 text-sm font-medium shadow-3 focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
@@ -56,10 +56,11 @@ export function AppShell({
           variant={variant}
         />
         <Topbar sections={sections} workspaceLabel={current?.name ?? PLATFORM_NAME} publicHref={publicHref} />
-        <main id="main" tabIndex={-1} className="pb-safe-nav flex flex-1 flex-col outline-none lg:pb-0">
+        <main id="main" tabIndex={-1} className="pb-safe-nav flex flex-1 flex-col outline-none lg:pb-0 lg:[&>div]:ml-0">
           {children}
         </main>
       </div>
+      <div id="overlay-root" />
     </div>
   );
 }

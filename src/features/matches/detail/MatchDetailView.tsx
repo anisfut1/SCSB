@@ -49,8 +49,8 @@ export function MatchDetailView({
   // pratique (constaté en production le 2026-09-24 : team_id absent sur
   // tout l'historique synchronisé avant l'introduction des équipes) : se
   // rabattre sur le nom du club plutôt qu'un "Équipe" générique.
-  const ours: ScoreboardTeam = { name: match.teamName ?? club.name, logoUrl: club.logoUrl, isClub: true };
-  const theirs: ScoreboardTeam = { name: match.opponentName ?? "?", logoUrl: match.opponentLogoUrl, isClub: false };
+  const ours: ScoreboardTeam = { name: match.teamName ?? club.name, logoName: club.name, logoUrl: club.logoUrl, isClub: true };
+  const theirs: ScoreboardTeam = { name: match.opponentName ?? "?", logoName: match.opponentName ?? "?", logoUrl: match.opponentLogoUrl, isClub: false };
   const [home, away] = match.isHome ? [ours, theirs] : [theirs, ours];
   const detailHref = `${basePath}/${match.id}`;
 

@@ -36,11 +36,6 @@
   --club-accent: #2f5bff;
   --club-accent-ink: #ffffff;
   --club-accent-text: #2447e0;
-  --club-accent-soft: color-mix(in oklab, var(--club-accent) 10%, var(--surface-raised));
-  --club-accent-softer: color-mix(in oklab, var(--club-accent) 5%, var(--surface-raised));
-  --club-accent-border: color-mix(in oklab, var(--club-accent) 28%, transparent);
-  --club-accent-glow: color-mix(in oklab, var(--club-accent) 22%, transparent);
-  --club-accent-hover: color-mix(in oklab, var(--club-accent) 88%, #000);
 
   /* Élévation — Dimensional Layering, 4 niveaux */
   --shadow-1: 0 1px 2px rgb(23 23 26 / 0.04), 0 2px 8px -2px rgb(23 23 26 / 0.05);
@@ -50,9 +45,6 @@
   --shadow-inset-highlight: inset 0 1px 0 var(--hairline-highlight);
 
   /* Glow — une seule famille, dérivée de l'accent */
-  --glow-xs: 0 0 0 1px var(--club-accent-border), 0 0 8px -2px var(--club-accent-glow);
-  --glow-sm: 0 0 0 1px var(--club-accent-border), 0 8px 24px -8px var(--club-accent-glow);
-  --glow-active: 0 0 0 1px var(--club-accent-border), 0 0 24px -6px var(--club-accent-glow);
 
   /* Rayons */
   --radius-sm: 8px;
@@ -73,6 +65,24 @@
   --duration-fast: 120ms;
   --duration-base: 180ms;
   --duration-slow: 240ms;
+}
+
+/*
+ * Dérivés de l'accent : recalculés LÀ où l'accent est surchargé (le shell
+ * pose `--club-accent*` en style inline + `.accent-scope`). Une variable
+ * définie via `var()` sur :root est résolue sur :root puis héritée telle
+ * quelle — sans ce second sélecteur, soft/border/glow resteraient bleus.
+ */
+:root,
+.accent-scope {
+  --club-accent-soft: color-mix(in oklab, var(--club-accent) 10%, var(--surface-raised));
+  --club-accent-softer: color-mix(in oklab, var(--club-accent) 5%, var(--surface-raised));
+  --club-accent-border: color-mix(in oklab, var(--club-accent) 28%, transparent);
+  --club-accent-glow: color-mix(in oklab, var(--club-accent) 22%, transparent);
+  --club-accent-hover: color-mix(in oklab, var(--club-accent) 88%, #000);
+  --glow-xs: 0 0 0 1px var(--club-accent-border), 0 0 8px -2px var(--club-accent-glow);
+  --glow-sm: 0 0 0 1px var(--club-accent-border), 0 8px 24px -8px var(--club-accent-glow);
+  --glow-active: 0 0 0 1px var(--club-accent-border), 0 0 24px -6px var(--club-accent-glow);
 }
 
 @theme inline {
@@ -130,6 +140,14 @@
   html {
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
+    /* WCAG 2.4.11 — le focus clavier ne passe jamais sous la topbar ni la barre du bas */
+    scroll-padding-top: calc(var(--topbar-height) + 16px);
+    scroll-padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 16px);
+  }
+  @media (min-width: 64rem) {
+    html {
+      scroll-padding-bottom: 16px;
+    }
   }
 
   body {

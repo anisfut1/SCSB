@@ -83,7 +83,7 @@ export function TableMatchCard({ clubId, match, onChanged }: { clubId: string; m
   return (
     <Card data-glow={match.hasConflict || undefined}>
       <div className="flex items-start gap-3">
-        <div className="flex w-14 shrink-0 flex-col items-center justify-center rounded-[12px] border border-border bg-surface py-2">
+        <div className="flex w-16 shrink-0 flex-col items-center justify-center rounded-[12px] border border-border bg-surface py-2">
           <span className="type-eyebrow">{parts?.weekday ?? "—"}</span>
           <span className="type-numeric text-xl font-medium leading-tight text-foreground">{parts?.time ?? "--:--"}</span>
         </div>

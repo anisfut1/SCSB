@@ -33,7 +33,7 @@ export function InformationsPanel({ match, home, away }: { match: MatchDetailsDt
 function TeamPanelHeader({ team, side }: { team: ScoreboardTeam; side: "home" | "away" }) {
   return (
     <div className="flex items-center gap-3">
-      <TeamLogo name={team.name} src={team.logoUrl} size="md" accent={team.isClub} />
+      <TeamLogo name={team.logoName} src={team.logoUrl} size="md" accent={team.isClub} />
       <div className="text-reflow flex-1">
         <h3 className="type-card text-foreground">{team.name}</h3>
         <p className="type-meta">{side === "home" ? "Domicile" : "Extérieur"}</p>
@@ -101,7 +101,7 @@ function StatsTable({ team, rows, playerBasePath }: { team: ScoreboardTeam; rows
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center gap-2.5">
-        <TeamLogo name={team.name} src={team.logoUrl} size="sm" accent={team.isClub} />
+        <TeamLogo name={team.logoName} src={team.logoUrl} size="sm" accent={team.isClub} />
         <h3 className="type-card text-foreground">{team.name}</h3>
       </div>
       <Table caption={`Statistiques — ${team.name}`}>
