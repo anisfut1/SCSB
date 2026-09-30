@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { House, MapPin } from "lucide-react";
+import { House, MapPin, TriangleAlert } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { StatusBadge } from "@/components/ui/Badge";
+import { useConfirm } from "@/components/ui/Dialog";
 import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
 import type { TableAssignmentRole, TableAssignmentResultDto, TableAssignmentsForMatchDto } from "@/lib/api/tables";
-import { formatMatchDateTime } from "@/features/matches/match-display";
+import { formatMatchDateTime, matchDateParts } from "@/features/matches/match-display";
 import { TableAssignmentSlot } from "./TableAssignmentSlot";
 import { TableSuggestionsSheet } from "./TableSuggestionsSheet";
 import { TABLE_ROLES, TABLE_ROLE_LABELS } from "./role-labels";
@@ -23,6 +25,7 @@ export function TableMatchCard({ clubId, match, onChanged }: { clubId: string; m
   const [openRole, setOpenRole] = useState<TableAssignmentRole | null>(null);
   const [removingRole, setRemovingRole] = useState<TableAssignmentRole | null>(null);
   const [togglingReferee, setTogglingReferee] = useState(false);
+  const [confirm, confirmDialog] = useConfirm();
 
   const slotByRole = {
     SCORER: match.assignments.scorer,
@@ -38,7 +41,13 @@ export function TableMatchCard({ clubId, match, onChanged }: { clubId: string; m
   async function handleRemove(role: TableAssignmentRole) {
     const slot = slotByRole[role];
     if (!slot) return;
-    if (!window.confirm(`Retirer l'affectation de ${slot.licencie.firstName} ${slot.licencie.lastName} ?`)) return;
+    const ok = await confirm({
+      title: "Retirer l'affectation ?",
+      description: `Retirer l'affectation de ${slot.licencie.firstName} ${slot.licencie.lastName} ?`,
+      confirmLabel: "Retirer",
+      destructive: true,
+    });
+    if (!ok) return;
 
     setRemovingRole(role);
     try {
@@ -69,25 +78,39 @@ export function TableMatchCard({ clubId, match, onChanged }: { clubId: string; m
     }
   }
 
+  const parts = matchDateParts(match.match.matchDatetime);
+
   return (
-    <Card
-      title={
-        <span className="flex flex-wrap items-center gap-2">
-          <House className="h-4 w-4 shrink-0 text-black/40 dark:text-white/40" aria-hidden />
-          {match.match.teamName ?? "Équipe"} vs {match.match.opponentName ?? "?"}
-          {match.hasConflict ? <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-800 dark:bg-red-900/40 dark:text-red-300">Conflit</span> : null}
-        </span>
-      }
-    >
-      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-black/60 dark:text-white/60">
-        <span>{formatMatchDateTime(match.match.matchDatetime)}</span>
-        <span className="flex items-center gap-1">
-          <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          {match.match.venueLabel ?? "Lieu à confirmer"}
-        </span>
+    <Card data-glow={match.hasConflict || undefined}>
+      <div className="flex items-start gap-3">
+        <div className="flex w-14 shrink-0 flex-col items-center justify-center rounded-[12px] border border-border bg-surface py-2">
+          <span className="type-eyebrow">{parts?.weekday ?? "—"}</span>
+          <span className="type-numeric text-xl font-medium leading-tight text-foreground">{parts?.time ?? "--:--"}</span>
+        </div>
+        <div className="text-reflow flex-1">
+          <h2 className="type-card flex flex-wrap items-center gap-2 text-foreground">
+            {match.match.teamName ?? "Équipe"} <span className="font-normal text-muted">vs</span> {match.match.opponentName ?? "?"}
+          </h2>
+          <div className="type-meta mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>{formatMatchDateTime(match.match.matchDatetime)}</span>
+            <span className="flex items-center gap-1">
+              <MapPin className="size-3.5 shrink-0 text-subtle" aria-hidden />
+              {match.match.venueLabel ?? "Lieu à confirmer"}
+            </span>
+          </div>
+        </div>
+        {match.hasConflict ? (
+          <StatusBadge tone="danger" icon={<TriangleAlert />} size="sm">
+            Conflit
+          </StatusBadge>
+        ) : (
+          <StatusBadge tone="accent" icon={<House />} size="sm">
+            Domicile
+          </StatusBadge>
+        )}
       </div>
 
-      <div className="mt-3 flex flex-col gap-2">
+      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {TABLE_ROLES.map((role) => (
           <TableAssignmentSlot
             key={role}
@@ -98,9 +121,10 @@ export function TableMatchCard({ clubId, match, onChanged }: { clubId: string; m
             removing={removingRole === role}
             headerExtra={
               role === "REFEREE" ? (
-                <label className="flex items-center gap-1.5 text-xs text-black/60 dark:text-white/60">
+                <label className="flex min-h-8 cursor-pointer items-center gap-1.5 text-xs text-muted">
                   <input
                     type="checkbox"
+                    className="size-4 accent-[var(--club-accent)]"
                     checked={match.refereeNotNeeded}
                     disabled={togglingReferee}
                     onChange={(e) => handleToggleRefereeNotNeeded(e.target.checked)}
@@ -124,6 +148,7 @@ export function TableMatchCard({ clubId, match, onChanged }: { clubId: string; m
           onAssigned={(result) => handleAssigned(openRole, result)}
         />
       ) : null}
+      {confirmDialog}
     </Card>
   );
 }

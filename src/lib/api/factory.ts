@@ -1,5 +1,6 @@
 import type { ApiFetcher } from "./client";
 import * as clubs from "./clubs";
+import * as me from "./me";
 import * as matches from "./matches";
 import * as integrations from "./integrations";
 import * as issues from "./issues";
@@ -19,6 +20,7 @@ import * as tables from "./tables";
  */
 export function createApi(fetcher: ApiFetcher) {
   return {
+    me: () => me.getMe(fetcher),
     clubs: {
       list: () => clubs.listClubs(fetcher),
       get: (clubId: string) => clubs.getClub(fetcher, clubId),

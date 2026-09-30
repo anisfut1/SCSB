@@ -1,28 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BarChart3, Mail, Phone, UserRound } from "lucide-react";
 import { requireClubContext } from "@/lib/tenancy/club-context";
 import { api } from "@/lib/api/server";
 import { ApiError } from "@/lib/api/client";
 import { isClubAdmin } from "@/lib/permissions/roles";
-import { Card } from "@/components/ui/Card";
+import { Card, CardDivider, CardHeader } from "@/components/ui/Card";
+import { PageContainer, BackButton, SectionHeader } from "@/components/ui/PageHeader";
+import { PersonAvatar } from "@/components/ui/Avatar";
+import { StatusBadge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/States";
+import { Table, TBody, THead, Td, Th, Tr } from "@/components/ui/Table";
 import { LicencieProfileEditForm } from "@/features/licencies/LicencieProfileEditForm";
+import { MATCH_STATUS_LABELS, formatSecondsPlayed } from "@/features/matches/detail/labels";
 import type { LicencieMatchDto } from "@/lib/api/licencies";
 import type { TeamDto } from "@/lib/api/clubs";
-
-const MATCH_STATUS_LABELS: Record<string, string> = {
-  scheduled: "À venir",
-  played: "Joué",
-  postponed: "Reporté",
-  cancelled: "Annulé",
-  forfeit: "Forfait",
-};
-
-function formatSecondsPlayed(seconds: number | null): string {
-  if (seconds === null) return "—";
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
-  return `${minutes}:${String(rest).padStart(2, "0")}`;
-}
 
 function formatMatchDate(value: string | null): string {
   if (!value) return "Date à confirmer";
@@ -46,96 +38,113 @@ export default async function LicencieProfilePage({ params }: { params: Promise<
   const editMode: "admin" | "self" | null = isClubAdmin(club.roles) ? "admin" : isSelf ? "self" : null;
   const teams: TeamDto[] = await api.clubs.teams(club.id);
   const currentTeamName = teams.find((t) => t.id === licencie.teamId)?.name ?? null;
+  const name = `${licencie.lastName} ${licencie.firstName}`;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <Link href={`/c/${clubSlug}/joueurs`} className="text-sm text-black/60 hover:underline dark:text-white/60">
-          ← Retour aux licenciés
-        </Link>
-      </div>
+    <PageContainer width="default">
+      <BackButton href={`/c/${clubSlug}/joueurs`} label="Retour aux licenciés" />
 
-      <div className="flex items-center gap-4">
-        {licencie.photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- URL de photo arbitraire fournie par le club, hors domaines Next configurés
-          <img src={licencie.photoUrl} alt="" className="h-16 w-16 shrink-0 rounded-full object-cover" />
-        ) : (
-          <span className="h-16 w-16 shrink-0 rounded-full bg-black/10 dark:bg-white/10" aria-hidden />
-        )}
-        <div>
-          <h1 className="text-lg font-semibold">
-            {licencie.lastName} {licencie.firstName}
-          </h1>
-          <p className="text-sm text-black/60 dark:text-white/60">
-            {licencie.licenseNumber ?? "Numéro de licence non renseigné"}
-            {currentTeamName ? ` · ${currentTeamName}` : ""}
-            {!licencie.active ? " · inactif·ve" : ""}
-          </p>
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-center">
+        <PersonAvatar name={name} src={licencie.photoUrl} size="xl" />
+        <div className="text-reflow flex flex-col gap-2">
+          <p className="type-eyebrow">{currentTeamName ?? "Sans équipe"}</p>
+          <h1 className="type-title text-foreground">{name}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge tone="neutral">
+              <span className="type-numeric">{licencie.licenseNumber ?? "Numéro de licence non renseigné"}</span>
+            </StatusBadge>
+            {!licencie.active ? <StatusBadge tone="warning">Inactif·ve</StatusBadge> : <StatusBadge tone="success">Actif·ve</StatusBadge>}
+            {isSelf ? <StatusBadge tone="accent">Votre fiche</StatusBadge> : null}
+          </div>
         </div>
-      </div>
+      </header>
 
       {editMode ? (
-        <Card title="Profil">
-          <div className="mt-2">
-            <LicencieProfileEditForm clubId={club.id} licencie={licencie} mode={editMode} teams={editMode === "admin" ? teams : []} />
-          </div>
+        <Card>
+          <CardHeader icon={<UserRound />} title="Profil" description={editMode === "admin" ? "Identité, équipe et coordonnées." : "Vos coordonnées et votre photo."} />
+          <CardDivider />
+          <LicencieProfileEditForm clubId={club.id} licencie={licencie} mode={editMode} teams={editMode === "admin" ? teams : []} />
         </Card>
-      ) : (licencie.email || licencie.phone) ? (
-        <Card title="Contact">
-          <p className="mt-1 text-sm text-black/60 dark:text-white/60">
-            {licencie.email ?? "—"} {licencie.phone ? `· ${licencie.phone}` : ""}
-          </p>
+      ) : licencie.email || licencie.phone ? (
+        <Card>
+          <CardHeader icon={<UserRound />} title="Contact" />
+          <CardDivider />
+          <div className="flex flex-col gap-2 text-sm text-foreground sm:flex-row sm:gap-6">
+            <span className="flex items-center gap-2">
+              <Mail aria-hidden className="size-4 text-subtle" />
+              {licencie.email ?? "—"}
+            </span>
+            {licencie.phone ? (
+              <span className="flex items-center gap-2">
+                <Phone aria-hidden className="size-4 text-subtle" />
+                {licencie.phone}
+              </span>
+            ) : null}
+          </div>
         </Card>
       ) : null}
 
-      <Card title={`Matchs (${matches.length})`}>
+      <section className="flex flex-col gap-4">
+        <SectionHeader icon={<BarChart3 />} title={`Matchs (${matches.length})`} description="Statistiques lues sur chaque feuille e-Marque." />
         {matches.length === 0 ? (
-          <p className="mt-1 text-sm text-black/60 dark:text-white/60">Aucun match trouvé pour ce·tte licencié·e pour l&apos;instant.</p>
+          <EmptyState icon={<BarChart3 />} title="Aucun match pour l'instant" description="Aucun match trouvé pour ce·tte licencié·e pour l'instant." compact />
         ) : (
-          <div className="mt-2 overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead>
-                <tr className="text-black/60 dark:text-white/60">
-                  <th className="pr-2">Match</th>
-                  <th className="px-2">Date</th>
-                  <th className="px-2 text-right">Maillot</th>
-                  <th className="px-2 text-right">Temps</th>
-                  <th className="px-2 text-right">Pts</th>
-                  <th className="px-2 text-right">3pts</th>
-                  <th className="px-2 text-right">2int</th>
-                  <th className="px-2 text-right">2ext</th>
-                  <th className="px-2 text-right">LF</th>
-                  <th className="px-2 text-right">Fautes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {matches.map((m: LicencieMatchDto) => (
-                  <tr key={m.matchId} className="border-t border-black/5 dark:border-white/10">
-                    <td className="py-1 pr-2">
-                      <Link href={`/c/${clubSlug}/matchs/${m.matchId}`} className="hover:underline">
-                        {m.isHome === false ? `@ ${m.opponentName ?? "?"}` : (m.opponentName ?? "?")}
-                      </Link>
-                      <span className="ml-1 text-xs text-black/40 dark:text-white/40">({MATCH_STATUS_LABELS[m.status] ?? m.status})</span>
-                    </td>
-                    <td className="px-2 text-black/60 dark:text-white/60">{formatMatchDate(m.matchDatetime)}</td>
-                    <td className="px-2 text-right">
-                      #{m.jerseyNumber ?? "?"}
-                      {m.isCaptain ? " (C)" : ""}
-                    </td>
-                    <td className="px-2 text-right">{formatSecondsPlayed(m.stats?.secondsPlayed ?? null)}</td>
-                    <td className="px-2 text-right">{m.stats?.points ?? "—"}</td>
-                    <td className="px-2 text-right">{m.stats?.threePointsMade ?? "—"}</td>
-                    <td className="px-2 text-right">{m.stats?.twoPointsInteriorMade ?? "—"}</td>
-                    <td className="px-2 text-right">{m.stats?.twoPointsExteriorMade ?? "—"}</td>
-                    <td className="px-2 text-right">{m.stats?.freeThrowsMade ?? "—"}</td>
-                    <td className="px-2 text-right">{m.stats?.foulsCommitted ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table caption={`Matchs de ${name}`}>
+            <THead>
+              <tr>
+                <Th className="sticky left-0 z-10 bg-surface">Match</Th>
+                <Th>Date</Th>
+                <Th align="right">Maillot</Th>
+                <Th align="right">Temps</Th>
+                <Th align="right">Pts</Th>
+                <Th align="right">3pts</Th>
+                <Th align="right">2int</Th>
+                <Th align="right">2ext</Th>
+                <Th align="right">LF</Th>
+                <Th align="right">Fautes</Th>
+              </tr>
+            </THead>
+            <TBody>
+              {matches.map((m: LicencieMatchDto) => (
+                <Tr key={m.matchId}>
+                  <Td className="sticky left-0 z-10 min-w-[180px] bg-surface-raised">
+                    <Link href={`/c/${clubSlug}/matchs/${m.matchId}`} className="font-medium text-foreground underline-offset-4 hover:text-accent-text hover:underline">
+                      {m.isHome === false ? `@ ${m.opponentName ?? "?"}` : (m.opponentName ?? "?")}
+                    </Link>
+                    <span className="type-meta block">{MATCH_STATUS_LABELS[m.status] ?? m.status}</span>
+                  </Td>
+                  <Td className="whitespace-nowrap text-muted">{formatMatchDate(m.matchDatetime)}</Td>
+                  <Td align="right" numeric className="whitespace-nowrap">
+                    #{m.jerseyNumber ?? "?"}
+                    {m.isCaptain ? " (C)" : ""}
+                  </Td>
+                  <Td align="right" numeric>
+                    {formatSecondsPlayed(m.stats?.secondsPlayed ?? null)}
+                  </Td>
+                  <Td align="right" numeric className="font-semibold">
+                    {m.stats?.points ?? "—"}
+                  </Td>
+                  <Td align="right" numeric>
+                    {m.stats?.threePointsMade ?? "—"}
+                  </Td>
+                  <Td align="right" numeric>
+                    {m.stats?.twoPointsInteriorMade ?? "—"}
+                  </Td>
+                  <Td align="right" numeric>
+                    {m.stats?.twoPointsExteriorMade ?? "—"}
+                  </Td>
+                  <Td align="right" numeric>
+                    {m.stats?.freeThrowsMade ?? "—"}
+                  </Td>
+                  <Td align="right" numeric>
+                    {m.stats?.foulsCommitted ?? "—"}
+                  </Td>
+                </Tr>
+              ))}
+            </TBody>
+          </Table>
         )}
-      </Card>
-    </div>
+      </section>
+    </PageContainer>
   );
 }

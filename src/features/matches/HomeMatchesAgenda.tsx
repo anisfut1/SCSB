@@ -1,6 +1,6 @@
-import Link from "next/link";
+import { MapPin } from "lucide-react";
 import type { MatchListItemDto } from "@/lib/api/matches";
-import { MatchTitle, derogationBadge, matchDateParts, matchResultLabel } from "./match-display";
+import { MatchCard, type MatchCardClub } from "./MatchCard";
 
 /**
  * "Pour les matchs à domicile, faut faire 2 colonnes car là il y a 2
@@ -46,76 +46,40 @@ function resolveVenueColumnKey(venueLabel: string | null): (typeof HOME_VENUES)[
   return match?.key ?? "autre";
 }
 
-function AgendaTile({
-  match,
-  basePath,
-  clubName,
-  clubLogoUrl,
-}: {
-  match: MatchListItemDto;
-  basePath: string;
-  clubName: string;
-  clubLogoUrl: string | null;
-}) {
-  const badge = derogationBadge(match.derogationStatus);
-  const parts = matchDateParts(match.matchDatetime);
-
-  return (
-    <Link
-      href={`${basePath}/${match.id}`}
-      className="group flex aspect-square flex-col justify-between rounded-2xl border border-black/10 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-white/5"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex flex-col leading-none">
-          <span className="text-2xl font-bold text-black/90 dark:text-white/90">{parts?.day ?? "—"}</span>
-          <span className="text-xs font-medium uppercase tracking-wide text-black/50 dark:text-white/50">{parts?.month ?? ""}</span>
-        </div>
-        {badge ? <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>{badge.label}</span> : null}
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium capitalize text-black/40 dark:text-white/40">{parts?.weekday ?? "Date à confirmer"}</span>
-        <div className="text-sm font-medium text-black/90 dark:text-white/90">
-          <MatchTitle clubName={match.teamName ?? clubName} clubLogoUrl={clubLogoUrl} opponentName={match.opponentName ?? "?"} opponentLogoUrl={match.opponentLogoUrl} isHome />
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between text-sm text-black/60 dark:text-white/60">
-        <span>{parts?.time ?? "Heure à confirmer"}</span>
-        <span className="font-medium">{matchResultLabel(match)}</span>
-      </div>
-    </Link>
-  );
-}
-
 function AgendaColumn({
   label,
   matches,
   basePath,
-  clubName,
-  clubLogoUrl,
+  club,
 }: {
   label: string;
   matches: MatchListItemDto[];
   basePath: string;
-  clubName: string;
-  clubLogoUrl: string | null;
+  club: MatchCardClub;
 }) {
   return (
-    <div className="flex flex-col gap-3">
-      <div className="rounded-xl bg-black/5 px-4 py-2 dark:bg-white/10">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-black/70 dark:text-white/70">{label}</h2>
+    <section className="flex flex-col gap-3" aria-label={label}>
+      <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+        <h3 className="type-card flex items-center gap-2 text-foreground">
+          <MapPin aria-hidden className="size-4 text-accent-text" />
+          {label}
+        </h3>
+        <span className="type-numeric text-xs text-muted">
+          {matches.length} match{matches.length > 1 ? "s" : ""}
+        </span>
       </div>
       {matches.length === 0 ? (
-        <p className="px-1 text-sm text-black/40 dark:text-white/40">Aucun match à domicile ici.</p>
+        <p className="type-meta rounded-[var(--radius-md)] border border-dashed border-border-strong px-4 py-6 text-center">Aucun match dans cette salle.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-3 min-[440px]:grid-cols-2">
           {matches.map((match) => (
-            <AgendaTile key={match.id} match={match} basePath={basePath} clubName={clubName} clubLogoUrl={clubLogoUrl} />
+            <li key={match.id}>
+              <MatchCard match={match} href={`${basePath}/${match.id}`} club={club} variant="tile" />
+            </li>
           ))}
-        </div>
+        </ul>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -127,14 +91,12 @@ function AgendaColumn({
 export function HomeMatchesAgenda({
   matches,
   basePath,
-  clubName,
-  clubLogoUrl,
+  club,
 }: {
   matches: MatchListItemDto[];
   /** Préfixe des liens vers la fiche match — `/c/{clubSlug}/matchs` (vue admin) ou `/public/{clubSlug}/matchs` (vue publique sans compte, retour du club, 2026-09-29). */
   basePath: string;
-  clubName: string;
-  clubLogoUrl: string | null;
+  club: MatchCardClub;
 }) {
   const columns = HOME_VENUES.map((venue) => ({
     ...venue,
@@ -143,13 +105,11 @@ export function HomeMatchesAgenda({
   const autreMatches = matches.filter((match) => resolveVenueColumnKey(match.venueLabel) === "autre");
 
   return (
-    <div className={`grid grid-cols-1 gap-6 ${autreMatches.length > 0 ? "lg:grid-cols-3" : "md:grid-cols-2"}`}>
+    <div className={`grid grid-cols-1 gap-8 ${autreMatches.length > 0 ? "xl:grid-cols-3" : "lg:grid-cols-2"}`}>
       {columns.map((column) => (
-        <AgendaColumn key={column.key} label={column.label} matches={column.matches} basePath={basePath} clubName={clubName} clubLogoUrl={clubLogoUrl} />
+        <AgendaColumn key={column.key} label={column.label} matches={column.matches} basePath={basePath} club={club} />
       ))}
-      {autreMatches.length > 0 ? (
-        <AgendaColumn label="Autre salle" matches={autreMatches} basePath={basePath} clubName={clubName} clubLogoUrl={clubLogoUrl} />
-      ) : null}
+      {autreMatches.length > 0 ? <AgendaColumn label="Autre salle" matches={autreMatches} basePath={basePath} club={club} /> : null}
     </div>
   );
 }

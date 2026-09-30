@@ -7,6 +7,12 @@ import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
 import type { LicencieDto } from "@/lib/api/licencies";
 import type { TeamDto } from "@/lib/api/clubs";
+import { GripVertical, Search, Shirt, Trash2, UserX, Wand2 } from "lucide-react";
+import { Button, IconButton } from "@/components/ui/Button";
+import { FormMessage, Input, Select } from "@/components/ui/Field";
+import { StatusBadge } from "@/components/ui/Badge";
+import { Notice } from "@/components/ui/Notice";
+import { PersonAvatar } from "@/components/ui/Avatar";
 
 interface Bucket {
   teamId: string | null;
@@ -57,78 +63,65 @@ function LicencieCard({
   onConfirmDelete: () => void;
   onCancelDelete: () => void;
 }) {
+  const name = `${licencie.lastName} ${licencie.firstName}`;
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-black/5 dark:hover:bg-white/10">
-      <Link href={`/c/${clubSlug}/joueurs/${licencie.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-        {licencie.photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- URL de photo arbitraire fournie par le club, hors domaines Next configurés
-          <img src={licencie.photoUrl} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
-        ) : (
-          <span className="h-8 w-8 shrink-0 rounded-full bg-black/10 dark:bg-white/10" aria-hidden />
-        )}
-        <span className="truncate">
-          {licencie.lastName} {licencie.firstName}
-          {!licencie.active ? <span className="ml-2 text-xs text-black/40 dark:text-white/40">(inactif·ve)</span> : null}
-          {/* Catégorie/sexe FFBB — repère pour choisir la bonne équipe (un club a souvent plusieurs équipes par catégorie, ex. SM1/SM2/SF). */}
-          {licencie.categoryLabel || licencie.sexe ? (
-            <span className="ml-2 text-xs text-black/40 dark:text-white/40">
-              {[licencie.categoryLabel, licencie.sexe].filter(Boolean).join(" · ")}
+    <div className="group flex flex-col gap-2 px-3 py-2.5 transition-colors duration-150 hover:bg-surface sm:flex-row sm:items-center sm:gap-3 sm:px-4">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        {isAdmin ? <GripVertical aria-hidden className="hidden size-4 shrink-0 text-subtle opacity-60 group-hover:opacity-100 sm:block" /> : null}
+        <Link href={`/c/${clubSlug}/joueurs/${licencie.id}`} className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-md">
+          <PersonAvatar name={name} src={licencie.photoUrl} />
+          <span className="flex min-w-0 flex-col">
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="truncate text-sm font-medium text-foreground">{name}</span>
+              {!licencie.active ? (
+                <StatusBadge tone="neutral" size="sm">
+                  Inactif·ve
+                </StatusBadge>
+              ) : null}
             </span>
-          ) : null}
-        </span>
-      </Link>
-      <span className="flex shrink-0 items-center gap-2 text-sm text-black/40 dark:text-white/40">
-        {isAdmin ? (
-          <>
-            <span aria-hidden className="hidden sm:inline">
-              ⠿
+            {/* Catégorie/sexe FFBB — repère pour choisir la bonne équipe (un club a souvent plusieurs équipes par catégorie, ex. SM1/SM2/SF). */}
+            <span className="type-meta truncate">
+              <span className="type-numeric">{licencie.licenseNumber ?? "Licence —"}</span>
+              {licencie.categoryLabel || licencie.sexe ? ` · ${[licencie.categoryLabel, licencie.sexe].filter(Boolean).join(" · ")}` : ""}
             </span>
-            <select
-              value={licencie.teamId ?? NO_TEAM_VALUE}
-              onChange={(e) => onAssignTeam(e.target.value === NO_TEAM_VALUE ? null : e.target.value)}
-              className="rounded-md border border-black/15 bg-white px-2 py-1 text-xs dark:border-white/20 dark:bg-black/20"
-            >
-              <option value={NO_TEAM_VALUE}>Sans équipe</option>
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </>
-        ) : null}
-        {licencie.licenseNumber ?? "—"}
-        {isAdmin ? (
-          isConfirmingDelete ? (
-            <span className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={onConfirmDelete}
-                className="rounded-md bg-red-700 px-2 py-1 text-xs font-medium text-white hover:bg-red-800"
-              >
+          </span>
+        </Link>
+      </div>
+      {isAdmin ? (
+        <div className="flex shrink-0 items-center gap-1.5 pl-12 sm:pl-0">
+          {isConfirmingDelete ? (
+            <span className="flex items-center gap-1.5" role="group" aria-label={`Confirmer la suppression de ${name}`}>
+              <Button variant="danger" size="sm" onClick={onConfirmDelete}>
                 Confirmer
-              </button>
-              <button
-                type="button"
-                onClick={onCancelDelete}
-                className="rounded-md border border-black/15 px-2 py-1 text-xs hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
-              >
+              </Button>
+              <Button variant="secondary" size="sm" onClick={onCancelDelete}>
                 Annuler
-              </button>
+              </Button>
             </span>
           ) : (
-            <button
-              type="button"
-              onClick={onRequestDelete}
-              title="Supprimer ce licencié"
-              aria-label="Supprimer ce licencié"
-              className="rounded-md px-1.5 py-1 text-black/40 hover:bg-red-50 hover:text-red-700 dark:text-white/40 dark:hover:bg-red-950/30 dark:hover:text-red-400"
-            >
-              🗑
-            </button>
-          )
-        ) : null}
-      </span>
+            <>
+              <span className="w-44 sm:w-48">
+                <Select
+                  aria-label={`Équipe de ${name}`}
+                  value={licencie.teamId ?? NO_TEAM_VALUE}
+                  onChange={(e) => onAssignTeam(e.target.value === NO_TEAM_VALUE ? null : e.target.value)}
+                  className="h-9 text-[13px] sm:h-9 sm:text-[13px]"
+                >
+                  <option value={NO_TEAM_VALUE}>Sans équipe</option>
+                  {teams.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </Select>
+              </span>
+              <IconButton label="Supprimer ce licencié" variant="danger-ghost" size="sm" onClick={onRequestDelete}>
+                <Trash2 />
+              </IconButton>
+            </>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -177,6 +170,7 @@ export function RosterBoard({
   const [error, setError] = useState<string | null>(null);
   const [autoAssignStatus, setAutoAssignStatus] = useState<string | null>(null);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   function handleAutoAssign() {
     setError(null);
@@ -258,80 +252,90 @@ export function RosterBoard({
   const unassignedCount = buckets.find((b) => b.teamId === null)?.licencies.length ?? 0;
   const sortedTeams = [...teams].sort((a, b) => a.name.localeCompare(b.name));
 
+  const q = query.trim().toLowerCase();
+  const visible = (list: LicencieDto[]) =>
+    q ? list.filter((l) => `${l.lastName} ${l.firstName} ${l.licenseNumber ?? ""}`.toLowerCase().includes(q)) : list;
+
   return (
-    <div className="flex flex-col gap-8">
-      {isAdmin && unassignedCount > 0 ? (
-        <div className="flex flex-col items-start gap-2">
-          <button
-            type="button"
-            onClick={handleAutoAssign}
-            disabled={isPending}
-            className="rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10"
-          >
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <label className="relative block w-full sm:max-w-xs">
+          <span className="sr-only">Rechercher un licencié</span>
+          <Search aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
+          <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nom ou n° de licence" className="pl-10" />
+        </label>
+        {isAdmin && unassignedCount > 0 ? (
+          <Button variant="secondary" onClick={handleAutoAssign} loading={isPending} icon={<Wand2 />}>
             {isPending ? "Répartition en cours…" : "Répartir automatiquement par catégorie"}
-          </button>
-          {autoAssignStatus ? <p className="text-sm text-black/60 dark:text-white/60">{autoAssignStatus}</p> : null}
-        </div>
-      ) : null}
+          </Button>
+        ) : null}
+      </div>
+      {autoAssignStatus ? <Notice tone="info" live>{autoAssignStatus}</Notice> : null}
+      {error ? <FormMessage tone="danger">{error}</FormMessage> : null}
+      {isAdmin ? <p className="type-meta -mt-2 hidden sm:block">Glissez une carte d&apos;une équipe à l&apos;autre, ou utilisez le sélecteur d&apos;équipe de chaque ligne.</p> : null}
 
-      {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
-
-      {buckets.map((bucket) => (
-        <section
-          key={bucket.teamId ?? "no-team"}
-          onDragOver={
-            isAdmin
-              ? (e) => {
-                  e.preventDefault();
-                  setDragOverTeamId(bucket.teamId);
-                }
-              : undefined
-          }
-          onDragLeave={isAdmin ? () => setDragOverTeamId((current) => (current === bucket.teamId ? undefined : current)) : undefined}
-          onDrop={isAdmin ? () => handleDrop(bucket.teamId) : undefined}
-        >
-          <h2 className="mb-2 text-sm font-semibold text-black/70 dark:text-white/70">
-            {bucket.title} <span className="font-normal text-black/40 dark:text-white/40">({bucket.licencies.length})</span>
-          </h2>
-          {bucket.licencies.length === 0 ? (
-            <p
-              className={`rounded-lg border border-dashed px-4 py-3 text-sm text-black/40 dark:text-white/40 ${
-                dragOverTeamId === bucket.teamId ? "border-black/40 dark:border-white/40" : "border-black/10 dark:border-white/10"
-              }`}
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+        {buckets.map((bucket) => {
+          const rows = visible(bucket.licencies);
+          if (q && rows.length === 0) return null;
+          const isOver = dragOverTeamId === bucket.teamId;
+          return (
+            <section
+              key={bucket.teamId ?? "no-team"}
+              aria-label={bucket.title}
+              onDragOver={
+                isAdmin
+                  ? (e) => {
+                      e.preventDefault();
+                      setDragOverTeamId(bucket.teamId);
+                    }
+                  : undefined
+              }
+              onDragLeave={isAdmin ? () => setDragOverTeamId((current) => (current === bucket.teamId ? undefined : current)) : undefined}
+              onDrop={isAdmin ? () => handleDrop(bucket.teamId) : undefined}
+              data-glow={isOver || undefined}
+              className="surface-card overflow-hidden"
             >
-              {isAdmin ? "Glisse une carte ici pour l'ajouter à cette équipe." : "Aucun·e licencié·e rattaché·e à cette équipe pour l'instant."}
-            </p>
-          ) : (
-            <ul
-              className={`divide-y divide-black/5 rounded-lg border bg-white dark:divide-white/10 dark:bg-white/5 ${
-                dragOverTeamId === bucket.teamId ? "border-black/40 dark:border-white/40" : "border-black/10 dark:border-white/10"
-              }`}
-            >
-              {bucket.licencies.map((licencie) => (
-                <li
-                  key={licencie.id}
-                  draggable={isAdmin}
-                  onDragStart={isAdmin ? () => setDragLicencieId(licencie.id) : undefined}
-                  onDragEnd={isAdmin ? () => setDragLicencieId(null) : undefined}
-                  className={isAdmin ? "cursor-grab active:cursor-grabbing" : undefined}
-                >
-                  <LicencieCard
-                    clubSlug={clubSlug}
-                    licencie={licencie}
-                    teams={sortedTeams}
-                    isAdmin={isAdmin}
-                    onAssignTeam={(teamId) => assignTeam(licencie.id, teamId)}
-                    isConfirmingDelete={confirmingDeleteId === licencie.id}
-                    onRequestDelete={() => setConfirmingDeleteId(licencie.id)}
-                    onConfirmDelete={() => handleDelete(licencie.id)}
-                    onCancelDelete={() => setConfirmingDeleteId(null)}
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      ))}
+              <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+                <h2 className="type-card flex items-center gap-2 text-foreground">
+                  {bucket.teamId ? <Shirt aria-hidden className="size-4 text-accent-text" /> : <UserX aria-hidden className="size-4 text-subtle" />}
+                  {bucket.title}
+                </h2>
+                <span className="type-numeric rounded-full bg-surface-muted px-2 text-xs leading-6 text-muted">{bucket.licencies.length}</span>
+              </div>
+              {rows.length === 0 ? (
+                <p className={`type-meta m-3 rounded-[var(--radius-md)] border border-dashed px-4 py-5 text-center ${isOver ? "border-accent bg-accent-softer" : "border-border-strong"}`}>
+                  {isAdmin ? "Glisse une carte ici pour l'ajouter à cette équipe." : "Aucun·e licencié·e rattaché·e à cette équipe pour l'instant."}
+                </p>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {rows.map((licencie) => (
+                    <li
+                      key={licencie.id}
+                      draggable={isAdmin}
+                      onDragStart={isAdmin ? () => setDragLicencieId(licencie.id) : undefined}
+                      onDragEnd={isAdmin ? () => setDragLicencieId(null) : undefined}
+                      className={isAdmin ? "cursor-grab active:cursor-grabbing" : undefined}
+                    >
+                      <LicencieCard
+                        clubSlug={clubSlug}
+                        licencie={licencie}
+                        teams={sortedTeams}
+                        isAdmin={isAdmin}
+                        onAssignTeam={(teamId) => assignTeam(licencie.id, teamId)}
+                        isConfirmingDelete={confirmingDeleteId === licencie.id}
+                        onRequestDelete={() => setConfirmingDeleteId(licencie.id)}
+                        onConfirmDelete={() => handleDelete(licencie.id)}
+                        onCancelDelete={() => setConfirmingDeleteId(null)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }

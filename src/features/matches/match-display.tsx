@@ -1,45 +1,9 @@
+import type { ReactNode } from "react";
+import { Ban, CalendarX2, CheckCircle2, Flag, Hourglass, House, Route, XCircle } from "lucide-react";
+import type { BadgeTone } from "@/components/ui/Badge";
 import type { MatchListItemDto } from "@/lib/api/matches";
 
-/**
- * Petit logo rond (club ou adverse) — `null` accepté (venue/logo pas toujours connus côté FFBB) :
- * dans ce cas un simple espace réservé neutre évite de casser l'alignement "Sète vs X".
- *
- * Partagé entre la liste "Matchs" (matchs/page.tsx) et l'agenda "Matchs à domicile"
- * (HomeMatchesAgenda.tsx) pour ne pas dupliquer cette logique d'affichage.
- */
-export function TeamBadge({ src, alt }: { src: string | null; alt: string }) {
-  if (!src) return <span className="h-5 w-5 shrink-0 rounded-full bg-black/10 dark:bg-white/10" aria-hidden />;
-  // eslint-disable-next-line @next/next/no-img-element -- logos hébergés par api.ffbb.app, hors domaines Next configurés
-  return <img src={src} alt={alt} className="h-5 w-5 shrink-0 rounded-full object-contain" />;
-}
-
-/** Titre visuel "Sète vs X" / "X vs Sète" avec les deux logos, dans l'ordre domicile/extérieur. */
-export function MatchTitle({
-  clubName,
-  clubLogoUrl,
-  opponentName,
-  opponentLogoUrl,
-  isHome,
-}: {
-  clubName: string;
-  clubLogoUrl: string | null;
-  opponentName: string;
-  opponentLogoUrl: string | null;
-  isHome: boolean;
-}) {
-  const club = { name: clubName, logoUrl: clubLogoUrl };
-  const opponent = { name: opponentName, logoUrl: opponentLogoUrl };
-  const [left, right] = isHome ? [club, opponent] : [opponent, club];
-  return (
-    <span className="flex items-center gap-2">
-      <TeamBadge src={left.logoUrl} alt={left.name} />
-      <span>
-        {left.name} vs {right.name}
-      </span>
-      <TeamBadge src={right.logoUrl} alt={right.name} />
-    </span>
-  );
-}
+const PARIS = "Europe/Paris";
 
 export function formatMatchDateTime(value: string | null): string {
   if (!value) return "Date à confirmer";
@@ -49,39 +13,65 @@ export function formatMatchDateTime(value: string | null): string {
   // (correctement, en UTC) affichait son heure UTC brute faute de
   // conversion. Le basket français n'existe qu'en France : toujours
   // Europe/Paris, jamais le fuseau du club ou du serveur.
-  return new Date(value).toLocaleString("fr-FR", { timeZone: "Europe/Paris", weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  return new Date(value).toLocaleString("fr-FR", { timeZone: PARIS, weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-/** Jour/mois/heure Europe/Paris séparés, pour la tuile agenda (gros numéro de jour + heure isolée). */
+/** Date longue (fiche match) : « samedi 4 octobre 2026 ». */
+export function formatMatchLongDate(value: string | null): string | null {
+  if (!value) return null;
+  return new Date(value).toLocaleDateString("fr-FR", { timeZone: PARIS, weekday: "long", day: "numeric", month: "long", year: "numeric" });
+}
+
+/** Jour/mois/heure Europe/Paris séparés, pour les tuiles (gros numéro de jour + heure isolée). */
 export function matchDateParts(value: string | null): { weekday: string; day: string; month: string; time: string } | null {
   if (!value) return null;
   const date = new Date(value);
-  const timeZone = "Europe/Paris";
   return {
-    weekday: date.toLocaleString("fr-FR", { timeZone, weekday: "short" }),
-    day: date.toLocaleString("fr-FR", { timeZone, day: "2-digit" }),
-    month: date.toLocaleString("fr-FR", { timeZone, month: "short" }),
-    time: date.toLocaleString("fr-FR", { timeZone, hour: "2-digit", minute: "2-digit" }),
+    weekday: date.toLocaleString("fr-FR", { timeZone: PARIS, weekday: "short" }).replace(".", ""),
+    day: date.toLocaleString("fr-FR", { timeZone: PARIS, day: "2-digit" }),
+    month: date.toLocaleString("fr-FR", { timeZone: PARIS, month: "short" }).replace(".", ""),
+    time: date.toLocaleString("fr-FR", { timeZone: PARIS, hour: "2-digit", minute: "2-digit" }),
   };
 }
 
 /**
- * Badge coloré par état — demande du club, 2026-09-27 : "faut faire par
- * couleur. acceptée = vert en cours = orange refusée = rouge". `null`
- * (aucune dérogation connue, ou seulement "A Créer", du bruit) -> aucun
- * badge.
+ * Badge par état de dérogation — demande du club, 2026-09-27 : "faut faire
+ * par couleur. acceptée = vert en cours = orange refusée = rouge" (+ icône,
+ * jamais la couleur seule). `null` (aucune dérogation connue, ou seulement
+ * "A Créer", du bruit) -> aucun badge.
  */
-export function derogationBadge(status: MatchListItemDto["derogationStatus"]): { label: string; className: string } | null {
+export function derogationBadge(status: MatchListItemDto["derogationStatus"]): { label: string; tone: BadgeTone; icon: ReactNode } | null {
   switch (status) {
     case "en_cours":
-      return { label: "Dérog en cours", className: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" };
+      return { label: "Dérog en cours", tone: "warning", icon: <Hourglass /> };
     case "acceptee":
-      return { label: "Dérog acceptée", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" };
+      return { label: "Dérog acceptée", tone: "success", icon: <CheckCircle2 /> };
     case "refusee":
-      return { label: "Dérog refusée", className: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300" };
+      return { label: "Dérog refusée", tone: "danger", icon: <XCircle /> };
     default:
       return null;
   }
+}
+
+/** Statut exceptionnel d'une rencontre (reporté/annulé/forfait) — `null` pour un match normal. */
+export function matchStatusBadge(status: MatchListItemDto["status"]): { label: string; tone: BadgeTone; icon: ReactNode } | null {
+  switch (status) {
+    case "postponed":
+      return { label: "Reporté", tone: "warning", icon: <CalendarX2 /> };
+    case "cancelled":
+      return { label: "Annulé", tone: "danger", icon: <Ban /> };
+    case "forfeit":
+      return { label: "Forfait", tone: "danger", icon: <Flag /> };
+    default:
+      return null;
+  }
+}
+
+/** Domicile/extérieur : icône + libellé (jamais la couleur seule). */
+export function sideBadge(isHome: boolean | null): { label: string; tone: BadgeTone; icon: ReactNode } | null {
+  if (isHome === true) return { label: "Domicile", tone: "accent", icon: <House /> };
+  if (isHome === false) return { label: "Extérieur", tone: "neutral", icon: <Route /> };
+  return null;
 }
 
 /** Résultat/statut affiché sous une rencontre (score si connu, sinon report/annulation/forfait/à venir). */
@@ -97,4 +87,20 @@ export function matchResultLabel(match: Pick<MatchListItemDto, "scoreHome" | "sc
     default:
       return "À venir";
   }
+}
+
+/** Issue pour le club (lecture directe des deux scores connus) — `null` si score ou côté inconnu. */
+export function matchOutcome(match: Pick<MatchListItemDto, "scoreHome" | "scoreAway" | "isHome">): "win" | "loss" | "draw" | null {
+  if (match.scoreHome === null || match.scoreAway === null || match.isHome === null) return null;
+  const ours = match.isHome ? match.scoreHome : match.scoreAway;
+  const theirs = match.isHome ? match.scoreAway : match.scoreHome;
+  if (ours > theirs) return "win";
+  if (ours < theirs) return "loss";
+  return "draw";
+}
+
+/** « 5 » → « Journée 5 » ; libellé brut conservé sinon. */
+export function journeeLabel(journee: string | null): string | null {
+  if (!journee) return null;
+  return /^\d+$/.test(journee.trim()) ? `Journée ${journee.trim()}` : journee;
 }

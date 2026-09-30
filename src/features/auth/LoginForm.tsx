@@ -1,57 +1,51 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { ArrowRight, Eye, EyeOff } from "lucide-react";
 import { signInAction } from "@/server/actions/auth";
 import type { AuthActionResult } from "@/lib/auth/service";
+import { Button } from "@/components/ui/Button";
+import { Field, Input } from "@/components/ui/Field";
+import { Notice } from "@/components/ui/Notice";
 
 const initialState: AuthActionResult = { error: null };
 
 export function LoginForm() {
   const [state, formAction, isPending] = useActionState(signInAction, initialState);
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <form action={formAction} className="flex w-full flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="email" className="text-sm font-medium">
-          Email
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          required
-          autoComplete="email"
-          className="rounded-md border border-black/15 bg-white px-3 py-2 text-base outline-none focus:border-black/40 dark:border-white/20 dark:bg-black dark:focus:border-white/40"
-        />
-      </div>
+    <form action={formAction} className="flex w-full flex-col gap-5">
+      <Field label="Email" required>
+        {(props) => <Input {...props} name="email" type="email" autoComplete="email" inputMode="email" placeholder="vous@club.fr" />}
+      </Field>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="password" className="text-sm font-medium">
-          Mot de passe
-        </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          required
-          autoComplete="current-password"
-          className="rounded-md border border-black/15 bg-white px-3 py-2 text-base outline-none focus:border-black/40 dark:border-white/20 dark:bg-black dark:focus:border-white/40"
-        />
-      </div>
+      <Field label="Mot de passe" required>
+        {(props) => (
+          <span className="relative flex">
+            <Input {...props} name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" className="pr-12" />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+              aria-pressed={showPassword}
+              className="absolute right-1 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-[9px] text-muted transition-colors duration-150 hover:bg-surface-muted hover:text-foreground"
+            >
+              {showPassword ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
+            </button>
+          </span>
+        )}
+      </Field>
 
       {state.error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <Notice tone="danger" live>
           {state.error}
-        </p>
+        </Notice>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="mt-2 rounded-md bg-black px-4 py-2.5 text-base font-medium text-white transition-colors hover:bg-black/85 disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-white/85"
-      >
+      <Button type="submit" variant="primary" size="lg" loading={isPending} iconRight={isPending ? undefined : <ArrowRight />} className="mt-1 w-full">
         {isPending ? "Connexion…" : "Se connecter"}
-      </button>
+      </Button>
     </form>
   );
 }

@@ -1,7 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { TriangleAlert, UserRound } from "lucide-react";
+import { ShieldCheck, TriangleAlert, UserPlus, UserRound } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { PersonAvatar } from "@/components/ui/Avatar";
+import { cn } from "@/components/ui/cn";
 import type { TableAssignmentRole, TableAssignmentSlotDto } from "@/lib/api/tables";
 import { TABLE_ROLE_LABELS } from "./role-labels";
 
@@ -35,13 +38,18 @@ export function TableAssignmentSlot({
   notice?: ReactNode;
 }) {
   return (
-    <div className={`flex flex-col gap-1.5 rounded-lg border p-3 ${slot?.hasConflict ? "border-red-300 bg-red-50 dark:border-red-900/60 dark:bg-red-950/30" : "border-black/10 bg-black/[0.02] dark:border-white/10 dark:bg-white/[0.03]"}`}>
+    <div
+      className={cn(
+        "flex flex-col gap-2 rounded-[var(--radius-md)] border p-3 transition-colors duration-150",
+        slot?.hasConflict ? "border-[color-mix(in_oklab,var(--danger)_28%,transparent)] bg-danger-soft" : slot ? "border-border bg-surface-raised" : "border-dashed border-border-strong bg-surface",
+      )}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-black/50 dark:text-white/50">{TABLE_ROLE_LABELS[role]}</span>
+        <span className="type-eyebrow">{TABLE_ROLE_LABELS[role]}</span>
         <div className="flex items-center gap-3">
           {slot?.hasConflict ? (
-            <span className="flex items-center gap-1 text-xs font-medium text-red-700 dark:text-red-400">
-              <TriangleAlert className="h-3.5 w-3.5" aria-hidden />
+            <span className="flex items-center gap-1 text-xs font-medium text-danger">
+              <TriangleAlert className="size-3.5" aria-hidden />
               Conflit détecté
             </span>
           ) : null}
@@ -50,39 +58,39 @@ export function TableAssignmentSlot({
       </div>
 
       {notice ? (
-        <p className="text-sm text-black/40 dark:text-white/40">{notice}</p>
+        <p className="type-meta flex items-center gap-2">
+          <ShieldCheck aria-hidden className="size-4 shrink-0 text-success" />
+          {notice}
+        </p>
       ) : slot ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <UserRound className="h-4 w-4 shrink-0 text-black/40 dark:text-white/40" aria-hidden />
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-medium text-black/90 dark:text-white/90">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <PersonAvatar name={`${slot.licencie.firstName} ${slot.licencie.lastName}`} size="sm" />
+            <div className="flex min-w-0 flex-col leading-tight">
+              <span className="truncate text-sm font-medium text-foreground">
                 {slot.licencie.firstName} {slot.licencie.lastName}
               </span>
-              {slot.hasConflict && slot.conflictReason ? <span className="text-xs text-red-700 dark:text-red-400">{slot.conflictReason}</span> : null}
-              {!slot.hasConflict && slot.teams.length > 0 ? <span className="text-xs text-black/50 dark:text-white/50">{slot.teams.map((t) => t.name).join(", ")}</span> : null}
+              {slot.hasConflict && slot.conflictReason ? <span className="text-xs text-danger">{slot.conflictReason}</span> : null}
+              {!slot.hasConflict && slot.teams.length > 0 ? <span className="type-meta truncate text-xs">{slot.teams.map((t) => t.name).join(", ")}</span> : null}
             </div>
           </div>
-          <div className="flex shrink-0 gap-2">
-            <button type="button" onClick={onChoose} className="rounded-md border border-black/15 px-2.5 py-1 text-xs font-medium hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10">
+          <div className="flex shrink-0 gap-1.5">
+            <Button variant="secondary" size="sm" onClick={onChoose}>
               {slot.hasConflict ? "Choisir un remplaçant" : "Modifier"}
-            </button>
-            <button
-              type="button"
-              onClick={onRemove}
-              disabled={removing}
-              className="rounded-md border border-black/15 px-2.5 py-1 text-xs font-medium text-black/60 hover:bg-black/5 disabled:opacity-50 dark:border-white/20 dark:text-white/60 dark:hover:bg-white/10"
-            >
-              {removing ? "…" : "Retirer"}
-            </button>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onRemove} loading={removing}>
+              Retirer
+            </Button>
           </div>
         </div>
       ) : (
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm text-black/40 dark:text-white/40">À attribuer</span>
-          <button type="button" onClick={onChoose} className="rounded-md border border-black/15 px-2.5 py-1 text-xs font-medium hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10">
+          <span className="flex items-center gap-2 text-sm text-muted">
+            <UserRound className="size-4 text-subtle" aria-hidden />À attribuer
+          </span>
+          <Button variant="primary" size="sm" onClick={onChoose} icon={<UserPlus />}>
             Choisir
-          </button>
+          </Button>
         </div>
       )}
     </div>

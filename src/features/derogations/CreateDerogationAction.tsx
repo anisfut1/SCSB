@@ -4,6 +4,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
+import { CalendarPlus, Send } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Checkbox, Field, FormMessage, Input, Textarea } from "@/components/ui/Field";
+import { Notice } from "@/components/ui/Notice";
 
 type FormState = {
   modifierDate: boolean;
@@ -100,115 +104,82 @@ export function CreateDerogationAction({ clubId, matchId }: { clubId: string; ma
     });
   }
 
-  const statusClassName = status
-    ? status.kind === "success"
-      ? "text-green-700 dark:text-green-400"
-      : status.kind === "warning"
-        ? "text-amber-700 dark:text-amber-400"
-        : "text-red-600 dark:text-red-400"
-    : "";
+  const feedback = status ? (
+    status.kind === "warning" ? (
+      <Notice tone="warning" live>
+        {status.text}
+      </Notice>
+    ) : (
+      <FormMessage tone={status.kind === "success" ? "success" : "danger"}>{status.text}</FormMessage>
+    )
+  ) : null;
 
   if (!open) {
     return (
       <div className="flex flex-col items-start gap-2">
-        <button type="button" onClick={() => setOpen(true)} className="rounded-md border border-black/15 px-3 py-1.5 text-sm font-medium hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10">
+        <Button variant="secondary" onClick={() => setOpen(true)} icon={<CalendarPlus />}>
           Créer une dérogation
-        </button>
-        {status ? (
-          <p role="status" className={`text-sm ${statusClassName}`}>
-            {status.text}
-          </p>
-        ) : null}
+        </Button>
+        {feedback}
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-black/15 bg-black/[0.02] p-3 text-sm dark:border-white/20 dark:bg-white/5">
-      <p className="font-medium">Nouvelle demande de dérogation</p>
+    <div className="flex w-full flex-col gap-4 rounded-[var(--radius-md)] border border-border bg-surface p-4">
+      <div>
+        <p className="type-card text-foreground">Nouvelle demande de dérogation</p>
+        <p className="type-meta mt-0.5">Cochez au moins une modification, puis indiquez le motif.</p>
+      </div>
 
-      <label className="flex items-start gap-2">
-        <input type="checkbox" checked={form.modifierDate} onChange={(e) => setForm((f) => ({ ...f, modifierDate: e.target.checked }))} className="mt-0.5" />
-        <span className="flex flex-1 flex-col gap-1">
-          Modifier la date
+      <div className="flex flex-col divide-y divide-border rounded-[var(--radius-md)] border border-border bg-surface-raised px-3">
+        <div className="flex flex-col">
+          <Checkbox label="Modifier la date" checked={form.modifierDate} onChange={(e) => setForm((f) => ({ ...f, modifierDate: e.target.checked }))} />
           {form.modifierDate ? (
-            <input
-              type="date"
-              value={form.dateDerogation}
-              onChange={(e) => setForm((f) => ({ ...f, dateDerogation: e.target.value }))}
-              className="rounded-md border border-black/15 bg-white px-2 py-1 text-sm dark:border-white/20 dark:bg-black/20"
-            />
+            <div className="pb-3 pl-[30px]">
+              <Input type="date" aria-label="Nouvelle date" value={form.dateDerogation} onChange={(e) => setForm((f) => ({ ...f, dateDerogation: e.target.value }))} className="max-w-xs" />
+            </div>
           ) : null}
-        </span>
-      </label>
-
-      <label className="flex items-start gap-2">
-        <input type="checkbox" checked={form.modifierHoraire} onChange={(e) => setForm((f) => ({ ...f, modifierHoraire: e.target.checked }))} className="mt-0.5" />
-        <span className="flex flex-1 flex-col gap-1">
-          Modifier l&apos;horaire
+        </div>
+        <div className="flex flex-col">
+          <Checkbox label="Modifier l'horaire" checked={form.modifierHoraire} onChange={(e) => setForm((f) => ({ ...f, modifierHoraire: e.target.checked }))} />
           {form.modifierHoraire ? (
-            <input
-              type="time"
-              value={form.horaire}
-              onChange={(e) => setForm((f) => ({ ...f, horaire: e.target.value }))}
-              className="rounded-md border border-black/15 bg-white px-2 py-1 text-sm dark:border-white/20 dark:bg-black/20"
-            />
+            <div className="pb-3 pl-[30px]">
+              <Input type="time" aria-label="Nouvel horaire" value={form.horaire} onChange={(e) => setForm((f) => ({ ...f, horaire: e.target.value }))} className="max-w-xs" />
+            </div>
           ) : null}
-        </span>
-      </label>
-
-      <label className="flex items-center gap-2">
-        <input
-          type="checkbox"
+        </div>
+        <Checkbox
+          label="Inverser la rencontre"
           checked={form.inverserRencontre}
           onChange={(e) => setForm((f) => ({ ...f, inverserRencontre: e.target.checked, inverserEquipe: e.target.checked ? false : f.inverserEquipe }))}
         />
-        Inverser la rencontre
-      </label>
-
-      <label className="flex items-center gap-2">
-        <input
-          type="checkbox"
+        <Checkbox
+          label="Inverser seulement les équipes"
           checked={form.inverserEquipe}
           onChange={(e) => setForm((f) => ({ ...f, inverserEquipe: e.target.checked, inverserRencontre: e.target.checked ? false : f.inverserRencontre }))}
         />
-        Inverser seulement les équipes
-      </label>
-
-      <label className="flex flex-col gap-1">
-        <span>Motif de la demande (obligatoire)</span>
-        <textarea
-          value={form.motif}
-          onChange={(e) => setForm((f) => ({ ...f, motif: e.target.value }))}
-          rows={3}
-          className="rounded-md border border-black/15 bg-white px-2 py-1 text-sm dark:border-white/20 dark:bg-black/20"
-        />
-      </label>
-
-      {!inversionValide ? <p className="text-sm text-red-600 dark:text-red-400">« Inverser la rencontre » et « Inverser seulement les équipes » sont mutuellement exclusives.</p> : null}
-      {inversionValide && !auMoinsUneModification ? <p className="text-sm text-black/60 dark:text-white/60">Coche au moins une modification (date, horaire, ou inversion).</p> : null}
-
-      <p className="text-black/60 dark:text-white/60">Cette demande sera transmise à la FFBB et ne pourra pas être annulée depuis cet outil.</p>
-
-      <div className="flex gap-2">
-        <button
-          type="button"
-          disabled={isPending || !formValide}
-          onClick={submit}
-          className="rounded-md bg-black px-3 py-1.5 font-medium text-white hover:bg-black/80 disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-white/80"
-        >
-          {isPending ? "Envoi en cours…" : "Envoyer à la FFBB"}
-        </button>
-        <button type="button" disabled={isPending} onClick={reset} className="rounded-md border border-black/15 px-3 py-1.5 hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10">
-          Annuler
-        </button>
       </div>
 
-      {status ? (
-        <p role="status" className={`text-sm ${statusClassName}`}>
-          {status.text}
-        </p>
-      ) : null}
+      <Field label="Motif de la demande" required>
+        {(props) => <Textarea {...props} value={form.motif} onChange={(e) => setForm((f) => ({ ...f, motif: e.target.value }))} rows={3} />}
+      </Field>
+
+      {!inversionValide ? <FormMessage tone="danger">« Inverser la rencontre » et « Inverser seulement les équipes » sont mutuellement exclusives.</FormMessage> : null}
+      {inversionValide && !auMoinsUneModification ? <p className="type-meta">Coche au moins une modification (date, horaire, ou inversion).</p> : null}
+
+      <Notice tone="warning">Cette demande sera transmise à la FFBB et ne pourra pas être annulée depuis cet outil.</Notice>
+
+      <div className="flex flex-wrap gap-2">
+        <Button variant="primary" loading={isPending} disabled={!formValide} onClick={submit} icon={<Send />}>
+          {isPending ? "Envoi en cours…" : "Envoyer à la FFBB"}
+        </Button>
+        <Button variant="secondary" disabled={isPending} onClick={reset}>
+          Annuler
+        </Button>
+      </div>
+
+      {feedback}
     </div>
   );
 }

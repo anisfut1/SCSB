@@ -1,11 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { House, MapPin, TriangleAlert, UserRound } from "lucide-react";
+import { Hand, House, MapPin, ShieldCheck, TriangleAlert, UserRound } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { StatusBadge } from "@/components/ui/Badge";
+import { FormMessage } from "@/components/ui/Field";
+import { PersonAvatar } from "@/components/ui/Avatar";
+import { useConfirm } from "@/components/ui/Dialog";
+import { cn } from "@/components/ui/cn";
 import { Card } from "@/components/ui/Card";
 import { deletePublicTableAssignment, putPublicTableAssignment, type PublicTableAssignmentsForMatchDto, type TableAssignmentRole } from "@/lib/api/publicTables";
 import { ApiError } from "@/lib/api/client";
-import { formatMatchDateTime } from "@/features/matches/match-display";
+import { formatMatchDateTime, matchDateParts } from "@/features/matches/match-display";
 import { TABLE_ROLES, TABLE_ROLE_LABELS } from "@/features/tables/role-labels";
 
 /**
@@ -31,6 +37,7 @@ export function PublicMatchCard({
 }) {
   const [pendingRole, setPendingRole] = useState<TableAssignmentRole | null>(null);
   const [roleError, setRoleError] = useState<{ role: TableAssignmentRole; message: string } | null>(null);
+  const [confirm, confirmDialog] = useConfirm();
 
   const slotByRole = {
     SCORER: match.assignments.scorer,
@@ -53,7 +60,8 @@ export function PublicMatchCard({
   }
 
   async function remove(role: TableAssignmentRole) {
-    if (!window.confirm(`Te retirer de ce poste (${TABLE_ROLE_LABELS[role]}) ?`)) return;
+    const ok = await confirm({ title: "Te retirer de ce poste ?", description: `Te retirer de ce poste (${TABLE_ROLE_LABELS[role]}) ?`, confirmLabel: "Me retirer", destructive: true });
+    if (!ok) return;
     setPendingRole(role);
     setRoleError(null);
     try {
@@ -66,24 +74,33 @@ export function PublicMatchCard({
     }
   }
 
+  const parts = matchDateParts(match.match.matchDatetime);
+
   return (
-    <Card
-      title={
-        <span className="flex flex-wrap items-center gap-2">
-          <House className="h-4 w-4 shrink-0 text-black/40 dark:text-white/40" aria-hidden />
-          {match.match.teamName ?? "Équipe"} vs {match.match.opponentName ?? "?"}
-        </span>
-      }
-    >
-      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-black/60 dark:text-white/60">
-        <span>{formatMatchDateTime(match.match.matchDatetime)}</span>
-        <span className="flex items-center gap-1">
-          <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          {match.match.venueLabel ?? "Lieu à confirmer"}
-        </span>
+    <Card>
+      <div className="flex items-start gap-3">
+        <div className="flex w-14 shrink-0 flex-col items-center justify-center rounded-[12px] border border-border bg-surface py-2">
+          <span className="type-eyebrow">{parts?.weekday ?? "—"}</span>
+          <span className="type-numeric text-xl font-medium leading-tight text-foreground">{parts?.time ?? "--:--"}</span>
+        </div>
+        <div className="text-reflow flex-1">
+          <h2 className="type-card text-foreground">
+            {match.match.teamName ?? "Équipe"} <span className="font-normal text-muted">vs</span> {match.match.opponentName ?? "?"}
+          </h2>
+          <div className="type-meta mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>{formatMatchDateTime(match.match.matchDatetime)}</span>
+            <span className="flex items-center gap-1">
+              <MapPin className="size-3.5 shrink-0 text-subtle" aria-hidden />
+              {match.match.venueLabel ?? "Lieu à confirmer"}
+            </span>
+          </div>
+        </div>
+        <StatusBadge tone="accent" icon={<House />} size="sm" className="hidden sm:inline-flex">
+          Domicile
+        </StatusBadge>
       </div>
 
-      <div className="mt-3 flex flex-col gap-2">
+      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {TABLE_ROLES.map((role) => {
           const slot = slotByRole[role];
           const isMe = slot?.licencie.id === meId;
@@ -93,64 +110,67 @@ export function PublicMatchCard({
           return (
             <div
               key={role}
-              className={`flex flex-col gap-1.5 rounded-lg border p-3 ${
-                slot?.hasConflict ? "border-red-300 bg-red-50 dark:border-red-900/60 dark:bg-red-950/30" : "border-black/10 bg-black/[0.02] dark:border-white/10 dark:bg-white/[0.03]"
-              }`}
+              className={cn(
+                "flex flex-col gap-2 rounded-[var(--radius-md)] border p-3",
+                slot?.hasConflict
+                  ? "border-[color-mix(in_oklab,var(--danger)_28%,transparent)] bg-danger-soft"
+                  : isMe
+                    ? "border-accent-border bg-accent-softer shadow-glow-xs"
+                    : slot
+                      ? "border-border bg-surface-raised"
+                      : "border-dashed border-border-strong bg-surface",
+              )}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-black/50 dark:text-white/50">{TABLE_ROLE_LABELS[role]}</span>
+                <span className="type-eyebrow">{TABLE_ROLE_LABELS[role]}</span>
                 {slot?.hasConflict ? (
-                  <span className="flex items-center gap-1 text-xs font-medium text-red-700 dark:text-red-400">
-                    <TriangleAlert className="h-3.5 w-3.5" aria-hidden />
+                  <span className="flex items-center gap-1 text-xs font-medium text-danger">
+                    <TriangleAlert className="size-3.5" aria-hidden />
                     Conflit détecté
                   </span>
                 ) : null}
               </div>
 
               {refereeSkipped && !slot ? (
-                <p className="text-sm text-black/40 dark:text-white/40">Arbitre officiel FFBB déjà désigné — aucune affectation nécessaire.</p>
+                <p className="type-meta flex items-center gap-2">
+                  <ShieldCheck aria-hidden className="size-4 shrink-0 text-success" />
+                  Arbitre officiel FFBB déjà désigné — aucune affectation nécessaire.
+                </p>
               ) : slot ? (
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <UserRound className="h-4 w-4 shrink-0 text-black/40 dark:text-white/40" aria-hidden />
-                    <div className="flex flex-col leading-tight">
-                      <span className="text-sm font-medium text-black/90 dark:text-white/90">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <PersonAvatar name={`${slot.licencie.firstName} ${slot.licencie.lastName}`} size="sm" />
+                    <div className="flex min-w-0 flex-col leading-tight">
+                      <span className="truncate text-sm font-medium text-foreground">
                         {slot.licencie.firstName} {slot.licencie.lastName}
-                        {isMe ? " (toi)" : ""}
+                        {isMe ? <span className="text-accent-text"> (toi)</span> : ""}
                       </span>
-                      {slot.hasConflict && slot.conflictReason ? <span className="text-xs text-red-700 dark:text-red-400">{slot.conflictReason}</span> : null}
+                      {slot.hasConflict && slot.conflictReason ? <span className="text-xs text-danger">{slot.conflictReason}</span> : null}
                     </div>
                   </div>
                   {isMe ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => remove(role)}
-                      className="shrink-0 rounded-md border border-black/15 px-2.5 py-1 text-xs font-medium text-black/60 hover:bg-black/5 disabled:opacity-50 dark:border-white/20 dark:text-white/60 dark:hover:bg-white/10"
-                    >
-                      {busy ? "…" : "Se retirer"}
-                    </button>
+                    <Button variant="secondary" size="sm" loading={busy} onClick={() => remove(role)}>
+                      Se retirer
+                    </Button>
                   ) : null}
                 </div>
               ) : (
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-black/40 dark:text-white/40">À attribuer</span>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => choose(role)}
-                    className="shrink-0 rounded-md bg-black px-2.5 py-1 text-xs font-medium text-white hover:bg-black/80 disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-white/80"
-                  >
-                    {busy ? "…" : "Se positionner"}
-                  </button>
+                  <span className="flex items-center gap-2 text-sm text-muted">
+                    <UserRound className="size-4 text-subtle" aria-hidden />À attribuer
+                  </span>
+                  <Button variant="primary" size="sm" loading={busy} onClick={() => choose(role)} icon={<Hand />}>
+                    Se positionner
+                  </Button>
                 </div>
               )}
 
-              {roleError?.role === role ? <p className="text-xs text-red-600 dark:text-red-400">{roleError.message}</p> : null}
+              {roleError?.role === role ? <FormMessage tone="danger">{roleError.message}</FormMessage> : null}
             </div>
           );
         })}
       </div>
+      {confirmDialog}
     </Card>
   );
 }

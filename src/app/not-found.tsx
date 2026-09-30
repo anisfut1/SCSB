@@ -1,18 +1,20 @@
-import Link from "next/link";
+import { Compass } from "lucide-react";
+import { ButtonLink } from "@/components/ui/Button";
+import { BrandMark } from "@/components/brand/BrandMark";
 
 export default function NotFound() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-12 text-center">
-      <h1 className="text-lg font-semibold">Page introuvable</h1>
-      <p className="max-w-sm text-sm text-black/60 dark:text-white/60">
-        Cette page n&apos;existe pas ou plus.
-      </p>
-      <Link
-        href="/"
-        className="rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
-      >
-        Retour à l&apos;accueil
-      </Link>
-    </div>
+    <main id="main" className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-4 py-16 text-center">
+      <div aria-hidden className="court-pattern pointer-events-none absolute inset-0 opacity-70" />
+      <div className="relative flex max-w-md flex-col items-center gap-4">
+        <BrandMark className="size-10 rounded-[12px]" />
+        <p className="type-numeric text-6xl font-medium leading-none text-foreground">404</p>
+        <h1 className="type-title text-foreground">Page introuvable</h1>
+        <p className="text-[15px] text-muted">Cette page n&apos;existe pas ou plus.</p>
+        <ButtonLink href="/" variant="primary" icon={<Compass />} className="mt-2">
+          Retour à l&apos;accueil
+        </ButtonLink>
+      </div>
+    </main>
   );
 }

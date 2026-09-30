@@ -1,6 +1,6 @@
 import { requireClubAdminContext } from "@/lib/tenancy/club-context";
 import { api } from "@/lib/api/server";
-import { Card } from "@/components/ui/Card";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { TeamsManager } from "@/features/admin/TeamsManager";
 
 /**
@@ -15,16 +15,9 @@ export default async function ClubTeamsAdminPage({ params }: { params: Promise<{
   const teams = await api.clubs.teams(club.id);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-lg font-semibold">Équipes</h1>
-      </div>
-
-      <Card title="Équipes du club">
-        <div className="mt-2">
-          <TeamsManager clubId={club.id} teams={teams} />
-        </div>
-      </Card>
-    </div>
+    <PageContainer width="wide">
+      <PageHeader eyebrow="Administration" title="Équipes" description="Structure sportive du club. La synchronisation FFBB réutilise ces équipes (résolution par catégorie, sexe et numéro — jamais par le nom)." />
+      <TeamsManager clubId={club.id} teams={teams} />
+    </PageContainer>
   );
 }

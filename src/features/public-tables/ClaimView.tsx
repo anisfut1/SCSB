@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Copy, Search, UserRound } from "lucide-react";
+import { ArrowRight, Check, CheckCircle2, Copy, PartyPopper, Search, UserRound } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Card, IconMedallion } from "@/components/ui/Card";
+import { StatusBadge } from "@/components/ui/Badge";
+import { Field, Input } from "@/components/ui/Field";
+import { Notice } from "@/components/ui/Notice";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { ListSkeleton } from "@/components/ui/Skeleton";
+import { PersonAvatar } from "@/components/ui/Avatar";
+import { cn } from "@/components/ui/cn";
 import { claimLicencie, listPublicLicencies, type PublicLicencieDto } from "@/lib/api/publicTables";
 import { ApiError } from "@/lib/api/client";
 
@@ -80,113 +89,124 @@ export function ClaimView({ clubSlug, clubName, onClaimed }: { clubSlug: string;
 
   if (justClaimed) {
     return (
-      <div className="flex flex-col gap-4">
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/40">
-          <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
-            C&apos;est fait, {justClaimed.licencie.firstName} {justClaimed.licencie.lastName} !
-          </p>
-          <p className="mt-1 text-sm text-emerald-800/80 dark:text-emerald-300/80">
-            Conserve ce lien personnel : c&apos;est lui qui te permettra de te positionner et de te retirer toi-même. Il ne pourra pas être redonné automatiquement si tu le perds — il faudra alors demander à un·e responsable du club.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 rounded-md border border-black/15 bg-white p-2 dark:border-white/20 dark:bg-black/20">
-          <input type="text" readOnly value={personalLink} className="flex-1 truncate bg-transparent text-sm outline-none" onFocus={(e) => e.currentTarget.select()} />
-          <button type="button" onClick={copyLink} className="flex shrink-0 items-center gap-1.5 rounded-md bg-black px-3 py-1.5 text-xs font-medium text-white hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/80">
-            {copied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
-            {copied ? "Copié" : "Copier"}
-          </button>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => onClaimed(justClaimed.token, justClaimed.licencie)}
-          className="self-start rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/80"
-        >
-          J&apos;ai bien noté mon lien, continuer
-        </button>
+      <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
+        <Card variant="glow">
+          <div className="flex flex-col items-start gap-4">
+            <IconMedallion tone="success" size="lg">
+              <PartyPopper />
+            </IconMedallion>
+            <div>
+              <h1 className="type-title text-foreground">
+                C&apos;est fait, {justClaimed.licencie.firstName} {justClaimed.licencie.lastName} !
+              </h1>
+              <p className="mt-2 text-[15px] leading-relaxed text-muted">
+                Conserve ce lien personnel : c&apos;est lui qui te permettra de te positionner et de te retirer toi-même. Il ne pourra pas être redonné automatiquement si tu le perds — il faudra alors demander à un·e responsable du club.
+              </p>
+            </div>
+            <div className="flex w-full flex-col gap-2 sm:flex-row">
+              <Input type="text" readOnly aria-label="Ton lien personnel" value={personalLink} onFocus={(e) => e.currentTarget.select()} className="type-numeric flex-1 text-[13px]" />
+              <Button variant={copied ? "success" : "secondary"} onClick={copyLink} icon={copied ? <Check /> : <Copy />}>
+                {copied ? "Copié" : "Copier"}
+              </Button>
+            </div>
+            <Button variant="primary" size="lg" onClick={() => onClaimed(justClaimed.token, justClaimed.licencie)} iconRight={<ArrowRight />}>
+              J&apos;ai bien noté mon lien, continuer
+            </Button>
+          </div>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-lg font-semibold">Tables de marque — {clubName}</h1>
-        <p className="mt-1 text-sm text-black/60 dark:text-white/60">Choisis ton nom dans la liste pour te positionner sur les matchs à domicile.</p>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader eyebrow={clubName} title="Tables de marque" description="Choisis ton nom dans la liste pour te positionner sur les matchs à domicile." />
 
-      {loadError ? <p className="text-sm text-red-600 dark:text-red-400">{loadError}</p> : null}
-      {claimError ? <p className="text-sm text-red-600 dark:text-red-400">{claimError}</p> : null}
+      {loadError ? <Notice tone="danger" live>{loadError}</Notice> : null}
+      {claimError ? <Notice tone="danger" live>{claimError}</Notice> : null}
 
-      <label className="flex items-center gap-2 rounded-md border border-black/15 px-2.5 py-1.5 dark:border-white/20">
-        <Search className="h-4 w-4 shrink-0 text-black/40 dark:text-white/40" aria-hidden />
-        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un nom…" className="w-full bg-transparent text-sm outline-none placeholder:text-black/40 dark:placeholder:text-white/40" />
-      </label>
-
-      {licencies === null ? (
-        <p className="text-sm text-black/50 dark:text-white/50">Chargement…</p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {filtered.map((l) => (
-            <li key={l.id}>
-              <button
-                type="button"
-                disabled={l.claimed}
-                onClick={() => {
-                  setSelected(l);
-                  setClaimError(null);
-                }}
-                className={`flex w-full items-center justify-between gap-2 rounded-lg border p-3 text-left text-sm ${
-                  l.claimed
-                    ? "cursor-not-allowed border-black/10 opacity-50 dark:border-white/10"
-                    : selected?.id === l.id
-                      ? "border-black bg-black/[0.03] dark:border-white dark:bg-white/10"
-                      : "border-black/10 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/10"
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  <UserRound className="h-4 w-4 shrink-0 text-black/40 dark:text-white/40" aria-hidden />
-                  {l.firstName} {l.lastName}
-                </span>
-                {l.claimed ? <span className="text-xs text-black/40 dark:text-white/40">Déjà choisi</span> : null}
-              </button>
-            </li>
-          ))}
-          {filtered.length === 0 ? <p className="text-sm text-black/40 dark:text-white/40">Aucun licencié ne correspond.</p> : null}
-        </ul>
-      )}
-
-      {selected ? (
-        <div className="flex flex-col gap-3 rounded-lg border border-black/15 bg-black/[0.02] p-3 dark:border-white/20 dark:bg-white/[0.03]">
-          <p className="text-sm">
-            Tu es <strong>{selected.firstName} {selected.lastName}</strong> ?
-          </p>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-black/60 dark:text-white/60">Email (optionnel — pour te contacter en cas de besoin)</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="toi@exemple.fr"
-              className="rounded-md border border-black/15 bg-white px-2 py-1.5 text-sm dark:border-white/20 dark:bg-black/20"
-            />
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="flex flex-col gap-3">
+          <label className="relative block">
+            <span className="sr-only">Rechercher un nom</span>
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" aria-hidden />
+            <Input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un nom…" className="pl-10" />
           </label>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={claiming}
-              onClick={submitClaim}
-              className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-black/80 disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-white/80"
-            >
-              {claiming ? "…" : "Confirmer, c'est moi"}
-            </button>
-            <button type="button" disabled={claiming} onClick={() => setSelected(null)} className="rounded-md border border-black/15 px-4 py-2 text-sm hover:bg-black/5 disabled:opacity-50 dark:border-white/20 dark:hover:bg-white/10">
-              Annuler
-            </button>
-          </div>
+
+          {licencies === null ? (
+            <ListSkeleton rows={6} />
+          ) : (
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {filtered.map((l) => {
+                const active = selected?.id === l.id;
+                return (
+                  <li key={l.id}>
+                    <button
+                      type="button"
+                      disabled={l.claimed}
+                      aria-pressed={active}
+                      onClick={() => {
+                        setSelected(l);
+                        setClaimError(null);
+                      }}
+                      className={cn(
+                        "flex min-h-14 w-full items-center gap-3 rounded-[var(--radius-md)] border px-3 py-2 text-left text-sm transition-[border-color,box-shadow,background-color] duration-150",
+                        l.claimed
+                          ? "cursor-not-allowed border-border bg-surface opacity-60"
+                          : active
+                            ? "border-accent bg-accent-softer shadow-glow-sm"
+                            : "border-border bg-surface-raised shadow-1 hover:border-border-strong",
+                      )}
+                    >
+                      <PersonAvatar name={`${l.firstName} ${l.lastName}`} size="sm" />
+                      <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                        {l.firstName} {l.lastName}
+                      </span>
+                      {l.claimed ? (
+                        <StatusBadge tone="neutral" size="sm">
+                          Déjà choisi
+                        </StatusBadge>
+                      ) : active ? (
+                        <CheckCircle2 aria-hidden className="size-5 text-accent-text" />
+                      ) : (
+                        <UserRound aria-hidden className="size-4 text-subtle" />
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+              {filtered.length === 0 ? <p className="type-meta col-span-full py-4">Aucun licencié ne correspond.</p> : null}
+            </ul>
+          )}
         </div>
-      ) : null}
+
+        <div className="lg:sticky lg:top-[calc(var(--topbar-height)+24px)]">
+          {selected ? (
+            <Card variant="glow">
+              <p className="type-eyebrow">Confirmation</p>
+              <p className="type-title mt-2 text-foreground">
+                Tu es {selected.firstName} {selected.lastName} ?
+              </p>
+              <Field label="Email" optional hint="Pour te contacter en cas de besoin." className="mt-5">
+                {(props) => <Input {...props} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="toi@exemple.fr" />}
+              </Field>
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                <Button variant="primary" loading={claiming} onClick={submitClaim} icon={<Check />}>
+                  Confirmer, c&apos;est moi
+                </Button>
+                <Button variant="ghost" disabled={claiming} onClick={() => setSelected(null)}>
+                  Annuler
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <div className="surface-panel hidden flex-col items-center gap-2 px-6 py-10 text-center lg:flex">
+              <UserRound aria-hidden className="size-6 text-subtle" />
+              <p className="type-meta">Sélectionne ton nom pour continuer.</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

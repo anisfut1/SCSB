@@ -1,4 +1,8 @@
 import { Suspense } from "react";
+import { getPublicClub, type PublicClubDto } from "@/lib/api/publicTables";
+import { PublicFrame } from "@/components/public/PublicFrame";
+import { PageContainer } from "@/components/ui/PageHeader";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 import { PublicTablesApp } from "@/features/public-tables/PublicTablesApp";
 
 /**
@@ -6,16 +10,26 @@ import { PublicTablesApp } from "@/features/public-tables/PublicTablesApp";
  * HORS de `/c/[clubSlug]` (protégé par `src/proxy.ts`) : `/public` est
  * listé dans `PUBLIC_PATHS` (voir src/config/site.ts). Toute la logique
  * (résolution du club, choix du nom, tableau) vit côté client dans
- * `PublicTablesApp` — cette page ne fait que fournir `clubSlug`.
+ * `PublicTablesApp` — cette page ne fournit que `clubSlug` et l'identité
+ * visuelle du club pour l'en-tête (repli neutre si indisponible : l'app
+ * affiche elle-même l'erreur).
  */
 export default async function PublicTablesPage({ params }: { params: Promise<{ clubSlug: string }> }) {
   const { clubSlug } = await params;
+  let club: PublicClubDto | null = null;
+  try {
+    club = await getPublicClub(clubSlug);
+  } catch {
+    club = null;
+  }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
-      <Suspense fallback={<p className="text-sm text-black/50 dark:text-white/50">Chargement…</p>}>
-        <PublicTablesApp clubSlug={clubSlug} />
-      </Suspense>
-    </div>
+    <PublicFrame club={club}>
+      <PageContainer width="wide">
+        <Suspense fallback={<ListSkeleton rows={4} />}>
+          <PublicTablesApp clubSlug={clubSlug} />
+        </Suspense>
+      </PageContainer>
+    </PublicFrame>
   );
 }

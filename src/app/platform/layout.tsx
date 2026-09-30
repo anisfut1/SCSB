@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { requirePlatformAdmin } from "@/lib/auth/platform";
-import { getCurrentUser } from "@/lib/auth/session";
-import { AppHeader } from "@/components/nav/AppHeader";
+import { listUserClubs } from "@/lib/tenancy/club-context";
+import { AppShell } from "@/components/shell/AppShell";
+import { buildPlatformNav } from "@/components/shell/nav";
+import { getShellIdentity } from "@/components/shell/session";
 
 /**
  * Espace réservé à l'opérateur de la plateforme SaaS (§40 du brief SaaS) :
@@ -10,12 +12,18 @@ import { AppHeader } from "@/components/nav/AppHeader";
  */
 export default async function PlatformLayout({ children }: { children: ReactNode }) {
   await requirePlatformAdmin();
-  const user = (await getCurrentUser())!;
+  const [clubs, identity] = await Promise.all([listUserClubs(), getShellIdentity()]);
 
   return (
-    <div className="flex min-h-full flex-1 flex-col">
-      <AppHeader displayName={user.email ?? "platform admin"} />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">{children}</main>
-    </div>
+    <AppShell
+      variant="platform"
+      sections={buildPlatformNav()}
+      current={null}
+      workspaces={clubs.map((c) => ({ slug: c.slug, name: c.name, logoUrl: c.logoUrl }))}
+      user={identity.user}
+      isPlatformAdmin
+    >
+      {children}
+    </AppShell>
   );
 }

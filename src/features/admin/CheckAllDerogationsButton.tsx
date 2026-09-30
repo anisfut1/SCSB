@@ -4,6 +4,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
+import { CalendarClock } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { ActionStatus } from "@/components/ui/ActionStatus";
 
 type Status = { kind: "success" | "error" | "pending"; text: string };
 
@@ -45,25 +48,10 @@ export function CheckAllDerogationsButton({ clubId }: { clubId: string }) {
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={isPending}
-        className="rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10"
-      >
+      <Button variant="secondary" onClick={handleClick} loading={isPending} icon={<CalendarClock />}>
         {isPending ? "Vérification en cours…" : "Vérifier toutes les dérogations"}
-      </button>
-
-      {status ? (
-        <p
-          role="status"
-          className={`text-sm ${
-            status.kind === "success" ? "text-green-700 dark:text-green-400" : status.kind === "error" ? "text-red-600 dark:text-red-400" : "text-black/60 dark:text-white/60"
-          }`}
-        >
-          {status.text}
-        </p>
-      ) : null}
+      </Button>
+      <ActionStatus status={status} />
     </div>
   );
 }

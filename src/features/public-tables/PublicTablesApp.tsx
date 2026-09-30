@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { getPublicClub, getPublicMe, type PublicClubDto } from "@/lib/api/publicTables";
 import { ApiError } from "@/lib/api/client";
 import { clearStoredPublicToken, getStoredPublicToken, setStoredPublicToken } from "@/lib/publicToken";
+import { ErrorState } from "@/components/ui/States";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ClaimView } from "./ClaimView";
 import { BoardView } from "./BoardView";
 
@@ -75,11 +77,11 @@ export function PublicTablesApp({ clubSlug }: { clubSlug: string }) {
   }
 
   if (clubError) {
-    return <p className="text-sm text-red-600 dark:text-red-400">{clubError}</p>;
+    return <ErrorState title={clubError} description="Demande le lien à jour à un·e responsable du club." />;
   }
 
   if (!club || identity === undefined) {
-    return <p className="text-sm text-black/50 dark:text-white/50">Chargement…</p>;
+    return <ListSkeleton rows={4} />;
   }
 
   if (identity === null) {

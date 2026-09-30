@@ -4,6 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import { listPublicTableAssignments, type PublicTableAssignmentsForMatchDto } from "@/lib/api/publicTables";
 import { ApiError } from "@/lib/api/client";
 import { addDaysToDateString, currentOrNextWeekendSaturday, formatWeekendLabel, weekendRangeForSaturday } from "@/lib/timezone";
+import { CalendarCheck, ChevronLeft, ChevronRight, ClipboardList, LogOut } from "lucide-react";
+import { Button, IconButton } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState, ErrorState } from "@/components/ui/States";
+import { ListSkeleton } from "@/components/ui/Skeleton";
+import { Toast } from "@/components/ui/Toast";
 import { PublicMatchCard } from "./PublicMatchCard";
 
 /**
@@ -65,51 +71,54 @@ export function BoardView({
   const defaultSaturday = currentOrNextWeekendSaturday(clubTimezone);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h1 className="text-lg font-semibold">Tables de marque</h1>
-          <p className="mt-1 text-sm text-black/60 dark:text-white/60">
-            Bonjour {me.firstName} {me.lastName} — {formatWeekendLabel(saturday)}
-          </p>
-        </div>
-        <button type="button" onClick={onLogout} className="shrink-0 rounded-md border border-black/15 px-3 py-1.5 text-xs font-medium hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10">
-          Ce n&apos;est pas moi
-        </button>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        eyebrow={formatWeekendLabel(saturday)}
+        title="Tables de marque"
+        description={
+          <>
+            Bonjour <span className="font-medium text-foreground">{me.firstName} {me.lastName}</span> — positionne-toi sur un poste libre des matchs à domicile.
+          </>
+        }
+        actions={
+          <Button variant="ghost" onClick={onLogout} icon={<LogOut />}>
+            Ce n&apos;est pas moi
+          </Button>
+        }
+      />
 
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <button type="button" onClick={() => setSaturday((s) => addDaysToDateString(s, -7))} className="rounded-full border border-black/15 px-3 py-1 hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10">
-          ← Journée précédente
-        </button>
-        <button type="button" onClick={() => setSaturday((s) => addDaysToDateString(s, 7))} className="rounded-full border border-black/15 px-3 py-1 hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10">
-          Journée suivante →
-        </button>
-        <button
-          type="button"
+      <nav aria-label="Choisir la journée" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <IconButton label="Journée précédente" variant="secondary" onClick={() => setSaturday((s) => addDaysToDateString(s, -7))}>
+            <ChevronLeft />
+          </IconButton>
+          <p className="type-card min-w-0 flex-1 px-2 text-center text-foreground sm:min-w-[260px]" aria-live="polite">
+            {formatWeekendLabel(saturday)}
+          </p>
+          <IconButton label="Journée suivante" variant="secondary" onClick={() => setSaturday((s) => addDaysToDateString(s, 7))}>
+            <ChevronRight />
+          </IconButton>
+        </div>
+        <Button
+          variant={saturday === defaultSaturday ? "outline" : "ghost"}
+          aria-pressed={saturday === defaultSaturday}
           onClick={() => setSaturday(defaultSaturday)}
-          className={`rounded-full border px-3 py-1 ${
-            saturday === defaultSaturday ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : "border-black/15 hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
-          }`}
+          icon={<CalendarCheck />}
+          className={saturday === defaultSaturday ? "border-accent-border bg-accent-soft text-accent-text" : undefined}
         >
           Ce week-end
-        </button>
-      </div>
+        </Button>
+      </nav>
 
-      {toast ? (
-        <p role="status" className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
-          {toast}
-        </p>
-      ) : null}
-
-      {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+      {toast ? <Toast message={toast} /> : null}
+      {error ? <ErrorState title="Chargement impossible" description={error} /> : null}
 
       {matches === null ? (
-        <p className="text-sm text-black/50 dark:text-white/50">Chargement…</p>
+        <ListSkeleton rows={3} />
       ) : matches.length === 0 ? (
-        <p className="rounded-lg border border-black/10 bg-black/[0.02] p-4 text-sm text-black/60 dark:border-white/10 dark:bg-white/5 dark:text-white/60">Aucun match à domicile cette journée.</p>
+        <EmptyState icon={<ClipboardList />} title="Aucun match à domicile cette journée" description="Passe à la journée suivante pour voir les prochains matchs." />
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           {matches.map((match) => (
             <PublicMatchCard key={match.match.id} clubSlug={clubSlug} token={token} meId={me.id} match={match} onChanged={handleChanged} />
           ))}

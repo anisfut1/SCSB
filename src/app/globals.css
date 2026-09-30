@@ -1,26 +1,407 @@
 @import "tailwindcss";
 
+/*
+ * Club Manager — tokens. Source de vérité : design-system/scsb/MASTER.md.
+ * Aucune couleur/ombre en dur dans les composants : tout passe par ces variables.
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Neutres — light mode premium */
+  --background: #f4f3ef;
+  --surface: #fbfaf8;
+  --surface-raised: #ffffff;
+  --surface-overlay: rgb(251 250 248 / 0.78);
+  --surface-muted: #eceae4;
+  --surface-sunken: #e9e7e0;
+
+  --foreground: #17171a;
+  --muted-foreground: #5e5d57;
+  --subtle-foreground: #807e76;
+
+  --border: rgb(23 23 26 / 0.08);
+  --border-strong: rgb(23 23 26 / 0.14);
+  --hairline-highlight: rgb(255 255 255 / 0.9);
+
+  /* Sémantiques (≥ 4.5:1 sur surfaces claires) */
+  --success: #0f7a4f;
+  --warning: #a15c07;
+  --danger: #c2331f;
+  --info: #2563a8;
+  --success-soft: color-mix(in oklab, var(--success) 10%, var(--surface-raised));
+  --warning-soft: color-mix(in oklab, var(--warning) 11%, var(--surface-raised));
+  --danger-soft: color-mix(in oklab, var(--danger) 9%, var(--surface-raised));
+  --info-soft: color-mix(in oklab, var(--info) 9%, var(--surface-raised));
+
+  /* Accent club — surchargé par le shell (src/lib/ui/accent.ts) */
+  --club-accent: #2f5bff;
+  --club-accent-ink: #ffffff;
+  --club-accent-text: #2447e0;
+  --club-accent-soft: color-mix(in oklab, var(--club-accent) 10%, var(--surface-raised));
+  --club-accent-softer: color-mix(in oklab, var(--club-accent) 5%, var(--surface-raised));
+  --club-accent-border: color-mix(in oklab, var(--club-accent) 28%, transparent);
+  --club-accent-glow: color-mix(in oklab, var(--club-accent) 22%, transparent);
+  --club-accent-hover: color-mix(in oklab, var(--club-accent) 88%, #000);
+
+  /* Élévation — Dimensional Layering, 4 niveaux */
+  --shadow-1: 0 1px 2px rgb(23 23 26 / 0.04), 0 2px 8px -2px rgb(23 23 26 / 0.05);
+  --shadow-2: 0 2px 4px rgb(23 23 26 / 0.04), 0 12px 28px -10px rgb(23 23 26 / 0.12);
+  --shadow-3: 0 4px 10px rgb(23 23 26 / 0.06), 0 24px 48px -16px rgb(23 23 26 / 0.18);
+  --shadow-4: 0 8px 20px rgb(23 23 26 / 0.08), 0 40px 80px -24px rgb(23 23 26 / 0.28);
+  --shadow-inset-highlight: inset 0 1px 0 var(--hairline-highlight);
+
+  /* Glow — une seule famille, dérivée de l'accent */
+  --glow-xs: 0 0 0 1px var(--club-accent-border), 0 0 8px -2px var(--club-accent-glow);
+  --glow-sm: 0 0 0 1px var(--club-accent-border), 0 8px 24px -8px var(--club-accent-glow);
+  --glow-active: 0 0 0 1px var(--club-accent-border), 0 0 24px -6px var(--club-accent-glow);
+
+  /* Rayons */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+
+  /* Layout */
+  --sidebar-width: 264px;
+  --topbar-height: 60px;
+  --bottom-nav-height: 64px;
+  --content-wide: 1320px;
+  --content-default: 1120px;
+  --content-narrow: 880px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 240ms;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-muted: var(--muted-foreground);
+  --color-subtle: var(--subtle-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-success-soft: var(--success-soft);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger-soft: var(--danger-soft);
+  --color-info-soft: var(--info-soft);
+
+  --color-accent: var(--club-accent);
+  --color-accent-ink: var(--club-accent-ink);
+  --color-accent-text: var(--club-accent-text);
+  --color-accent-soft: var(--club-accent-soft);
+  --color-accent-softer: var(--club-accent-softer);
+  --color-accent-border: var(--club-accent-border);
+  --color-accent-hover: var(--club-accent-hover);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-instrument-serif), ui-serif, Georgia, serif;
+  --font-data: var(--font-space-grotesk), var(--font-geist-sans), ui-sans-serif, sans-serif;
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
+  --shadow-1: var(--shadow-1);
+  --shadow-2: var(--shadow-2);
+  --shadow-3: var(--shadow-3);
+  --shadow-4: var(--shadow-4);
+  --shadow-glow-xs: var(--glow-xs);
+  --shadow-glow-sm: var(--glow-sm);
+  --shadow-glow-active: var(--glow-active);
+
+  --ease-out: var(--ease-out);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.55;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  ::selection {
+    background: var(--club-accent-soft);
+    color: var(--foreground);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--club-accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  a,
+  button,
+  [role="button"],
+  summary,
+  label[for],
+  select {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  img {
+    max-width: 100%;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* ── Typographie ─────────────────────────────────────────────── */
+  .type-display {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(2.25rem, 1.6rem + 2.4vw, 3.25rem);
+    line-height: 1.04;
+    letter-spacing: -0.02em;
+  }
+  .type-title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(1.75rem, 1.45rem + 1.1vw, 2.25rem);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+  }
+  .type-section {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: -0.005em;
+  }
+  .type-card {
+    font-size: 0.9375rem;
+    font-weight: 550;
+    line-height: 1.35;
+    letter-spacing: -0.005em;
+  }
+  .type-meta {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--muted-foreground);
+  }
+  .type-eyebrow {
+    font-family: var(--font-data);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  .type-numeric {
+    font-family: var(--font-data);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .text-reflow {
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+
+  /* ── Carte signature (Dimensional Layering, « 4D ») ─────────── */
+  .surface-card {
+    position: relative;
+    isolation: isolate;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--surface-raised) 0%, color-mix(in oklab, var(--surface-raised) 94%, var(--surface)) 100%);
+    box-shadow: var(--shadow-inset-highlight), var(--shadow-1);
+    transition:
+      box-shadow var(--duration-base) var(--ease-out),
+      border-color var(--duration-base) var(--ease-out),
+      transform var(--duration-base) var(--ease-out);
+  }
+  /* overlay contextuel : lueur d'angle accent */
+  .surface-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: radial-gradient(120% 80% at 100% 0%, var(--club-accent-softer) 0%, transparent 55%);
+    opacity: 0;
+    transition: opacity var(--duration-base) var(--ease-out);
+    pointer-events: none;
+  }
+  /* micro-glow : filet accent intérieur */
+  .surface-card::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--club-accent-border), transparent 45%, transparent 70%, color-mix(in oklab, var(--club-accent) 12%, transparent));
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity var(--duration-base) var(--ease-out);
+    pointer-events: none;
+  }
+  .surface-card[data-glow="true"]::before,
+  .surface-card[data-glow="true"]::after {
+    opacity: 1;
+  }
+  .surface-card[data-interactive="true"] {
+    cursor: pointer;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .surface-card[data-interactive="true"]:hover {
+      border-color: var(--border-strong);
+      box-shadow: var(--shadow-inset-highlight), var(--shadow-2), 0 10px 30px -18px var(--club-accent-glow);
+      transform: translateY(-1px);
+    }
+    .surface-card[data-interactive="true"]:hover::before,
+    .surface-card[data-interactive="true"]:hover::after {
+      opacity: 1;
+    }
+  }
+  .surface-card[data-interactive="true"]:active {
+    transform: scale(0.995);
+  }
+  .surface-card[data-interactive="true"]:focus-visible,
+  .surface-card[data-interactive="true"]:has(> a:focus-visible) {
+    outline: none;
+    box-shadow: var(--shadow-inset-highlight), var(--shadow-2), var(--glow-sm);
+  }
+
+  /* surface d'un panneau secondaire (sans ombre) */
+  .surface-panel {
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  /* calque de navigation (seul usage du flou, cf. MASTER §3.1) */
+  .surface-glass {
+    background: var(--surface-overlay);
+    -webkit-backdrop-filter: saturate(160%) blur(16px);
+    backdrop-filter: saturate(160%) blur(16px);
+  }
+
+  /* motif abstrait de terrain (hero / login) — purement décoratif */
+  .court-pattern {
+    background-image:
+      radial-gradient(circle at 50% 120%, transparent 0 38%, var(--border-strong) 38% calc(38% + 1px), transparent calc(38% + 1px)),
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size:
+      100% 100%,
+      32px 32px,
+      32px 32px;
+    mask-image: radial-gradient(ellipse at 70% 30%, #000 20%, transparent 75%);
+  }
+
+  /* squelette */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+    background: var(--surface-muted);
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+    animation: skeleton-shimmer 1.4s var(--ease-out) infinite;
+  }
+
+  /* safe areas */
+  .pb-safe-nav {
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 24px);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+@keyframes sheet-left {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .skeleton::after {
+    display: none;
+  }
+  .surface-card[data-interactive="true"]:hover,
+  .surface-card[data-interactive="true"]:active {
+    transform: none;
+  }
 }

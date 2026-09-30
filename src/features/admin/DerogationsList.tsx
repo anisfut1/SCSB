@@ -2,7 +2,13 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { BellRing, CalendarClock } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { StatusBadge } from "@/components/ui/Badge";
+import { DataList } from "@/components/ui/DataList";
+import { EmptyState } from "@/components/ui/States";
+import { Notice } from "@/components/ui/Notice";
+import { cn } from "@/components/ui/cn";
 import type { DerogationListItemDto } from "@/lib/api/derogations";
 import { RespondToDerogationAction } from "@/features/derogations/RespondToDerogationAction";
 
@@ -74,182 +80,129 @@ export function DerogationsList({ clubId, clubSlug, derogations }: { clubId: str
 
   if (derogations.length === 0) {
     return (
-      <Card title="Aucune dérogation connue">
-        <p className="mt-1 text-sm text-black/60 dark:text-white/60">
-          Lance une vérification globale depuis Intégrations → FBI pour récupérer les demandes de dérogation connues
-          de FBI.
-        </p>
-      </Card>
+      <EmptyState
+        icon={<CalendarClock />}
+        title="Aucune dérogation connue"
+        description="Lance une vérification globale depuis Intégrations → FBI pour récupérer les demandes de dérogation connues de FBI."
+      />
     );
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-2">
-        <FilterButton active={selectedEtat === null} onClick={() => setSelectedEtat(null)}>
-          Toutes ({derogations.length})
+    <div className="flex flex-col gap-5">
+      <div role="group" aria-label="Filtrer par état" className="scrollbar-none -mx-4 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
+        <FilterButton active={selectedEtat === null} onClick={() => setSelectedEtat(null)} count={derogations.length}>
+          Toutes
         </FilterButton>
         {etatCounts.map(([etat, count]) => (
-          <FilterButton key={etat} active={selectedEtat === etat} onClick={() => setSelectedEtat(etat)}>
-            {etat} ({count})
+          <FilterButton key={etat} active={selectedEtat === etat} onClick={() => setSelectedEtat(etat)} count={count}>
+            {etat}
           </FilterButton>
         ))}
       </div>
 
-      <div className="flex flex-col gap-6">
-        {filtered.length === 0 ? (
-          <Card title="Aucune dérogation pour cet état">
-            <p className="mt-1 text-sm text-black/60 dark:text-white/60">Choisis un autre filtre ci-dessus.</p>
-          </Card>
-        ) : (
-          filtered.map((derogation) => (
-            <Card
-              key={derogation.id}
-              title={
-                <span className="flex flex-wrap items-center gap-2">
-                  <Link href={`/c/${clubSlug}/matchs/${derogation.matchId}`} className="hover:underline">
-                    Rencontre {derogation.numero ?? "?"}
+      {filtered.length === 0 ? (
+        <EmptyState title="Aucune dérogation pour cet état" description="Choisis un autre filtre ci-dessus." compact />
+      ) : (
+        <ul className="flex flex-col gap-4">
+          {filtered.map((derogation) => {
+            const demandeurTeam = resolveDemandeurTeam(derogation);
+            return (
+              <li key={derogation.id}>
+                <Card data-glow={derogation.actionRequired || undefined}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="text-reflow flex-1">
+                      <p className="type-eyebrow">{derogation.etat ?? "État inconnu"}</p>
+                      <h2 className="type-card mt-1 text-foreground">
+                        <Link href={`/c/${clubSlug}/matchs/${derogation.matchId}`} className="underline-offset-4 hover:text-accent-text hover:underline">
+                          Rencontre {derogation.numero ?? "?"}
+                          {/*
+                           * `teamName` (ex. "Seniors 2") plutôt que `categoryLabel`
+                           * (ex. "Seniors") — demande du club, 2026-09-26 : "faut
+                           * préciser quelle équipe, seniors ya 4 equipes SM1 SM2
+                           * SM3 SF, pareil sur dautres catégories". Repli sur
+                           * `categoryLabel` si l'équipe du club n'a pas pu être
+                           * résolue (match non retrouvé côté FFBB).
+                           */}
+                          {derogation.teamName ?? derogation.categoryLabel ? ` (${derogation.teamName ?? derogation.categoryLabel})` : ""} — vs {derogation.opponentName ?? "?"}
+                        </Link>
+                      </h2>
+                      <p className="type-meta mt-1">Match FFBB : {formatDateTime(derogation.matchDatetime)}</p>
+                    </div>
                     {/*
-                     * `teamName` (ex. "Seniors 2") plutôt que `categoryLabel`
-                     * (ex. "Seniors") — demande du club, 2026-09-26 : "faut
-                     * préciser quelle équipe, seniors ya 4 equipes SM1 SM2
-                     * SM3 SF, pareil sur dautres catégories". Repli sur
-                     * `categoryLabel` si l'équipe du club n'a pas pu être
-                     * résolue (match non retrouvé côté FFBB).
+                     * "sur la derog si action besoin de ma part, faut un badge
+                     * action requise" (demande du club, 2026-09-27) — vrai
+                     * uniquement quand c'est au CLUB de répondre.
                      */}
-                    {derogation.teamName ?? derogation.categoryLabel ? ` (${derogation.teamName ?? derogation.categoryLabel})` : ""} — vs{" "}
-                    {derogation.opponentName ?? "?"}
-                  </Link>
-                  {/*
-                   * "sur la derog si action besoin de ma part, faut un badge
-                   * action requise" (demande du club, 2026-09-27) — voir
-                   * `actionRequired` (club-manager-api,
-                   * modules/derogations/action-required.ts) : vrai
-                   * uniquement quand c'est au CLUB de répondre, jamais
-                   * l'inverse.
-                   */}
-                  {derogation.actionRequired ? (
-                    <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800 dark:bg-orange-900/40 dark:text-orange-300">
-                      Action requise
-                    </span>
-                  ) : null}
-                </span>
-              }
-            >
-              <div className="flex flex-col gap-4">
-                {derogation.scheduleConflict ? (
-                  <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-500/40 dark:bg-red-950/30 dark:text-red-300">
-                    <p className="font-medium">Conflit de créneau (un créneau de match dure 2h)</p>
-                    <p>
-                      Un match {derogation.scheduleConflict.teamName ? `de l'équipe ${derogation.scheduleConflict.teamName} ` : ""}est déjà prévu
-                      sur le créneau {formatSlotRange(derogation.scheduleConflict.matchDatetime)} — Rencontre {derogation.scheduleConflict.numero ?? "?"}{" "}
-                      vs {derogation.scheduleConflict.opponentName ?? "?"}.
-                    </p>
+                    {derogation.actionRequired ? (
+                      <StatusBadge tone="warning" icon={<BellRing />}>
+                        Action requise
+                      </StatusBadge>
+                    ) : null}
                   </div>
-                ) : null}
 
-                {derogation.actionRequired ? <RespondToDerogationAction clubId={clubId} derogationId={derogation.id} /> : null}
+                  <div className="mt-5 flex flex-col gap-5">
+                    {derogation.scheduleConflict ? (
+                      <Notice tone="danger" title="Conflit de créneau (un créneau de match dure 2h)">
+                        Un match {derogation.scheduleConflict.teamName ? `de l'équipe ${derogation.scheduleConflict.teamName} ` : ""}est déjà prévu sur le créneau {formatSlotRange(derogation.scheduleConflict.matchDatetime)} — Rencontre{" "}
+                        {derogation.scheduleConflict.numero ?? "?"} vs {derogation.scheduleConflict.opponentName ?? "?"}.
+                      </Notice>
+                    ) : null}
 
-                <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-                  <div>
-                    <dt className="text-black/60 dark:text-white/60">État</dt>
-                    <dd>{derogation.etat ?? "—"}</dd>
-                  </div>
-                  <div>
-                    {/*
-                     * Une même rencontre peut avoir PLUSIEURS dérogations
-                     * distinctes (§ "82 vs 51", docs/FBI.md côté
-                     * club-manager-api — export FBI du club : 82 lignes
-                     * réelles pour seulement 51 numéros uniques) — la date
-                     * de dépôt est ce qui les distingue visuellement quand
-                     * plusieurs cartes partagent le même numéro/adversaire.
-                     */}
-                    <dt className="text-black/60 dark:text-white/60">Date de dépôt</dt>
-                    <dd>{derogation.dateDepot ?? "—"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-black/60 dark:text-white/60">Demandeur</dt>
-                    <dd>
-                      {derogation.demandeur ?? "—"}
-                      {resolveDemandeurTeam(derogation) ? ` (${resolveDemandeurTeam(derogation)})` : ""}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-black/60 dark:text-white/60">Rencontre initiale</dt>
-                    <dd>
-                      {derogation.dateRencontre ?? "—"} {derogation.heure ?? ""}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-black/60 dark:text-white/60">Rencontre demandée</dt>
-                    <dd>
-                      {derogation.dateRencontreDemandee ?? "—"} {derogation.heureDemandee ?? ""}
-                    </dd>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <dt className="text-black/60 dark:text-white/60">Motif de la demande</dt>
-                    <dd>{derogation.motif ?? "—"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-black/60 dark:text-white/60">Date de dérogation</dt>
-                    <dd>{derogation.dateDerogation ?? "—"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-black/60 dark:text-white/60">Match FFBB</dt>
-                    <dd>{formatDateTime(derogation.matchDatetime)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-black/60 dark:text-white/60">Dernière vérification</dt>
-                    <dd>{formatDateTime(derogation.checkedAt)}</dd>
-                  </div>
-                </dl>
+                    {derogation.actionRequired ? <RespondToDerogationAction clubId={clubId} derogationId={derogation.id} /> : null}
 
-                {derogation.adversaire || derogation.dateReponse || derogation.acceptation || derogation.motifRefus ? (
-                  <div>
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-black/40 dark:text-white/40">
-                      Réponse de l&apos;adversaire
-                    </p>
-                    <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-                      <div>
-                        <dt className="text-black/60 dark:text-white/60">Adversaire</dt>
-                        <dd>{derogation.adversaire ?? "—"}</dd>
+                    <DataList
+                      columns={3}
+                      items={[
+                        { label: "État", value: derogation.etat ?? "—" },
+                        // Une même rencontre peut avoir PLUSIEURS dérogations distinctes (docs/FBI.md côté club-manager-api) — la date de dépôt les distingue.
+                        { label: "Date de dépôt", value: derogation.dateDepot ?? "—" },
+                        { label: "Demandeur", value: `${derogation.demandeur ?? "—"}${demandeurTeam ? ` (${demandeurTeam})` : ""}` },
+                        { label: "Rencontre initiale", value: `${derogation.dateRencontre ?? "—"} ${derogation.heure ?? ""}`.trim() },
+                        { label: "Rencontre demandée", value: `${derogation.dateRencontreDemandee ?? "—"} ${derogation.heureDemandee ?? ""}`.trim() },
+                        { label: "Date de dérogation", value: derogation.dateDerogation ?? "—" },
+                        { label: "Motif de la demande", value: derogation.motif ?? "—", span: 2 },
+                        { label: "Dernière vérification", value: formatDateTime(derogation.checkedAt) },
+                      ]}
+                    />
+
+                    {derogation.adversaire || derogation.dateReponse || derogation.acceptation || derogation.motifRefus ? (
+                      <div className="surface-panel flex flex-col gap-3 p-4">
+                        <p className="type-eyebrow">Réponse de l&apos;adversaire</p>
+                        <DataList
+                          items={[
+                            { label: "Adversaire", value: derogation.adversaire ?? "—" },
+                            { label: "Date de réponse", value: derogation.dateReponse ?? "—" },
+                            { label: "Acceptation", value: derogation.acceptation ?? "—" },
+                            { label: "Motif de refus", value: derogation.motifRefus ?? "—" },
+                          ]}
+                        />
                       </div>
-                      <div>
-                        <dt className="text-black/60 dark:text-white/60">Date de réponse</dt>
-                        <dd>{derogation.dateReponse ?? "—"}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-black/60 dark:text-white/60">Acceptation</dt>
-                        <dd>{derogation.acceptation ?? "—"}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-black/60 dark:text-white/60">Motif de refus</dt>
-                        <dd>{derogation.motifRefus ?? "—"}</dd>
-                      </div>
-                    </dl>
+                    ) : null}
                   </div>
-                ) : null}
-              </div>
-            </Card>
-          ))
-        )}
-      </div>
+                </Card>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
 
-function FilterButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function FilterButton({ active, onClick, count, children }: { active: boolean; onClick: () => void; count: number; children: React.ReactNode }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-3 py-1 text-sm font-medium transition-colors ${
-        active
-          ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-          : "border-black/15 text-black/70 hover:bg-black/5 dark:border-white/20 dark:text-white/70 dark:hover:bg-white/10"
-      }`}
+      aria-pressed={active}
+      className={cn(
+        "inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-[10px] border px-3 text-[13px] font-medium transition-[background-color,border-color,box-shadow,color] duration-150",
+        active ? "border-accent-border bg-accent-soft text-accent-text shadow-glow-xs" : "border-border bg-surface-raised text-muted shadow-1 hover:border-border-strong hover:text-foreground",
+      )}
     >
       {children}
+      <span className={cn("type-numeric rounded-full px-1.5 text-[11px] leading-5", active ? "bg-surface-raised/70" : "bg-surface-muted")}>{count}</span>
     </button>
   );
 }

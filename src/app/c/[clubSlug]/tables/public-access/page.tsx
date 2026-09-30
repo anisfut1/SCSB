@@ -1,5 +1,6 @@
 import { requireClubAdminContext } from "@/lib/tenancy/club-context";
 import { api } from "@/lib/api/server";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { PublicAccessList } from "@/features/tables/PublicAccessList";
 import { PublicLinkBanner } from "@/features/tables/PublicLinkBanner";
 
@@ -15,15 +16,15 @@ export default async function PublicAccessPage({ params }: { params: Promise<{ c
   const entries = await api.tables.listPublicAccess(club.id);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-lg font-semibold">Accès publics — Tables de marque</h1>
-        <p className="mt-1 text-sm text-black/60 dark:text-white/60">
-          Qui a déjà revendiqué son lien personnel sans compte. Réinitialise l&apos;accès d&apos;un licencié si son lien est perdu — ses affectations existantes ne sont jamais touchées.
-        </p>
-      </div>
+    <PageContainer width="default">
+      <PageHeader
+        back={{ href: `/c/${clubSlug}/tables`, label: "Tables de marque" }}
+        eyebrow="Tables de marque"
+        title="Accès publics"
+        description="Qui a déjà revendiqué son lien personnel sans compte. Réinitialise l'accès d'un licencié si son lien est perdu — ses affectations existantes ne sont jamais touchées."
+      />
       <PublicLinkBanner clubSlug={clubSlug} />
       <PublicAccessList clubId={club.id} entries={entries} />
-    </div>
+    </PageContainer>
   );
 }

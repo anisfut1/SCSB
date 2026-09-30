@@ -26,20 +26,39 @@ export function computeDaySummary(matches: TableAssignmentsForMatchDto[]): { mat
 }
 
 /**
- * Résumé léger en haut de page (§79 : "6 matchs domicile / 18 postes / 14
- * affectés / 4 à attribuer / 1 conflit") — pas de grosses cartes KPI,
- * juste une ligne de texte, plus adaptée à la DA sobre déjà en place.
+ * Résumé de la journée (§79 : "6 matchs domicile / 18 postes / 14
+ * affectés / 4 à attribuer / 1 conflit") — bande compacte de chiffres,
+ * calculée par `computeDaySummary` (inchangée).
  */
 export function DaySummary({ matches }: { matches: TableAssignmentsForMatchDto[] }) {
   const { matchCount, totalSlots, assignedSlots, toAssign, conflictSlots } = computeDaySummary(matches);
-
-  const parts = [
-    `${matchCount} match${matchCount > 1 ? "s" : ""} domicile`,
-    `${totalSlots} poste${totalSlots > 1 ? "s" : ""}`,
-    `${assignedSlots} affecté${assignedSlots > 1 ? "s" : ""}`,
-    `${toAssign} à attribuer`,
+  const items = [
+    { label: `match${matchCount > 1 ? "s" : ""} domicile`, value: matchCount, tone: "text-foreground" },
+    { label: `poste${totalSlots > 1 ? "s" : ""}`, value: totalSlots, tone: "text-foreground" },
+    { label: `affecté${assignedSlots > 1 ? "s" : ""}`, value: assignedSlots, tone: "text-success" },
+    { label: "à attribuer", value: toAssign, tone: toAssign > 0 ? "text-warning" : "text-foreground" },
+    ...(conflictSlots > 0 ? [{ label: `conflit${conflictSlots > 1 ? "s" : ""}`, value: conflictSlots, tone: "text-danger" }] : []),
   ];
-  if (conflictSlots > 0) parts.push(`${conflictSlots} conflit${conflictSlots > 1 ? "s" : ""}`);
+  const progress = totalSlots > 0 ? Math.round((assignedSlots / totalSlots) * 100) : 0;
 
-  return <p className="text-sm text-black/60 dark:text-white/60">{parts.join(" / ")}</p>;
+  return (
+    <section aria-label="Résumé de la journée" className="surface-card flex flex-col gap-4 p-4 sm:p-5">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:flex sm:flex-wrap sm:gap-x-8">
+        {items.map((item) => (
+          <div key={item.label} className="flex items-baseline gap-2">
+            <dd className={`type-numeric text-2xl font-medium leading-none ${item.tone}`}>{item.value}</dd>
+            <dt className="type-meta">{item.label}</dt>
+          </div>
+        ))}
+      </dl>
+      {totalSlots > 0 ? (
+        <div className="flex items-center gap-3">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-muted" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-label="Postes affectés">
+            <div className="h-full rounded-full bg-accent shadow-[0_0_8px_var(--club-accent-glow)] transition-[width] duration-300" style={{ width: `${progress}%` }} />
+          </div>
+          <span className="type-numeric text-xs text-muted">{progress}%</span>
+        </div>
+      ) : null}
+    </section>
+  );
 }

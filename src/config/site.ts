@@ -18,17 +18,3 @@ export const PLATFORM_NAME = "Basket Club Manager";
  * vient d'un jeton personnel, jamais d'une session Supabase.
  */
 export const PUBLIC_PATHS = ["/login", "/public"];
-
-export interface DashboardCardConfig {
-  title: string;
-  description: string;
-}
-
-/**
- * Cartes placeholder du dashboard club pour les modules pas encore développés.
- * Les modules Matchs, Dérogations et Tables de marque sont réels (voir
- * /c/{slug}/matchs, /c/{slug}/admin/derogations, /c/{slug}/tables) et ne
- * sont plus listés ici — une carte "Bientôt disponible" restait affichée
- * alors que la page existe déjà, un doublon relevé par le club.
- */
-export const DASHBOARD_PLACEHOLDER_CARDS: DashboardCardConfig[] = [];

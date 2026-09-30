@@ -2,8 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Check, X } from "lucide-react";
 import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
+import { Button } from "@/components/ui/Button";
+import { Field, FormMessage, Textarea } from "@/components/ui/Field";
+import { Notice } from "@/components/ui/Notice";
 
 type Step = { kind: "idle" } | { kind: "confirm-accept" } | { kind: "confirm-refuse"; motif: string };
 type Status = { kind: "success" | "error" | "warning"; text: string } | null;
@@ -45,31 +49,29 @@ export function RespondToDerogationAction({ clubId, derogationId }: { clubId: st
     });
   }
 
-  const statusClassName = status
-    ? status.kind === "success"
-      ? "text-green-700 dark:text-green-400"
-      : status.kind === "warning"
-        ? "text-amber-700 dark:text-amber-400"
-        : "text-red-600 dark:text-red-400"
-    : "";
+  const feedback = status ? (
+    status.kind === "warning" ? (
+      <Notice tone="warning" live>
+        {status.text}
+      </Notice>
+    ) : (
+      <FormMessage tone={status.kind === "success" ? "success" : "danger"}>{status.text}</FormMessage>
+    )
+  ) : null;
 
   if (step.kind === "confirm-accept") {
     return (
-      <div className="flex flex-col gap-2 rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm dark:border-emerald-500/40 dark:bg-emerald-950/30">
-        <p>Confirmer l&apos;acceptation ? Cette action sera transmise à la FFBB et ne pourra pas être annulée depuis cet outil.</p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={() => submit("accepted", null)}
-            className="rounded-md bg-emerald-700 px-3 py-1.5 font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
-          >
+      <div className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[color-mix(in_oklab,var(--success)_24%,transparent)] bg-success-soft p-4">
+        <p className="text-sm text-foreground">Confirmer l&apos;acceptation ? Cette action sera transmise à la FFBB et ne pourra pas être annulée depuis cet outil.</p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="success" loading={isPending} onClick={() => submit("accepted", null)} icon={<Check />}>
             {isPending ? "Envoi en cours…" : "Confirmer l'acceptation"}
-          </button>
-          <button type="button" disabled={isPending} onClick={() => setStep({ kind: "idle" })} className="rounded-md border border-black/15 px-3 py-1.5 hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10">
+          </Button>
+          <Button variant="secondary" disabled={isPending} onClick={() => setStep({ kind: "idle" })}>
             Annuler
-          </button>
+          </Button>
         </div>
+        {feedback}
       </div>
     );
   }
@@ -77,53 +79,35 @@ export function RespondToDerogationAction({ clubId, derogationId }: { clubId: st
   if (step.kind === "confirm-refuse") {
     const motifValide = step.motif.trim().length > 0;
     return (
-      <div className="flex flex-col gap-2 rounded-md border border-red-300 bg-red-50 p-3 text-sm dark:border-red-500/40 dark:bg-red-950/30">
-        <label className="flex flex-col gap-1">
-          <span>Motif de refus (obligatoire, transmis à l&apos;adversaire sur FBI)</span>
-          <textarea
-            value={step.motif}
-            onChange={(e) => setStep({ kind: "confirm-refuse", motif: e.target.value })}
-            rows={3}
-            className="rounded-md border border-black/15 bg-white px-2 py-1 text-sm dark:border-white/20 dark:bg-black/20"
-          />
-        </label>
-        <p>Confirmer le refus ? Cette action sera transmise à la FFBB et ne pourra pas être annulée depuis cet outil.</p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            disabled={isPending || !motifValide}
-            onClick={() => submit("refused", step.motif.trim())}
-            className="rounded-md bg-red-700 px-3 py-1.5 font-medium text-white hover:bg-red-800 disabled:opacity-60"
-          >
+      <div className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[color-mix(in_oklab,var(--danger)_22%,transparent)] bg-danger-soft p-4">
+        <Field label="Motif de refus" hint="Obligatoire, transmis à l'adversaire sur FBI." required>
+          {(props) => <Textarea {...props} value={step.motif} onChange={(e) => setStep({ kind: "confirm-refuse", motif: e.target.value })} rows={3} />}
+        </Field>
+        <p className="text-sm text-foreground">Confirmer le refus ? Cette action sera transmise à la FFBB et ne pourra pas être annulée depuis cet outil.</p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="danger" loading={isPending} disabled={!motifValide} onClick={() => submit("refused", step.motif.trim())} icon={<X />}>
             {isPending ? "Envoi en cours…" : "Confirmer le refus"}
-          </button>
-          <button type="button" disabled={isPending} onClick={() => setStep({ kind: "idle" })} className="rounded-md border border-black/15 px-3 py-1.5 hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10">
+          </Button>
+          <Button variant="secondary" disabled={isPending} onClick={() => setStep({ kind: "idle" })}>
             Annuler
-          </button>
+          </Button>
         </div>
+        {feedback}
       </div>
     );
   }
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setStep({ kind: "confirm-accept" })}
-          className="rounded-md bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800"
-        >
+      <div className="flex flex-wrap gap-2">
+        <Button variant="success" onClick={() => setStep({ kind: "confirm-accept" })} icon={<Check />}>
           Accepter
-        </button>
-        <button type="button" onClick={() => setStep({ kind: "confirm-refuse", motif: "" })} className="rounded-md bg-red-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-800">
+        </Button>
+        <Button variant="danger" onClick={() => setStep({ kind: "confirm-refuse", motif: "" })} icon={<X />}>
           Refuser
-        </button>
+        </Button>
       </div>
-      {status ? (
-        <p role="status" className={`text-sm ${statusClassName}`}>
-          {status.text}
-        </p>
-      ) : null}
+      {feedback}
     </div>
   );
 }

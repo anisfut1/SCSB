@@ -4,6 +4,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
+import { CheckCheck } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { FormMessage } from "@/components/ui/Field";
 
 /** §23 de la demande : `POST /v1/clubs/:clubId/issues/:matchId/resolve`, jamais un `UPDATE` Supabase direct. */
 export function ResolveIssueButton({ clubId, matchId }: { clubId: string; matchId: string }) {
@@ -23,16 +26,11 @@ export function ResolveIssueButton({ clubId, matchId }: { clubId: string; matchI
   }
 
   return (
-    <div className="mt-4 flex flex-col items-start gap-2">
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={isPending}
-        className="rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10"
-      >
-        {isPending ? "…" : "Marquer comme vérifié"}
-      </button>
-      {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+    <div className="flex flex-col items-start gap-2">
+      <Button variant="secondary" size="sm" onClick={handleClick} loading={isPending} icon={<CheckCheck />}>
+        Marquer comme vérifié
+      </Button>
+      {error ? <FormMessage tone="danger">{error}</FormMessage> : null}
     </div>
   );
 }

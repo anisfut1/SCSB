@@ -4,7 +4,12 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
-import { Card } from "@/components/ui/Card";
+import { BellRing, CalendarClock, RefreshCw } from "lucide-react";
+import { Card, CardDivider, CardHeader } from "@/components/ui/Card";
+import { StatusBadge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { DataList } from "@/components/ui/DataList";
+import { FormMessage } from "@/components/ui/Field";
 import type { DerogationStatusDto } from "@/lib/api/matches";
 import { RespondToDerogationAction } from "@/features/derogations/RespondToDerogationAction";
 import { CreateDerogationAction } from "@/features/derogations/CreateDerogationAction";
@@ -57,110 +62,71 @@ export function DerogationCard({ clubId, matchId, derogation, isAdmin }: { clubI
     });
   }
 
+  const demandeurTeam = derogation ? resolveDemandeurTeam(derogation) : null;
+
   return (
-    <Card
-      title={
-        <span className="flex flex-wrap items-center gap-2">
-          Dérogation
-          {derogation?.actionRequired ? (
-            <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800 dark:bg-orange-900/40 dark:text-orange-300">Action requise</span>
-          ) : null}
-        </span>
-      }
-    >
+    <Card>
+      <CardHeader
+        icon={<CalendarClock />}
+        title="Dérogation"
+        description={derogation ? `Dernière vérification : ${new Date(derogation.checkedAt).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}` : undefined}
+        actions={
+          derogation?.actionRequired ? (
+            <StatusBadge tone="warning" icon={<BellRing />}>
+              Action requise
+            </StatusBadge>
+          ) : null
+        }
+      />
+      <CardDivider />
       {derogation ? (
-        <div className="flex flex-col gap-4">
-          <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-black/60 dark:text-white/60">État</dt>
-              <dd>{derogation.etat ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-black/60 dark:text-white/60">Demandeur</dt>
-              <dd>
-                {derogation.demandeur ?? "—"}
-                {resolveDemandeurTeam(derogation) ? ` (${resolveDemandeurTeam(derogation)})` : ""}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-black/60 dark:text-white/60">Rencontre initiale</dt>
-              <dd>
-                {derogation.dateRencontre ?? "—"} {derogation.heure ?? ""}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-black/60 dark:text-white/60">Rencontre demandée</dt>
-              <dd>
-                {derogation.dateRencontreDemandee ?? "—"} {derogation.heureDemandee ?? ""}
-              </dd>
-            </div>
-            <div className="sm:col-span-2">
-              <dt className="text-black/60 dark:text-white/60">Motif de la demande</dt>
-              <dd>{derogation.motif ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-black/60 dark:text-white/60">Date de dérogation</dt>
-              <dd>{derogation.dateDerogation ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-black/60 dark:text-white/60">Dernière vérification</dt>
-              <dd>{new Date(derogation.checkedAt).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}</dd>
-            </div>
-          </dl>
+        <div className="flex flex-col gap-5">
+          <DataList
+            items={[
+              { label: "État", value: derogation.etat ?? "—" },
+              { label: "Demandeur", value: `${derogation.demandeur ?? "—"}${demandeurTeam ? ` (${demandeurTeam})` : ""}` },
+              { label: "Rencontre initiale", value: `${derogation.dateRencontre ?? "—"} ${derogation.heure ?? ""}`.trim() },
+              { label: "Rencontre demandée", value: `${derogation.dateRencontreDemandee ?? "—"} ${derogation.heureDemandee ?? ""}`.trim() },
+              { label: "Motif de la demande", value: derogation.motif ?? "—", span: 2 },
+              { label: "Date de dérogation", value: derogation.dateDerogation ?? "—" },
+            ]}
+          />
 
           {derogation.adversaire || derogation.dateReponse || derogation.acceptation || derogation.motifRefus ? (
-            <div>
-              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-black/40 dark:text-white/40">Réponse de l&apos;adversaire</p>
-              <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="text-black/60 dark:text-white/60">Adversaire</dt>
-                  <dd>{derogation.adversaire ?? "—"}</dd>
-                </div>
-                <div>
-                  <dt className="text-black/60 dark:text-white/60">Date de réponse</dt>
-                  <dd>{derogation.dateReponse ?? "—"}</dd>
-                </div>
-                <div>
-                  <dt className="text-black/60 dark:text-white/60">Acceptation</dt>
-                  <dd>{derogation.acceptation ?? "—"}</dd>
-                </div>
-                <div>
-                  <dt className="text-black/60 dark:text-white/60">Motif de refus</dt>
-                  <dd>{derogation.motifRefus ?? "—"}</dd>
-                </div>
-              </dl>
+            <div className="surface-panel flex flex-col gap-3 p-4">
+              <p className="type-eyebrow">Réponse de l&apos;adversaire</p>
+              <DataList
+                items={[
+                  { label: "Adversaire", value: derogation.adversaire ?? "—" },
+                  { label: "Date de réponse", value: derogation.dateReponse ?? "—" },
+                  { label: "Acceptation", value: derogation.acceptation ?? "—" },
+                  { label: "Motif de refus", value: derogation.motifRefus ?? "—" },
+                ]}
+              />
             </div>
           ) : null}
 
           {isAdmin && derogation.actionRequired && derogation.id ? <RespondToDerogationAction clubId={clubId} derogationId={derogation.id} /> : null}
         </div>
       ) : (
-        <p className="mt-1 text-sm text-black/60 dark:text-white/60">
-          Aucune dérogation connue pour ce match pour l&apos;instant.
-        </p>
+        <p className="type-meta">Aucune dérogation connue pour ce match pour l&apos;instant.</p>
       )}
 
       {isAdmin ? (
-        <div className="mt-3 flex flex-col items-start gap-3">
+        <div className="mt-5 flex flex-col items-start gap-3 border-t border-border pt-4">
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleCheck}
-              disabled={isPending}
-              className="rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10"
-            >
+            <Button variant="secondary" onClick={handleCheck} loading={isPending} icon={<RefreshCw />}>
               {isPending ? "Vérification en cours…" : "Vérifier sur FBI"}
-            </button>
+            </Button>
           </div>
           {status ? (
-            <p
-              role="status"
-              className={`text-sm ${
-                status.kind === "success" ? "text-green-700 dark:text-green-400" : status.kind === "error" ? "text-red-600 dark:text-red-400" : "text-black/60 dark:text-white/60"
-              }`}
-            >
-              {status.text}
-            </p>
+            status.kind === "pending" ? (
+              <p role="status" className="type-meta">
+                {status.text}
+              </p>
+            ) : (
+              <FormMessage tone={status.kind === "success" ? "success" : "danger"}>{status.text}</FormMessage>
+            )
           ) : null}
           {/* "sur chaque rencontre faut un bouton 'Créer une dérogation'" (demande du club, 2026-09-28) — toujours disponible, indépendamment d'une dérogation déjà connue ou non pour ce match. */}
           <CreateDerogationAction clubId={clubId} matchId={matchId} />

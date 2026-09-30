@@ -5,11 +5,62 @@ import { useRouter } from "next/navigation";
 import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
 import type { TeamDto } from "@/lib/api/clubs";
+import { ChevronDown, Plus, Save, Shirt } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Card, CardDivider, CardHeader } from "@/components/ui/Card";
+import { StatusBadge } from "@/components/ui/Badge";
+import { Checkbox, Field, FormMessage, Input, Select } from "@/components/ui/Field";
+import { EmptyState } from "@/components/ui/States";
+import { SectionHeader } from "@/components/ui/PageHeader";
 
 type Status = { kind: "success" | "error"; text: string } | null;
 
-const inputClassName = "mt-1 w-full rounded-md border border-black/15 px-3 py-1.5 text-sm dark:border-white/20 dark:bg-transparent";
-const labelClassName = "block text-sm font-medium";
+function TeamFields({
+  name,
+  setName,
+  category,
+  setCategory,
+  sexe,
+  setSexe,
+  numeroEquipe,
+  setNumeroEquipe,
+  namePlaceholder,
+  nameRequired,
+}: {
+  name: string;
+  setName: (v: string) => void;
+  category: string;
+  setCategory: (v: string) => void;
+  sexe: string;
+  setSexe: (v: string) => void;
+  numeroEquipe: string;
+  setNumeroEquipe: (v: string) => void;
+  namePlaceholder?: string;
+  nameRequired?: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-[2fr_1.2fr_1fr_1fr]">
+      <Field label="Nom" required={nameRequired} className="col-span-2 lg:col-span-1">
+        {(props) => <Input {...props} placeholder={namePlaceholder} value={name} onChange={(e) => setName(e.target.value)} />}
+      </Field>
+      <Field label="Catégorie">
+        {(props) => <Input {...props} placeholder="U11, SM, …" value={category} onChange={(e) => setCategory(e.target.value)} />}
+      </Field>
+      <Field label="Sexe">
+        {(props) => (
+          <Select {...props} value={sexe} onChange={(e) => setSexe(e.target.value)}>
+            <option value="">—</option>
+            <option value="M">M</option>
+            <option value="F">F</option>
+          </Select>
+        )}
+      </Field>
+      <Field label="N° équipe">
+        {(props) => <Input {...props} placeholder="1, 2, …" value={numeroEquipe} onChange={(e) => setNumeroEquipe(e.target.value)} />}
+      </Field>
+    </div>
+  );
+}
 
 function TeamRow({ clubId, team }: { clubId: string; team: TeamDto }) {
   const router = useRouter();
@@ -41,48 +92,39 @@ function TeamRow({ clubId, team }: { clubId: string; team: TeamDto }) {
   }
 
   return (
-    <li className="flex flex-col gap-2 border-t border-black/5 py-3 first:border-t-0 dark:border-white/10">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <label className={labelClassName}>
-          Nom
-          <input className={inputClassName} value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        <label className={labelClassName}>
-          Catégorie
-          <input className={inputClassName} placeholder="U11, SM, …" value={category} onChange={(e) => setCategory(e.target.value)} />
-        </label>
-        <label className={labelClassName}>
-          Sexe
-          <select className={inputClassName} value={sexe} onChange={(e) => setSexe(e.target.value)}>
-            <option value="">—</option>
-            <option value="M">M</option>
-            <option value="F">F</option>
-          </select>
-        </label>
-        <label className={labelClassName}>
-          N° équipe
-          <input className={inputClassName} placeholder="1, 2, …" value={numeroEquipe} onChange={(e) => setNumeroEquipe(e.target.value)} />
-        </label>
-      </div>
-      <div className="flex items-center gap-3">
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
-          Active
-        </label>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={isPending}
-          className="rounded-md border border-black/15 px-3 py-1.5 text-sm font-medium hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10"
-        >
-          {isPending ? "Enregistrement…" : "Enregistrer"}
-        </button>
-        {status ? (
-          <p role="status" className={`text-sm ${status.kind === "success" ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-            {status.text}
-          </p>
-        ) : null}
-      </div>
+    <li>
+      <details className="group surface-card overflow-hidden [&_summary::-webkit-details-marker]:hidden">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3">
+          <span aria-hidden className="inline-flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-border bg-surface text-accent-text">
+            <Shirt className="size-4" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate text-sm font-medium text-foreground">{team.name}</span>
+            <span className="type-meta truncate">{[team.category, team.sexe, team.numeroEquipe ? `n° ${team.numeroEquipe}` : null].filter(Boolean).join(" · ") || "Catégorie non renseignée"}</span>
+          </span>
+          {team.active ? (
+            <StatusBadge tone="success" size="sm">
+              Active
+            </StatusBadge>
+          ) : (
+            <StatusBadge tone="neutral" size="sm">
+              Inactive
+            </StatusBadge>
+          )}
+          <ChevronDown aria-hidden className="size-4 shrink-0 text-subtle transition-transform duration-150 group-open:rotate-180" />
+          <span className="sr-only">Modifier</span>
+        </summary>
+        <div className="flex flex-col gap-4 border-t border-border px-4 py-4">
+          <TeamFields name={name} setName={setName} category={category} setCategory={setCategory} sexe={sexe} setSexe={setSexe} numeroEquipe={numeroEquipe} setNumeroEquipe={setNumeroEquipe} />
+          <div className="flex flex-wrap items-center gap-3">
+            <Checkbox label="Active" checked={active} onChange={(e) => setActive(e.target.checked)} className="min-h-10 py-1" />
+            <Button variant="primary" size="sm" onClick={handleSave} loading={isPending} icon={<Save />}>
+              {isPending ? "Enregistrement…" : "Enregistrer"}
+            </Button>
+            {status ? <FormMessage tone={status.kind === "success" ? "success" : "danger"}>{status.text}</FormMessage> : null}
+          </div>
+        </div>
+      </details>
     </li>
   );
 }
@@ -120,42 +162,24 @@ function CreateTeamForm({ clubId }: { clubId: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <label className={labelClassName}>
-          Nom
-          <input className={inputClassName} placeholder="U11M-1" value={name} onChange={(e) => setName(e.target.value)} required />
-        </label>
-        <label className={labelClassName}>
-          Catégorie
-          <input className={inputClassName} placeholder="U11, SM, …" value={category} onChange={(e) => setCategory(e.target.value)} />
-        </label>
-        <label className={labelClassName}>
-          Sexe
-          <select className={inputClassName} value={sexe} onChange={(e) => setSexe(e.target.value)}>
-            <option value="">—</option>
-            <option value="M">M</option>
-            <option value="F">F</option>
-          </select>
-        </label>
-        <label className={labelClassName}>
-          N° équipe
-          <input className={inputClassName} placeholder="1, 2, …" value={numeroEquipe} onChange={(e) => setNumeroEquipe(e.target.value)} />
-        </label>
-      </div>
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={isPending}
-          className="w-fit rounded-md bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-black/85 disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-white/85"
-        >
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <TeamFields
+        name={name}
+        setName={setName}
+        category={category}
+        setCategory={setCategory}
+        sexe={sexe}
+        setSexe={setSexe}
+        numeroEquipe={numeroEquipe}
+        setNumeroEquipe={setNumeroEquipe}
+        namePlaceholder="U11M-1"
+        nameRequired
+      />
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" variant="primary" loading={isPending} icon={<Plus />}>
           {isPending ? "Création…" : "Créer l'équipe"}
-        </button>
-        {status ? (
-          <p role="status" className={`text-sm ${status.kind === "success" ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-            {status.text}
-          </p>
-        ) : null}
+        </Button>
+        {status ? <FormMessage tone={status.kind === "success" ? "success" : "danger"}>{status.text}</FormMessage> : null}
       </div>
     </form>
   );
@@ -175,26 +199,25 @@ export function TeamsManager({ clubId, teams }: { clubId: string; teams: TeamDto
   const sortedTeams = [...teams].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="mb-2 text-sm font-semibold text-black/70 dark:text-white/70">Nouvelle équipe</h2>
+    <div className="flex flex-col gap-8">
+      <Card>
+        <CardHeader icon={<Plus />} title="Nouvelle équipe" description="Enregistrez une équipe avant même son engagement FFBB confirmé." />
+        <CardDivider />
         <CreateTeamForm clubId={clubId} />
-      </div>
+      </Card>
 
-      <div>
-        <h2 className="mb-2 text-sm font-semibold text-black/70 dark:text-white/70">
-          Équipes ({sortedTeams.length})
-        </h2>
+      <section className="flex flex-col gap-3">
+        <SectionHeader title={`Équipes (${sortedTeams.length})`} description="Ouvrez une équipe pour la renommer, la reclasser ou la désactiver." />
         {sortedTeams.length === 0 ? (
-          <p className="text-sm text-black/60 dark:text-white/60">Aucune équipe enregistrée pour l&apos;instant.</p>
+          <EmptyState icon={<Shirt />} title="Aucune équipe enregistrée pour l'instant" compact />
         ) : (
-          <ul>
+          <ul className="grid grid-cols-1 gap-2.5 xl:grid-cols-2 xl:items-start">
             {sortedTeams.map((team) => (
               <TeamRow key={team.id} clubId={clubId} team={team} />
             ))}
           </ul>
         )}
-      </div>
+      </section>
     </div>
   );
 }

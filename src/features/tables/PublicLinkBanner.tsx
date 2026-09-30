@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Card } from "@/components/ui/Card";
+import { Check, Copy, Link2 } from "lucide-react";
+import { Card, CardHeader } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 
 /**
  * Rappel du lien commun à distribuer (retour du club, 2026-09-29 : "je vais
@@ -24,18 +26,17 @@ export function PublicLinkBanner({ clubSlug }: { clubSlug: string }) {
   }
 
   return (
-    <Card title="Lien commun à distribuer">
-      <p className="mt-1 text-sm text-black/60 dark:text-white/60">Un seul lien pour tout le monde — chacun choisit ensuite son nom dans la liste.</p>
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <code className="rounded-md bg-black/5 px-2 py-1 text-xs dark:bg-white/10">{path}</code>
-        <button
-          type="button"
-          onClick={copy}
-          className="shrink-0 rounded-md border border-black/15 px-3 py-1.5 text-xs font-medium hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
-        >
+    <Card variant="glow">
+      <CardHeader icon={<Link2 />} title="Lien commun à distribuer" description="Un seul lien pour tout le monde — chacun choisit ensuite son nom dans la liste." />
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <code className="type-numeric min-w-0 flex-1 truncate rounded-md border border-border bg-surface px-3 py-2.5 text-[13px] text-foreground">{path}</code>
+        <Button variant={copied ? "success" : "primary"} onClick={copy} icon={copied ? <Check /> : <Copy />}>
           {copied ? "Copié !" : "Copier le lien"}
-        </button>
+        </Button>
       </div>
+      <p aria-live="polite" className="sr-only">
+        {copied ? "Lien copié dans le presse-papiers" : ""}
+      </p>
     </Card>
   );
 }

@@ -1,7 +1,11 @@
-import Link from "next/link";
+import { AlertTriangle, ArrowRight, CalendarRange, CheckCircle2, CircleOff, FileText, KeyRound, PlugZap } from "lucide-react";
 import { requireClubAdminContext } from "@/lib/tenancy/club-context";
 import { api } from "@/lib/api/server";
-import { Card } from "@/components/ui/Card";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { DataList } from "@/components/ui/DataList";
+import { ButtonLink } from "@/components/ui/Button";
+import { Notice } from "@/components/ui/Notice";
+import { IntegrationCard } from "@/features/admin/IntegrationCard";
 import { TriggerFfbbSyncButton } from "@/features/admin/TriggerFfbbSyncButton";
 
 function formatDateTime(value: string | null | undefined): string {
@@ -11,96 +15,118 @@ function formatDateTime(value: string | null | undefined): string {
 /**
  * §19 de la demande : `GET /v1/clubs/:clubId/integrations` +
  * `GET /v1/clubs/:clubId/capabilities`, plus aucun accès Supabase direct.
- *
- * BACKEND_API_GAP (voir docs/MIGRATION_TO_API.md) : le code FFBB du club
- * (`club.ffbbClubId`, affiché ici auparavant) n'est pas exposé par
- * `ClubDto` (GET /v1/clubs, GET /v1/clubs/:clubId) — seulement par
- * `PlatformClubDto`, réservé au platform_admin. De même, le libellé
- * "Dernier import e-Marque" (rencontre + date) n'a pas d'équivalent API
- * (pas de liste `emarque_imports` exposée) : il n'est plus affiché ici.
+ * Le statut e-Marque affiché est celui exposé par l'API
+ * (`fbi.autoImportEmarque`, `capabilities.emarque`) — jamais déduit ici.
  */
 export default async function IntegrationsPage({ params }: { params: Promise<{ clubSlug: string }> }) {
   const { clubSlug } = await params;
   const club = await requireClubAdminContext(clubSlug);
 
   const [integrations, capabilities] = await Promise.all([api.integrations.get(club.id), api.clubs.capabilities(club.id)]);
+  const fbiHref = `/c/${clubSlug}/admin/integrations/fbi`;
+  const fbi = integrations.fbi;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-lg font-semibold">Intégrations</h1>
-        <p className="mt-1 text-sm text-black/60 dark:text-white/60">
-          Sources de données automatiques de {club.name}. Aucune opération manuelle sur fichier n&apos;est nécessaire
-          au fonctionnement normal — ces boutons sont des outils de diagnostic admin.
-        </p>
-      </div>
+    <PageContainer width="wide">
+      <PageHeader
+        eyebrow="Administration"
+        title="Intégrations"
+        description={`Sources de données automatiques de ${club.name}. Aucune opération manuelle sur fichier n'est nécessaire au fonctionnement normal — les boutons ci-dessous sont des outils de diagnostic admin.`}
+      />
 
-      <Card title="FFBB (calendrier, résultats, classements)">
-        <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-black/60 dark:text-white/60">Statut</dt>
-            <dd>{integrations.ffbb.enabled ? "Connecté ✅" : "Désactivé"}</dd>
-          </div>
-          <div>
-            <dt className="text-black/60 dark:text-white/60">Dernière synchro</dt>
-            <dd>
-              {formatDateTime(integrations.ffbb.lastSyncAt)}
-              {integrations.ffbb.lastSyncStatus ? ` — ${integrations.ffbb.lastSyncStatus}` : ""}
-            </dd>
-          </div>
-        </dl>
+      {fbi.activeJob ? (
+        <Notice tone="info" title="Une opération FBI est en cours" action={<ButtonLink href={fbiHref} variant="secondary" size="sm">Voir</ButtonLink>}>
+          Les autres actions FBI attendent qu&apos;elle se termine.
+        </Notice>
+      ) : null}
 
-        <TriggerFfbbSyncButton clubId={club.id} />
-      </Card>
-
-      <Card title="FBI (e-Marque, feuilles de match, statistiques)">
-        {!capabilities.fbi ? (
-          <>
-            <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-black/60 dark:text-white/60">Statut</dt>
-                <dd>Non connecté</dd>
-              </div>
-              <div>
-                <dt className="text-black/60 dark:text-white/60">Optionnel</dt>
-                <dd>{club.name} fonctionne normalement sans FBI (calendrier, matchs, résultats).</dd>
-              </div>
-            </dl>
-            <p className="mt-2 text-sm text-black/60 dark:text-white/60">
-              FBI permet d&apos;ajouter automatiquement les feuilles de match, compositions, OTM et statistiques
-              lorsqu&apos;elles sont disponibles.
-            </p>
-          </>
-        ) : (
-          <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-black/60 dark:text-white/60">Statut</dt>
-              <dd>{integrations.fbi.connected ? "Connecté ✅" : "En erreur ⚠️ (le calendrier reste disponible)"}</dd>
-            </div>
-            <div>
-              <dt className="text-black/60 dark:text-white/60">Dernier accès</dt>
-              <dd>{formatDateTime(integrations.fbi.lastLoginAt)}</dd>
-            </div>
-            <div>
-              <dt className="text-black/60 dark:text-white/60">e-Marque</dt>
-              <dd>{integrations.fbi.autoImportEmarque ? "Automatique ✅" : "Désactivé"}</dd>
-            </div>
-            {integrations.fbi.lastError ? (
-              <div className="sm:col-span-2">
-                <dt className="text-black/60 dark:text-white/60">Dernière erreur</dt>
-                <dd className="text-red-600 dark:text-red-400">{integrations.fbi.lastError}</dd>
-              </div>
-            ) : null}
-          </dl>
-        )}
-
-        <Link
-          href={`/c/${clubSlug}/admin/integrations/fbi`}
-          className="mt-4 inline-block rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        <IntegrationCard
+          icon={<CalendarRange />}
+          name="FFBB"
+          role="Calendrier, résultats, classements"
+          status={integrations.ffbb.enabled ? { label: "Connecté", tone: "success", icon: <CheckCircle2 /> } : { label: "Désactivé", tone: "neutral", icon: <CircleOff /> }}
+          footer={<TriggerFfbbSyncButton clubId={club.id} />}
         >
-          {capabilities.fbi ? "Modifier les identifiants / tester la connexion" : "Connecter FBI"}
-        </Link>
-      </Card>
-    </div>
+          <DataList
+            items={[
+              { label: "Dernière synchro", value: formatDateTime(integrations.ffbb.lastSyncAt) },
+              { label: "Résultat", value: integrations.ffbb.lastSyncStatus ?? "—" },
+            ]}
+          />
+        </IntegrationCard>
+
+        <IntegrationCard
+          icon={<KeyRound />}
+          name="FBI"
+          role="e-Marque, feuilles de match, statistiques"
+          highlight={Boolean(fbi.activeJob)}
+          status={
+            !capabilities.fbi
+              ? { label: "Non connecté", tone: "neutral", icon: <PlugZap /> }
+              : fbi.connected
+                ? { label: "Connecté", tone: "success", icon: <CheckCircle2 /> }
+                : { label: "En erreur", tone: "danger", icon: <AlertTriangle /> }
+          }
+          footer={
+            <ButtonLink href={fbiHref} variant={capabilities.fbi ? "secondary" : "primary"} iconRight={<ArrowRight />} className="self-start">
+              {capabilities.fbi ? "Modifier les identifiants / tester la connexion" : "Connecter FBI"}
+            </ButtonLink>
+          }
+        >
+          {!capabilities.fbi ? (
+            <div className="flex flex-col gap-2 text-sm text-muted">
+              <p>
+                <span className="font-medium text-foreground">Optionnel</span> — {club.name} fonctionne normalement sans FBI (calendrier, matchs, résultats).
+              </p>
+              <p>FBI permet d&apos;ajouter automatiquement les feuilles de match, compositions, OTM et statistiques lorsqu&apos;elles sont disponibles.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <DataList
+                items={[
+                  { label: "Identifiant", value: fbi.username ?? "—" },
+                  { label: "Dernier accès", value: formatDateTime(fbi.lastLoginAt) },
+                ]}
+              />
+              {!fbi.connected ? <p className="type-meta">Le calendrier reste disponible.</p> : null}
+              {fbi.lastError ? (
+                <Notice tone="danger" title="Dernière erreur">
+                  {fbi.lastError}
+                </Notice>
+              ) : null}
+            </div>
+          )}
+        </IntegrationCard>
+
+        <IntegrationCard
+          icon={<FileText />}
+          name="e-Marque"
+          role="Composition, officiels, statistiques par joueur"
+          status={
+            !capabilities.fbi
+              ? { label: "Nécessite FBI", tone: "neutral", icon: <CircleOff /> }
+              : fbi.autoImportEmarque
+                ? { label: "Automatique", tone: "success", icon: <CheckCircle2 /> }
+                : { label: "Désactivé", tone: "neutral", icon: <CircleOff /> }
+          }
+          footer={
+            capabilities.fbi ? (
+              <ButtonLink href={fbiHref} variant="ghost" iconRight={<ArrowRight />} className="self-start">
+                Documents et traitement
+              </ButtonLink>
+            ) : undefined
+          }
+        >
+          <p className="text-sm text-muted">
+            {!capabilities.fbi
+              ? "Les feuilles e-Marque sont récupérées via FBI : connectez FBI pour les activer."
+              : fbi.autoImportEmarque
+                ? "Les feuilles de match, compositions, OTM et statistiques disponibles sont récupérées automatiquement pour chaque match joué."
+                : "Récupération automatique désactivée pour l'instant."}
+          </p>
+        </IntegrationCard>
+      </div>
+    </PageContainer>
   );
 }

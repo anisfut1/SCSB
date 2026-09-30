@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
 import type { ImportLicencieRowDto } from "@/lib/api/licencies";
+import { FileSpreadsheet, Upload } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Card, CardHeader } from "@/components/ui/Card";
+import { Field, FormMessage, Textarea } from "@/components/ui/Field";
 
 type Status = { kind: "success" | "error"; text: string } | null;
 
@@ -140,66 +144,63 @@ export function ImportLicenciesPanel({ clubId }: { clubId: string }) {
     });
   }
 
+  const feedback = status ? <FormMessage tone={status.kind === "success" ? "success" : "danger"}>{status.text}</FormMessage> : null;
+
   if (!open) {
     return (
       <div className="flex flex-col items-start gap-2">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
-        >
+        <Button variant="secondary" onClick={() => setOpen(true)} icon={<Upload />}>
           Importer des licenciés
-        </button>
-        {status ? (
-          <p role="status" className={`text-sm ${status.kind === "success" ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-            {status.text}
-          </p>
-        ) : null}
+        </Button>
+        {feedback}
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-black/10 bg-white p-4 text-sm dark:border-white/10 dark:bg-white/5">
-      <p className="font-medium">Importer des licenciés depuis un export FBI</p>
-      <p className="text-black/60 dark:text-white/60">
-        Sur{" "}
-        <a className="underline" href="https://extranet.ffbb.com/fbi/rechercherLicence.fbi" target="_blank" rel="noreferrer">
-          rechercherLicence.fbi
-        </a>
-        , mets « Validation » sur « Validé », lance la recherche, sélectionne tout le tableau de résultat (en-têtes compris) dans Excel, copie-le, et
-        colle-le ci-dessous. Les licenciés déjà connus sont automatiquement ignorés, jamais dupliqués.
-      </p>
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={8}
-        placeholder="Colle ici les lignes copiées depuis Excel (en-têtes sur la première ligne)."
-        className="rounded-md border border-black/15 bg-white px-2 py-1 font-mono text-xs dark:border-white/20 dark:bg-black/20"
-      />
-      <div className="flex gap-2">
-        <button
-          type="button"
-          disabled={isPending || text.trim().length === 0}
-          onClick={submit}
-          className="rounded-md bg-black px-3 py-1.5 font-medium text-white hover:bg-black/80 disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-white/80"
-        >
+    <Card>
+      <CardHeader icon={<FileSpreadsheet />} title="Importer des licenciés depuis un export FBI" />
+      <ol className="mt-4 flex flex-col gap-2 text-sm text-muted">
+        <li className="flex gap-3">
+          <span className="type-numeric inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs text-accent-text">1</span>
+          <span>
+            Sur{" "}
+            <a className="font-medium text-accent-text underline underline-offset-4" href="https://extranet.ffbb.com/fbi/rechercherLicence.fbi" target="_blank" rel="noreferrer">
+              rechercherLicence.fbi
+            </a>
+            , mets « Validation » sur « Validé » et lance la recherche.
+          </span>
+        </li>
+        <li className="flex gap-3">
+          <span className="type-numeric inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs text-accent-text">2</span>
+          <span>Sélectionne tout le tableau de résultat (en-têtes compris) dans Excel et copie-le.</span>
+        </li>
+        <li className="flex gap-3">
+          <span className="type-numeric inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs text-accent-text">3</span>
+          <span>Colle-le ci-dessous. Les licenciés déjà connus sont automatiquement ignorés, jamais dupliqués.</span>
+        </li>
+      </ol>
+      <Field label="Lignes copiées depuis Excel" className="mt-4">
+        {(props) => (
+          <Textarea
+            {...props}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={8}
+            placeholder="Colle ici les lignes copiées depuis Excel (en-têtes sur la première ligne)."
+            className="font-mono text-xs sm:text-xs"
+          />
+        )}
+      </Field>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Button variant="primary" loading={isPending} disabled={text.trim().length === 0} onClick={submit} icon={<Upload />}>
           {isPending ? "Import en cours…" : "Importer"}
-        </button>
-        <button
-          type="button"
-          disabled={isPending}
-          onClick={() => setOpen(false)}
-          className="rounded-md border border-black/15 px-3 py-1.5 hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10"
-        >
+        </Button>
+        <Button variant="ghost" disabled={isPending} onClick={() => setOpen(false)}>
           Fermer
-        </button>
+        </Button>
       </div>
-      {status ? (
-        <p role="status" className={`text-sm ${status.kind === "success" ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-          {status.text}
-        </p>
-      ) : null}
-    </div>
+      {feedback ? <div className="mt-3">{feedback}</div> : null}
+    </Card>
   );
 }

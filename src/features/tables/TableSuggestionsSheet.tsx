@@ -3,6 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Clipboard, Clock, MapPin, Navigation, Search, Sparkles, UserRound } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
+import { Button } from "@/components/ui/Button";
+import { StatusBadge } from "@/components/ui/Badge";
+import { Input } from "@/components/ui/Field";
+import { Notice } from "@/components/ui/Notice";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { PersonAvatar } from "@/components/ui/Avatar";
+import { cn } from "@/components/ui/cn";
 import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
 import type { SuggestionReasonCode, TableAssignmentRole, TableAssignmentResultDto, TableSuggestionCandidateDto, TableSuggestionsDto, TableUnavailableCandidateDto, UnavailableReasonCode } from "@/lib/api/tables";
@@ -29,51 +36,46 @@ function matchesSearch(query: string, name: string, teams: { name: string }[]): 
 
 function CandidateRow({ candidate, onChoose, choosing }: { candidate: TableSuggestionCandidateDto; onChoose: () => void; choosing: boolean }) {
   const name = `${candidate.licencie.firstName} ${candidate.licencie.lastName}`;
+  const recommended = candidate.eligibility === "RECOMMENDED";
   return (
-    <li className="flex flex-col gap-2 rounded-lg border border-black/10 p-3 dark:border-white/10">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex flex-col">
-          <span className="text-sm font-medium text-black/90 dark:text-white/90">{name}</span>
-          {candidate.teams.length > 0 ? <span className="text-xs text-black/50 dark:text-white/50">{candidate.teams.map((t) => t.name).join(", ")}</span> : null}
+    <li className={cn("flex flex-col gap-3 rounded-[var(--radius-md)] border bg-surface-raised p-3 shadow-1", recommended ? "border-accent-border" : "border-border")}>
+      <div className="flex items-start gap-3">
+        <PersonAvatar name={name} size="sm" />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-sm font-medium text-foreground">{name}</span>
+          {candidate.teams.length > 0 ? <span className="type-meta truncate text-xs">{candidate.teams.map((t) => t.name).join(", ")}</span> : null}
         </div>
-        <span
-          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-            candidate.eligibility === "RECOMMENDED" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" : "bg-black/5 text-black/60 dark:bg-white/10 dark:text-white/60"
-          }`}
-        >
-          {candidate.eligibility === "RECOMMENDED" ? "Recommandé" : "Potentiellement disponible"}
-        </span>
+        <StatusBadge tone={recommended ? "success" : "neutral"} size="sm">
+          {recommended ? "Recommandé" : "Potentiellement disponible"}
+        </StatusBadge>
       </div>
 
-      <ul className="flex flex-col gap-1">
-        {candidate.reasons.map((reason) => {
-          const Icon = REASON_ICON[reason.code];
-          return (
-            <li key={reason.code} className="flex items-center gap-1.5 text-xs text-black/60 dark:text-white/60">
-              <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              {reason.label}
-            </li>
-          );
-        })}
-      </ul>
+      {candidate.reasons.length > 0 ? (
+        <ul className="flex flex-col gap-1 pl-12">
+          {candidate.reasons.map((reason) => {
+            const Icon = REASON_ICON[reason.code];
+            return (
+              <li key={reason.code} className="flex items-center gap-1.5 text-xs text-muted">
+                <Icon className="size-3.5 shrink-0 text-subtle" aria-hidden />
+                {reason.label}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
 
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 pl-12">
         {candidate.isCurrentHolder ? (
-          <span className="flex items-center gap-1 text-xs font-medium text-black/50 dark:text-white/50">
-            <Sparkles className="h-3.5 w-3.5" aria-hidden />
+          <span className="flex items-center gap-1 text-xs font-medium text-accent-text">
+            <Sparkles className="size-3.5" aria-hidden />
             Affecté actuellement
           </span>
         ) : (
           <span />
         )}
-        <button
-          type="button"
-          onClick={onChoose}
-          disabled={choosing || candidate.isCurrentHolder}
-          className="rounded-md bg-black px-3 py-1.5 text-xs font-medium text-white hover:bg-black/80 disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-white/80"
-        >
-          {candidate.isCurrentHolder ? "Déjà affecté" : choosing ? "…" : "Choisir"}
-        </button>
+        <Button variant={recommended ? "primary" : "secondary"} size="sm" onClick={onChoose} disabled={candidate.isCurrentHolder} loading={choosing}>
+          {candidate.isCurrentHolder ? "Déjà affecté" : "Choisir"}
+        </Button>
       </div>
     </li>
   );
@@ -83,19 +85,31 @@ function UnavailableRow({ candidate }: { candidate: TableUnavailableCandidateDto
   const name = `${candidate.licencie.firstName} ${candidate.licencie.lastName}`;
   const Icon = UNAVAILABLE_ICON[candidate.reasonCode];
   return (
-    <li className="flex flex-col gap-1.5 rounded-lg border border-black/10 p-3 opacity-60 dark:border-white/10">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex flex-col">
-          <span className="text-sm font-medium text-black/90 dark:text-white/90">{name}</span>
-          {candidate.teams.length > 0 ? <span className="text-xs text-black/50 dark:text-white/50">{candidate.teams.map((t) => t.name).join(", ")}</span> : null}
+    <li className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-border bg-surface p-3">
+      <div className="flex items-start gap-3">
+        <PersonAvatar name={name} size="sm" className="opacity-60" />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-sm font-medium text-muted">{name}</span>
+          {candidate.teams.length > 0 ? <span className="type-meta truncate text-xs">{candidate.teams.map((t) => t.name).join(", ")}</span> : null}
         </div>
-        <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-800 dark:bg-red-900/40 dark:text-red-300">Indisponible</span>
+        <StatusBadge tone="danger" size="sm">
+          Indisponible
+        </StatusBadge>
       </div>
-      <span className="flex items-center gap-1.5 text-xs text-black/60 dark:text-white/60">
-        <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      <span className="flex items-center gap-1.5 pl-12 text-xs text-muted">
+        <Icon className="size-3.5 shrink-0 text-subtle" aria-hidden />
         {candidate.reason}
       </span>
     </li>
+  );
+}
+
+function SectionTitle({ children, count }: { children: React.ReactNode; count: number }) {
+  return (
+    <h3 className="type-eyebrow flex items-center gap-2">
+      {children}
+      <span className="type-numeric rounded-full bg-surface-muted px-1.5 text-[11px] normal-case leading-5 tracking-normal text-muted">{count}</span>
+    </h3>
   );
 }
 
@@ -195,29 +209,40 @@ export function TableSuggestionsSheet({
   }
 
   return (
-    <Sheet open={open} onClose={onClose} title={chooseRolePanelTitle(role)}>
-      <div className="flex flex-col gap-4">
-        <label className="flex items-center gap-2 rounded-md border border-black/15 px-2.5 py-1.5 dark:border-white/20">
-          <Search className="h-4 w-4 shrink-0 text-black/40 dark:text-white/40" aria-hidden />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher un nom, une équipe…"
-            className="w-full bg-transparent text-sm outline-none placeholder:text-black/40 dark:placeholder:text-white/40"
-          />
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={chooseRolePanelTitle(role)}
+      description={`Aucune suggestion n'est affectée automatiquement — ${TABLE_ROLE_LABELS[role].toLowerCase()} choisi uniquement sur clic « Choisir ».`}
+    >
+      <div className="flex flex-col gap-5">
+        <label className="relative block">
+          <span className="sr-only">Rechercher un nom, une équipe</span>
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" aria-hidden />
+          <Input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un nom, une équipe…" className="pl-10" />
         </label>
 
-        {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+        {error ? <Notice tone="danger" live>{error}</Notice> : null}
 
         {loading ? (
-          <p className="text-sm text-black/50 dark:text-white/50">Chargement des suggestions…</p>
+          <div role="status" aria-live="polite" className="flex flex-col gap-2">
+            <span className="sr-only">Chargement des suggestions…</span>
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center gap-3 rounded-[var(--radius-md)] border border-border p-3">
+                <Skeleton className="size-9 rounded-full" />
+                <div className="flex flex-1 flex-col gap-2">
+                  <Skeleton className="h-3.5 w-1/2" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : filtered ? (
-          <div className="flex flex-col gap-5">
-            <section className="flex flex-col gap-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-black/50 dark:text-white/50">Recommandés</h3>
+          <div className="flex flex-col gap-6">
+            <section className="flex flex-col gap-2.5">
+              <SectionTitle count={filtered.recommended.length}>Recommandés</SectionTitle>
               {filtered.recommended.length === 0 ? (
-                <p className="text-sm text-black/40 dark:text-white/40">Aucun candidat recommandé pour ce poste.</p>
+                <p className="type-meta">Aucun candidat recommandé pour ce poste.</p>
               ) : (
                 <ul className="flex flex-col gap-2">
                   {filtered.recommended.map((c) => (
@@ -227,10 +252,10 @@ export function TableSuggestionsSheet({
               )}
             </section>
 
-            <section className="flex flex-col gap-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-black/50 dark:text-white/50">Potentiellement disponibles</h3>
+            <section className="flex flex-col gap-2.5">
+              <SectionTitle count={filtered.available.length}>Potentiellement disponibles</SectionTitle>
               {filtered.available.length === 0 ? (
-                <p className="text-sm text-black/40 dark:text-white/40">Aucun autre candidat sans conflit connu.</p>
+                <p className="type-meta">Aucun autre candidat sans conflit connu.</p>
               ) : (
                 <ul className="flex flex-col gap-2">
                   {filtered.available.map((c) => (
@@ -241,8 +266,8 @@ export function TableSuggestionsSheet({
             </section>
 
             {filtered.unavailable.length > 0 ? (
-              <section className="flex flex-col gap-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-black/50 dark:text-white/50">Indisponibles</h3>
+              <section className="flex flex-col gap-2.5">
+                <SectionTitle count={filtered.unavailable.length}>Indisponibles</SectionTitle>
                 <ul className="flex flex-col gap-2">
                   {filtered.unavailable.map((c) => (
                     <UnavailableRow key={c.licencie.id} candidate={c} />
@@ -252,8 +277,6 @@ export function TableSuggestionsSheet({
             ) : null}
           </div>
         ) : null}
-
-        <p className="text-xs text-black/40 dark:text-white/40">Aucune suggestion n&apos;est affectée automatiquement — {TABLE_ROLE_LABELS[role].toLowerCase()} choisi uniquement sur clic « Choisir ».</p>
       </div>
     </Sheet>
   );

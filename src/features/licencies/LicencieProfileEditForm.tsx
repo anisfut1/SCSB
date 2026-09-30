@@ -6,6 +6,9 @@ import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
 import type { LicencieDto } from "@/lib/api/licencies";
 import type { TeamDto } from "@/lib/api/clubs";
+import { Save } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Checkbox, Field, FormMessage, Input, Select } from "@/components/ui/Field";
 
 type Status = { kind: "success" | "error"; text: string } | null;
 
@@ -64,79 +67,60 @@ export function LicencieProfileEditForm({
     });
   }
 
-  const inputClassName = "mt-1 w-full rounded-md border border-black/15 px-3 py-1.5 text-sm dark:border-white/20 dark:bg-transparent";
-  const labelClassName = "block text-sm font-medium";
-
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       {mode === "admin" ? (
         <>
-          <div className="grid grid-cols-2 gap-3">
-            <label className={labelClassName}>
-              Prénom
-              <input className={inputClassName} value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-            </label>
-            <label className={labelClassName}>
-              Nom
-              <input className={inputClassName} value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-            </label>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Prénom" required>
+              {(props) => <Input {...props} value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="off" />}
+            </Field>
+            <Field label="Nom" required>
+              {(props) => <Input {...props} value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="off" />}
+            </Field>
+            <Field label="Numéro de licence" optional>
+              {(props) => <Input {...props} value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} />}
+            </Field>
+            <Field label="Date de naissance" optional>
+              {(props) => <Input {...props} type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />}
+            </Field>
+            <Field label="Équipe">
+              {(props) => (
+                <Select {...props} value={teamId} onChange={(e) => setTeamId(e.target.value)}>
+                  <option value="">Sans équipe</option>
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            <div className="flex items-end">
+              <Checkbox label="Licencié·e actif·ve" checked={active} onChange={(e) => setActive(e.target.checked)} />
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <label className={labelClassName}>
-              Numéro de licence
-              <input className={inputClassName} value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} />
-            </label>
-            <label className={labelClassName}>
-              Date de naissance
-              <input type="date" className={inputClassName} value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
-            </label>
-          </div>
-          <label className={labelClassName}>
-            Équipe
-            <select className={inputClassName} value={teamId} onChange={(e) => setTeamId(e.target.value)}>
-              <option value="">Sans équipe</option>
-              {teams.map((team) => (
-                <option key={team.id} value={team.id}>
-                  {team.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
-            Licencié·e actif·ve
-          </label>
+          <hr className="border-border" />
         </>
       ) : null}
 
-      <label className={labelClassName}>
-        Photo (URL)
-        <input type="url" placeholder="https://…" className={inputClassName} value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} />
-      </label>
-      <div className="grid grid-cols-2 gap-3">
-        <label className={labelClassName}>
-          Email
-          <input type="email" className={inputClassName} value={email} onChange={(e) => setEmail(e.target.value)} />
-        </label>
-        <label className={labelClassName}>
-          Téléphone
-          <input className={inputClassName} value={phone} onChange={(e) => setPhone(e.target.value)} />
-        </label>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Photo (URL)" optional className="sm:col-span-2">
+          {(props) => <Input {...props} type="url" placeholder="https://…" value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} />}
+        </Field>
+        <Field label="Email" optional>
+          {(props) => <Input {...props} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />}
+        </Field>
+        <Field label="Téléphone" optional>
+          {(props) => <Input {...props} type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />}
+        </Field>
       </div>
 
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={isPending}
-          className="w-fit rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10"
-        >
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" variant="primary" loading={isPending} icon={<Save />}>
           {isPending ? "Enregistrement…" : "Enregistrer"}
-        </button>
-        {status ? (
-          <p role="status" className={`text-sm ${status.kind === "success" ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-            {status.text}
-          </p>
-        ) : null}
+        </Button>
+        {status ? <FormMessage tone={status.kind === "success" ? "success" : "danger"}>{status.text}</FormMessage> : null}
       </div>
     </form>
   );

@@ -1,5 +1,8 @@
+import { RefreshCw } from "lucide-react";
 import { requireClubAdminContext } from "@/lib/tenancy/club-context";
 import { api } from "@/lib/api/server";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { ButtonLink } from "@/components/ui/Button";
 import { DerogationsList } from "@/features/admin/DerogationsList";
 
 /**
@@ -13,8 +16,7 @@ import { DerogationsList } from "@/features/admin/DerogationsList";
  * Cours" attendant une décision DU CLUB (badge "Action requise") peut être
  * acceptée/refusée RÉELLEMENT depuis cette page (voir
  * `RespondToDerogationAction`) — ÉCRIT sur FBI/FFBB, jamais annulable
- * depuis cet outil une fois confirmé. Tout le reste de cette page reste de
- * la consultation (voir docs/FBI.md côté club-manager-api).
+ * depuis cet outil une fois confirmé.
  */
 export default async function DerogationsPage({ params }: { params: Promise<{ clubSlug: string }> }) {
   const { clubSlug } = await params;
@@ -23,17 +25,18 @@ export default async function DerogationsPage({ params }: { params: Promise<{ cl
   const derogations = await api.derogations.list(club.id);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-lg font-semibold">Dérogations</h1>
-        <p className="mt-1 text-sm text-black/60 dark:text-white/60">
-          Demandes de dérogation FBI connues pour {club.name}. Utilise « Vérifier toutes les dérogations » sur la page
-          Intégrations → FBI pour rafraîchir cette liste. Une dérogation marquée « Action requise » peut être acceptée
-          ou refusée directement ici — action réelle transmise à la FFBB, jamais annulable depuis cet outil.
-        </p>
-      </div>
-
+    <PageContainer width="default">
+      <PageHeader
+        eyebrow="Administration"
+        title="Dérogations"
+        description={`Demandes de dérogation FBI connues pour ${club.name}. Une dérogation marquée « Action requise » peut être acceptée ou refusée directement ici — action réelle transmise à la FFBB, jamais annulable depuis cet outil.`}
+        actions={
+          <ButtonLink href={`/c/${clubSlug}/admin/integrations/fbi`} variant="secondary" icon={<RefreshCw />}>
+            Vérifier sur FBI
+          </ButtonLink>
+        }
+      />
       <DerogationsList clubId={club.id} clubSlug={clubSlug} derogations={derogations} />
-    </div>
+    </PageContainer>
   );
 }

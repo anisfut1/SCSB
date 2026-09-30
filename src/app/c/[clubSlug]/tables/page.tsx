@@ -1,8 +1,12 @@
 import Link from "next/link";
+import { CalendarCheck, ChevronLeft, ChevronRight, KeyRound } from "lucide-react";
 import { requireAnyClubRoleContext } from "@/lib/tenancy/club-context";
 import { isClubAdmin } from "@/lib/permissions/roles";
 import { api } from "@/lib/api/server";
 import { addDaysToDateString, currentOrNextWeekendSaturday, formatWeekendLabel, weekendRangeForSaturday } from "@/lib/timezone";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { ButtonLink, buttonClasses } from "@/components/ui/Button";
+import { cn } from "@/components/ui/cn";
 import { DaySummary } from "@/features/tables/DaySummary";
 import { TablesBoard } from "@/features/tables/TablesBoard";
 
@@ -13,12 +17,8 @@ import { TablesBoard } from "@/features/tables/TablesBoard";
  * lieu de fonctionner par jour, fonctionne par journée (1 journée = semaine
  * weekend)"). Matchs à domicile uniquement (§4/§36 — un match extérieur ne
  * sert qu'à calculer l'indisponibilité, jamais affiché ici), chaque match =
- * une card avec ses 3 postes. Accessible à club_admin ET responsable_tables
+ * une card avec ses postes. Accessible à club_admin ET responsable_tables
  * (§31, même porte que club-manager-api — voir `requireAnyClubRole` côté API).
- *
- * Aucune donnée factice avant que le backend soit prêt (§68) : cette page
- * n'existe QUE depuis que les 4 routes Tables de marque sont réellement
- * exposées par club-manager-api.
  */
 export default async function TablesPage({
   params,
@@ -40,44 +40,48 @@ export default async function TablesPage({
   const previousWeekend = addDaysToDateString(saturday, -7);
   const nextWeekend = addDaysToDateString(saturday, 7);
   const defaultWeekend = currentOrNextWeekendSaturday(club.timezone);
+  const base = `/c/${clubSlug}/tables`;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h1 className="text-lg font-semibold">Tables de marque</h1>
-          <p className="mt-1 text-sm text-black/60 dark:text-white/60">{formatWeekendLabel(saturday)}</p>
-        </div>
-        {isClubAdmin(club.roles) ? (
-          <Link
-            href={`/c/${clubSlug}/tables/public-access`}
-            className="shrink-0 rounded-md border border-black/15 px-3 py-1.5 text-xs font-medium hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
-          >
-            Gérer les accès publics
-          </Link>
-        ) : null}
-      </div>
+    <PageContainer width="wide">
+      <PageHeader
+        eyebrow="Matchs à domicile"
+        title="Tables de marque"
+        description="Marqueur, chronométreur, délégué de club et arbitre : un poste à la fois, choisi parmi des suggestions expliquées."
+        actions={
+          isClubAdmin(club.roles) ? (
+            <ButtonLink href={`${base}/public-access`} variant="secondary" icon={<KeyRound />}>
+              Gérer les accès publics
+            </ButtonLink>
+          ) : null
+        }
+      />
 
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Link href={`/c/${clubSlug}/tables?weekend=${previousWeekend}`} className="rounded-full border border-black/15 px-3 py-1 hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10">
-          ← Journée précédente
-        </Link>
-        <Link href={`/c/${clubSlug}/tables?weekend=${nextWeekend}`} className="rounded-full border border-black/15 px-3 py-1 hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10">
-          Journée suivante →
-        </Link>
+      <nav aria-label="Choisir la journée" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <Link href={`${base}?weekend=${previousWeekend}`} aria-label="Journée précédente" title="Journée précédente" className={buttonClasses({ variant: "secondary", className: "w-11 px-0 sm:w-10" })}>
+            <ChevronLeft aria-hidden />
+          </Link>
+          <p className="type-card min-w-0 flex-1 px-2 text-center text-foreground sm:min-w-[260px]" aria-live="polite">
+            {formatWeekendLabel(saturday)}
+          </p>
+          <Link href={`${base}?weekend=${nextWeekend}`} aria-label="Journée suivante" title="Journée suivante" className={buttonClasses({ variant: "secondary", className: "w-11 px-0 sm:w-10" })}>
+            <ChevronRight aria-hidden />
+          </Link>
+        </div>
         <Link
-          href={`/c/${clubSlug}/tables?weekend=${defaultWeekend}`}
-          className={`rounded-full border px-3 py-1 ${
-            saturday === defaultWeekend ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : "border-black/15 hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
-          }`}
+          href={`${base}?weekend=${defaultWeekend}`}
+          aria-current={saturday === defaultWeekend ? "true" : undefined}
+          className={cn(buttonClasses({ variant: saturday === defaultWeekend ? "outline" : "ghost" }), saturday === defaultWeekend && "border-accent-border bg-accent-soft text-accent-text")}
         >
+          <CalendarCheck aria-hidden />
           Ce week-end
         </Link>
-      </div>
+      </nav>
 
       <DaySummary matches={matches} />
 
       <TablesBoard clubId={club.id} matches={matches} />
-    </div>
+    </PageContainer>
   );
 }

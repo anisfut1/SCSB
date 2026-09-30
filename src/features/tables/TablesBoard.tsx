@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { TableAssignmentsForMatchDto } from "@/lib/api/tables";
+import { ClipboardList } from "lucide-react";
+import { EmptyState } from "@/components/ui/States";
+import { Toast } from "@/components/ui/Toast";
 import { TableMatchCard } from "./TableMatchCard";
 
 /**
@@ -29,20 +32,17 @@ export function TablesBoard({ clubId, matches }: { clubId: string; matches: Tabl
   }
 
   if (matches.length === 0) {
-    return <p className="rounded-lg border border-black/10 bg-black/[0.02] p-4 text-sm text-black/60 dark:border-white/10 dark:bg-white/5 dark:text-white/60">Aucun match à domicile cette journée.</p>;
+    return <EmptyState icon={<ClipboardList />} title="Aucun match à domicile cette journée" description="Changez de journée pour préparer les tables d'un autre week-end." />;
   }
 
   return (
     <div className="flex flex-col gap-4">
-      {toast ? (
-        <p role="status" className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
-          {toast}
-        </p>
-      ) : null}
-
-      {matches.map((match) => (
-        <TableMatchCard key={match.match.id} clubId={clubId} match={match} onChanged={handleChanged} />
-      ))}
+      {toast ? <Toast message={toast} /> : null}
+      <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
+        {matches.map((match) => (
+          <TableMatchCard key={match.match.id} clubId={clubId} match={match} onChanged={handleChanged} />
+        ))}
+      </div>
     </div>
   );
 }

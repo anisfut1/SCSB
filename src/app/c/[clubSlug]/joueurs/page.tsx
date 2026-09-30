@@ -1,7 +1,10 @@
+import { Users } from "lucide-react";
 import { requireClubContext } from "@/lib/tenancy/club-context";
 import { api } from "@/lib/api/server";
-import { Card } from "@/components/ui/Card";
 import { isClubAdmin } from "@/lib/permissions/roles";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/ui/States";
+import { StatusBadge } from "@/components/ui/Badge";
 import { ImportLicenciesPanel } from "@/features/licencies/ImportLicenciesPanel";
 import { RosterBoard } from "@/features/licencies/RosterBoard";
 
@@ -24,26 +27,35 @@ export default async function JoueursPage({ params }: { params: Promise<{ clubSl
   const isAdmin = isClubAdmin(club.roles);
   const [licencies, teams] = await Promise.all([api.licencies.list(club.id), api.clubs.teams(club.id)]);
 
-  if (licencies.length === 0) {
-    return (
-      <div className="flex flex-col gap-6">
-        <h1 className="text-lg font-semibold">Licenciés</h1>
-        {isAdmin ? <ImportLicenciesPanel clubId={club.id} /> : null}
-        <Card title="Aucun licencié pour l'instant">
-          <p className="mt-1 text-sm text-black/60 dark:text-white/60">
-            Les licencié·e·s du club sont créé·e·s automatiquement à partir des documents e-Marque importés (numéro de licence lu sur une feuille de
-            match), ou peuvent être ajouté·e·s manuellement par un·e administrateur·rice.
-          </p>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-lg font-semibold">Licenciés</h1>
+    <PageContainer width="wide">
+      <PageHeader
+        eyebrow="Effectif"
+        title="Joueurs"
+        description="Licenciés du club, regroupés par équipe. Chaque fiche retrace les matchs et statistiques lus sur les feuilles e-Marque."
+        meta={
+          licencies.length > 0 ? (
+            <>
+              <StatusBadge tone="neutral" icon={<Users />}>
+                {licencies.length} licencié{licencies.length > 1 ? "s" : ""}
+              </StatusBadge>
+              <StatusBadge tone="neutral">
+                {teams.length} équipe{teams.length > 1 ? "s" : ""}
+              </StatusBadge>
+            </>
+          ) : null
+        }
+      />
       {isAdmin ? <ImportLicenciesPanel clubId={club.id} /> : null}
-      <RosterBoard clubId={club.id} clubSlug={clubSlug} licencies={licencies} teams={teams} isAdmin={isAdmin} />
-    </div>
+      {licencies.length === 0 ? (
+        <EmptyState
+          icon={<Users />}
+          title="Aucun licencié pour l'instant"
+          description="Les licencié·e·s du club sont créé·e·s automatiquement à partir des documents e-Marque importés (numéro de licence lu sur une feuille de match), ou peuvent être ajouté·e·s manuellement par un·e administrateur·rice."
+        />
+      ) : (
+        <RosterBoard clubId={club.id} clubSlug={clubSlug} licencies={licencies} teams={teams} isAdmin={isAdmin} />
+      )}
+    </PageContainer>
   );
 }
