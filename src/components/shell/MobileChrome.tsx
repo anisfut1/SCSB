@@ -158,5 +158,6 @@ export function MobileChrome({
 
 /** Libellés courts pour la barre du bas (≤ 10 caractères visibles). */
 function shortLabel(label: string): string {
-  return label === "Tables de marque" ? "Tables" : label;
+  if (label === "Tables de marque") return "Tables";
+  return label;
 }

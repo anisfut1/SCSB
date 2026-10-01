@@ -73,9 +73,16 @@ export function buildPlatformNav(): NavSection[] {
   ];
 }
 
-/** Barre du bas mobile : 3–4 destinations fréquentes + « Menu ». */
+/**
+ * Barre du bas mobile : Accueil, Matchs, Dérogations (admin) — sinon Joueurs —,
+ * Tables, puis « Menu » (toutes les autres sections). Retour du club,
+ * 2026-10-01 : « dans le menu en bas remplace joueurs par dérogations ».
+ */
 export function buildMobilePrimary(sections: NavSection[]): NavItem[] {
-  return sections[0]?.items.slice(0, 4) ?? [];
+  const all = sections.flatMap((section) => section.items);
+  const pick = (icon: NavIcon) => all.find((item) => item.icon === icon);
+  const third = pick("derogations") ?? pick("players");
+  return [pick("home"), pick("matches"), third, pick("tables")].filter((item): item is NavItem => Boolean(item));
 }
 
 export function isActive(pathname: string, item: NavItem): boolean {
