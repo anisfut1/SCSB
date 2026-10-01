@@ -10,6 +10,8 @@ import * as platform from "./platform";
 import * as derogations from "./derogations";
 import * as tables from "./tables";
 import * as standings from "./standings";
+import * as derogationRequests from "./derogationRequests";
+import * as members from "./members";
 
 /**
  * Fonctions ergonomiques (§40 de la demande) : un composant appelle
@@ -52,6 +54,24 @@ export function createApi(fetcher: ApiFetcher) {
     },
     standings: {
       list: (clubId: string) => standings.listStandings(fetcher, clubId),
+    },
+    derogationRequests: {
+      context: (clubId: string) => derogationRequests.getDerogationContext(fetcher, clubId),
+      list: (clubId: string, params?: derogationRequests.ListDerogationRequestsParams) => derogationRequests.listDerogationRequests(fetcher, clubId, params),
+      get: (clubId: string, requestId: string) => derogationRequests.getDerogationRequest(fetcher, clubId, requestId),
+      create: (clubId: string, body: derogationRequests.CreateDerogationRequestDto) => derogationRequests.createDerogationRequest(fetcher, clubId, body),
+      message: (clubId: string, requestId: string, message: string) => derogationRequests.postDerogationMessage(fetcher, clubId, requestId, message),
+      action: (clubId: string, requestId: string, action: derogationRequests.DerogationAction, message?: string | null) => derogationRequests.performDerogationAction(fetcher, clubId, requestId, action, message),
+      propose: (clubId: string, requestId: string, body: derogationRequests.ProposeDerogationSlotDto) => derogationRequests.proposeDerogationSlot(fetcher, clubId, requestId, body),
+      availability: (clubId: string, matchId: string, date: string) => derogationRequests.getDerogationAvailability(fetcher, clubId, matchId, date),
+      checkSlot: (clubId: string, matchId: string, startAt: string, venueId: string | null) => derogationRequests.checkDerogationSlot(fetcher, clubId, matchId, startAt, venueId),
+    },
+    members: {
+      list: (clubId: string) => members.listMembers(fetcher, clubId),
+      setRoles: (clubId: string, membershipId: string, roles: members.RoleGrantDto[]) => members.setMemberRoles(fetcher, clubId, membershipId, roles),
+      invite: (clubId: string, email: string, roles: members.RoleGrantDto[]) => members.inviteMember(fetcher, clubId, email, roles),
+      venues: (clubId: string) => members.listClubVenues(fetcher, clubId),
+      updateVenue: (clubId: string, venueId: string, body: members.UpdateClubVenueDto) => members.updateClubVenue(fetcher, clubId, venueId, body),
     },
     derogations: {
       list: (clubId: string) => derogations.listDerogations(fetcher, clubId),

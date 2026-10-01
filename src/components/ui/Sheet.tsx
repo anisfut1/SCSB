@@ -18,6 +18,7 @@ export function Sheet({
   children,
   footer,
   side = "right",
+  width = "default",
 }: {
   open: boolean;
   onClose: () => void;
@@ -26,6 +27,8 @@ export function Sheet({
   children: ReactNode;
   footer?: ReactNode;
   side?: "right" | "bottom";
+  /** `wide` : contenu riche (ex. planning des gymnases) — panneau élargi sur desktop. */
+  width?: "default" | "wide";
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -94,7 +97,10 @@ export function Sheet({
           className={cn(
             "relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[var(--radius-xl)] border border-b-0 border-border bg-surface shadow-4 outline-none [animation:sheet-up_var(--duration-slow)_var(--ease-out)]",
             desktopSide
-              ? "sm:h-[calc(100dvh-16px)] sm:max-h-none sm:w-[460px] sm:self-center sm:rounded-[var(--radius-xl)] sm:border-b sm:mr-2 sm:[animation:sheet-left_var(--duration-slow)_var(--ease-out)]"
+              ? cn(
+                  "sm:h-[calc(100dvh-16px)] sm:max-h-none sm:self-center sm:rounded-[var(--radius-xl)] sm:border-b sm:mr-2 sm:[animation:sheet-left_var(--duration-slow)_var(--ease-out)]",
+                  width === "wide" ? "sm:w-[min(900px,calc(100vw-16px))]" : "sm:w-[460px]",
+                )
               : "sm:mb-4 sm:max-w-lg sm:rounded-[var(--radius-xl)] sm:border-b",
           )}
         >

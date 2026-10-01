@@ -33,6 +33,7 @@ export function MatchDetailView({
   isAdmin,
   playerBasePath,
   showDerogation = false,
+  derogationRequest = null,
 }: {
   match: MatchDetailsDto;
   derogation: DerogationStatusDto | null;
@@ -47,6 +48,8 @@ export function MatchDetailView({
   /** Bloc dérogation affiché uniquement aux admins (club_admin / platform_admin), jamais en public. */
   showDerogation?: boolean;
   playerBasePath?: string;
+  /** Bloc « Demande de dérogation » interne (coach → coordinateur), rendu par la page club. */
+  derogationRequest?: ReactNode;
 }) {
   const admin = mode === "club" && isAdmin;
   // match.teamName vient de teams.name (via team_id) — souvent null en
@@ -69,10 +72,13 @@ export function MatchDetailView({
 
       <div className="[animation:rise-in_var(--duration-slow)_var(--ease-out)]" key={tab}>
         {tab === "informations" ? (
-          showDerogation && mode === "club" ? (
+          mode === "club" && (showDerogation || derogationRequest) ? (
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
               <InformationsPanel match={match} home={home} away={away} />
-              <DerogationCard clubId={derogationClubId} matchId={match.id} derogation={derogation} isAdmin={admin} />
+              <div className="flex min-w-0 flex-col gap-4">
+                {derogationRequest}
+                {showDerogation ? <DerogationCard clubId={derogationClubId} matchId={match.id} derogation={derogation} isAdmin={admin} /> : null}
+              </div>
             </div>
           ) : (
             <InformationsPanel match={match} home={home} away={away} />

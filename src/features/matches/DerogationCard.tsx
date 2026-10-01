@@ -68,7 +68,7 @@ export function DerogationCard({ clubId, matchId, derogation, isAdmin }: { clubI
     <Card>
       <CardHeader
         icon={<CalendarClock />}
-        title="Dérogation"
+        title="Statut officiel (FBI)"
         description={derogation ? `Dernière vérification : ${new Date(derogation.checkedAt).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}` : undefined}
         actions={
           derogation?.actionRequired ? (

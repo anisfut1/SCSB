@@ -13,7 +13,7 @@ export type { ClubRole };
  */
 export const ROLE_LABELS: Record<ClubRole, string> = {
   club_admin: "Administrateur du club",
-  correspondant_club: "Correspondant club",
+  correspondant_club: "Coordinateur",
   responsable_tables: "Responsable tables",
   coach: "Coach",
   joueur: "Joueur",
@@ -36,3 +36,10 @@ export function hasAnyRole(roles: readonly ClubRole[], allowed: readonly ClubRol
 export function isClubAdmin(roles: readonly ClubRole[]): boolean {
   return hasRole(roles, "club_admin");
 }
+
+/**
+ * Demandes de dérogation internes (coach → coordinateur) : coachs,
+ * coordinateur (`correspondant_club`) et club_admin — même porte que
+ * club-manager-api (la portée fine par équipe y est appliquée).
+ */
+export const DEROGATION_REQUEST_ROLES: readonly ClubRole[] = ["club_admin", "correspondant_club", "coach"];

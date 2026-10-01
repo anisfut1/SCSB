@@ -10,12 +10,15 @@ type ErrorEnvelope = components["schemas"]["ErrorEnvelope"];
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
+  /** `error.details` de l'enveloppe (ex. `requestId` d'une demande déjà active, conflits de créneau). */
+  readonly details: Record<string, unknown> | null;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, details: Record<string, unknown> | null = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 
   get isUnauthorized(): boolean {
@@ -51,5 +54,5 @@ export async function toApiError(response: Response): Promise<ApiError> {
     // parsing brute.
   }
 
-  return new ApiError(response.status, body?.error.code ?? "UNKNOWN_ERROR", body?.error.message ?? `Erreur HTTP ${response.status}`);
+  return new ApiError(response.status, body?.error.code ?? "UNKNOWN_ERROR", body?.error.message ?? `Erreur HTTP ${response.status}`, (body?.error.details as Record<string, unknown> | undefined) ?? null);
 }

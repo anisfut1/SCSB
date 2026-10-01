@@ -2,11 +2,12 @@ import { notFound } from "next/navigation";
 import { requireClubContext } from "@/lib/tenancy/club-context";
 import { api } from "@/lib/api/server";
 import { ApiError } from "@/lib/api/client";
-import { isClubAdmin } from "@/lib/permissions/roles";
+import { DEROGATION_REQUEST_ROLES, hasAnyRole, isClubAdmin } from "@/lib/permissions/roles";
 import { getShellIdentity } from "@/components/shell/session";
 import { PageContainer, BackButton } from "@/components/ui/PageHeader";
 import { MatchDetailView } from "@/features/matches/detail/MatchDetailView";
 import { parseMatchTab } from "@/features/matches/detail/labels";
+import { MatchRequestCard } from "@/features/derogation-requests/MatchRequestCard";
 import type { DerogationStatusDto, MatchDetailsDto } from "@/lib/api/matches";
 
 /**
@@ -40,6 +41,15 @@ export default async function MatchDetailPage({
     throw error;
   }
 
+  // Demande de dérogation INTERNE (coach → coordinateur) : coachs, coordinateur, admin.
+  // Bloc secondaire : une panne de ce module ne doit jamais casser la fiche match.
+  const internal =
+    tab === "informations" && hasAnyRole(club.roles, DEROGATION_REQUEST_ROLES)
+      ? await Promise.all([api.derogationRequests.list(club.id, { matchId: id, limit: 5 }), api.derogationRequests.context(club.id)]).catch(() => null)
+      : null;
+
+  const internalCanCreate = internal ? internal[1].canCreate && internal[1].eligibleMatches.some((m) => m.id === id) : false;
+
   // Documents chargés uniquement pour l'onglet e-Marque (comme avant).
   const documents = tab === "emarque" ? await api.matches.documents(club.id, id) : null;
 
@@ -58,6 +68,17 @@ export default async function MatchDetailPage({
         isAdmin={isAdmin}
         playerBasePath={`/c/${clubSlug}/joueurs`}
         showDerogation={canSeeDerogation}
+        derogationRequest={
+          internal && (internal[0].requests.length > 0 || internalCanCreate) ? (
+            <MatchRequestCard
+              requests={internal[0].requests}
+              canCreate={internalCanCreate}
+              timezone={internal[1].timezone}
+              basePath={`/c/${clubSlug}/derogations`}
+              matchId={id}
+            />
+          ) : null
+        }
       />
     </PageContainer>
   );
