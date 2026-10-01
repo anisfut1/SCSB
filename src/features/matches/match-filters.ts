@@ -1,5 +1,6 @@
 import type { MatchListItemDto } from "@/lib/api/matches";
 import type { TeamDto } from "@/lib/api/clubs";
+import { currentOrNextWeekendSaturday, formatWeekendLabel } from "@/lib/timezone";
 
 /**
  * Filtres de la liste des matchs, partagés entre la vue club
@@ -79,4 +80,37 @@ export function applyMatchFilters(all: MatchListItemDto[], teams: TeamDto[], fil
     const bTime = b.matchDatetime ? new Date(b.matchDatetime).getTime() : 0;
     return filters.when === "past" ? bTime - aTime : aTime - bTime;
   });
+}
+
+export interface WeekendGroup {
+  /** Samedi de la journée (YYYY-MM-DD, Europe/Paris) — clé stable. */
+  saturday: string;
+  label: string;
+  matches: MatchListItemDto[];
+}
+
+/**
+ * Regroupe par journée de championnat = week-end (retour du club,
+ * 2026-10-01 : « dans match faut mettre par weekend (par journée), là c tout
+ * mélangé dans À venir »). Un match en semaine est rattaché au week-end qui
+ * suit (même règle que les Tables de marque, `currentOrNextWeekendSaturday`).
+ * Conserve l'ordre reçu (croissant pour « À venir », décroissant pour
+ * « Passés ») ; les matchs sans date restent dans un groupe final.
+ */
+export function groupMatchesByWeekend(matches: MatchListItemDto[]): WeekendGroup[] {
+  const groups = new Map<string, WeekendGroup>();
+  const undated: MatchListItemDto[] = [];
+  for (const match of matches) {
+    if (!match.matchDatetime) {
+      undated.push(match);
+      continue;
+    }
+    const saturday = currentOrNextWeekendSaturday("Europe/Paris", new Date(match.matchDatetime));
+    const group = groups.get(saturday) ?? { saturday, label: formatWeekendLabel(saturday), matches: [] };
+    group.matches.push(match);
+    groups.set(saturday, group);
+  }
+  const result = [...groups.values()];
+  if (undated.length > 0) result.push({ saturday: "undated", label: "Date à confirmer", matches: undated });
+  return result;
 }

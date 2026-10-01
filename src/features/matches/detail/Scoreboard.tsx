@@ -44,7 +44,7 @@ export function Scoreboard({ match, home, away }: { match: MatchDetailsDto; home
     <section aria-label="Tableau de marque" data-glow="true" className="surface-card overflow-hidden">
       <div aria-hidden className="court-pattern pointer-events-none absolute inset-0 -z-10 opacity-70" />
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 sm:px-6">
-        <p className="type-eyebrow">{[journee, match.numero ? `Rencontre n° ${match.numero}` : null].filter(Boolean).join(" · ") || "Rencontre"}</p>
+        <p className="type-eyebrow min-w-0 truncate">{[match.competitionName, journee, match.numero ? `Rencontre n° ${match.numero}` : null].filter(Boolean).join(" · ") || "Rencontre"}</p>
         <div className="flex flex-wrap gap-1.5">
           {side ? (
             <StatusBadge tone={side.tone} icon={side.icon} size="sm">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyMatchFilters, buildFilterHref, parseMatchFilters } from "./match-filters";
+import { applyMatchFilters, buildFilterHref, groupMatchesByWeekend, parseMatchFilters } from "./match-filters";
 import type { MatchListItemDto } from "@/lib/api/matches";
 
 function match(overrides: Partial<MatchListItemDto>): MatchListItemDto {
@@ -47,5 +47,20 @@ describe("match filters", () => {
     expect(applyMatchFilters(all, teams, { when: "upcoming", side: "home", team: null }, now).map((m) => m.id)).toEqual(["b"]);
     expect(applyMatchFilters(all, teams, { when: "upcoming", side: "all", team: "t15" }, now).map((m) => m.id)).toEqual(["a"]);
     expect(applyMatchFilters(all, teams, { when: "past", side: "all", team: null }, now).map((m) => m.id)).toEqual(["c"]);
+  });
+
+  it("groups by weekend (Europe/Paris), weekday matches join the next weekend, order kept", () => {
+    const groups = groupMatchesByWeekend([
+      match({ id: "sat", matchDatetime: "2026-10-03T12:00:00Z" }),
+      match({ id: "sun-late", matchDatetime: "2026-10-04T21:30:00Z" }), // 04/10 à 23h30 heure de Paris → dimanche
+      match({ id: "wed", matchDatetime: "2026-10-07T17:00:00Z" }),
+      match({ id: "nodate", matchDatetime: null }),
+    ]);
+    expect(groups.map((g) => [g.saturday, g.matches.map((m) => m.id)])).toEqual([
+      ["2026-10-03", ["sat", "sun-late"]],
+      ["2026-10-10", ["wed"]],
+      ["undated", ["nodate"]],
+    ]);
+    expect(groups[0]!.label).toBe("Week-end du 3 au 4 octobre");
   });
 });

@@ -9,8 +9,19 @@ import type { components } from "./generated/schema";
  * accessible sans authentification (testée en direct par le club,
  * 2026-09-22) : une balise <img> suffit, pas de proxy nécessaire.
  */
-export type MatchListItemDto = components["schemas"]["MatchListItemDto"] & { opponentLogoUrl: string | null };
-export type MatchDetailsDto = components["schemas"]["MatchDetailsDto"] & { opponentLogoUrl: string | null };
+/**
+ * `competitionName` / `categoryLabel` (club-manager-api 4261bc3, 2026-10-01) :
+ * compétition FFBB du match et sa catégorie (ex. "U9") — seule donnée fiable
+ * quand aucune équipe du club n'est rattachée (plateaux U9, brassages).
+ * Optionnels ici : absents tant que l'API déployée ne les renvoie pas encore.
+ */
+interface CompetitionFields {
+  competitionName?: string | null;
+  categoryLabel?: string | null;
+}
+
+export type MatchListItemDto = components["schemas"]["MatchListItemDto"] & { opponentLogoUrl: string | null } & CompetitionFields;
+export type MatchDetailsDto = components["schemas"]["MatchDetailsDto"] & { opponentLogoUrl: string | null } & CompetitionFields;
 export type MatchDocumentDto = components["schemas"]["MatchDocumentDto"];
 export type DerogationStatusDto = components["schemas"]["DerogationStatusDto"];
 export type CreateDerogationDto = components["schemas"]["CreateDerogationDto"];

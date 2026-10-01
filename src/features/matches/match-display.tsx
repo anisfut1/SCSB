@@ -104,3 +104,14 @@ export function journeeLabel(journee: string | null): string | null {
   if (!journee) return null;
   return /^\d+$/.test(journee.trim()) ? `Journée ${journee.trim()}` : journee;
 }
+
+/**
+ * Libellé du côté club : l'équipe rattachée si connue, sinon le club suivi
+ * de la catégorie FFBB de la compétition (« SC Sète Basket · U9 ») — retour
+ * du club, 2026-10-01 : « sur des matchs extérieur, on sait pas c quelle
+ * équipe qui joue ». Jamais une équipe devinée.
+ */
+export function clubSideLabel(match: { teamName: string | null; categoryLabel?: string | null }, clubName: string): string {
+  if (match.teamName) return match.teamName;
+  return match.categoryLabel ? `${clubName} · ${match.categoryLabel}` : clubName;
+}

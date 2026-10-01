@@ -51,7 +51,9 @@ function AgendaColumn({
   matches,
   basePath,
   club,
+  wide = false,
 }: {
+  wide?: boolean;
   label: string;
   matches: MatchListItemDto[];
   basePath: string;
@@ -60,10 +62,10 @@ function AgendaColumn({
   return (
     <section className="flex flex-col gap-3" aria-label={label}>
       <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
-        <h3 className="type-card flex items-center gap-2 text-foreground">
+        <h4 className="type-card flex items-center gap-2 text-foreground">
           <MapPin aria-hidden className="size-4 text-accent-text" />
           {label}
-        </h3>
+        </h4>
         <span className="type-numeric text-xs text-muted">
           {matches.length} match{matches.length > 1 ? "s" : ""}
         </span>
@@ -71,7 +73,7 @@ function AgendaColumn({
       {matches.length === 0 ? (
         <p className="type-meta rounded-[var(--radius-md)] border border-dashed border-border-strong px-4 py-6 text-center">Aucun match dans cette salle.</p>
       ) : (
-        <ul className="grid grid-cols-1 gap-3 min-[440px]:grid-cols-2">
+        <ul className={`grid grid-cols-1 gap-3 min-[440px]:grid-cols-2 ${wide ? "lg:grid-cols-3 2xl:grid-cols-4" : ""}`}>
           {matches.map((match) => (
             <li key={match.id}>
               <MatchCard match={match} href={`${basePath}/${match.id}`} club={club} variant="tile" />
@@ -98,18 +100,19 @@ export function HomeMatchesAgenda({
   basePath: string;
   club: MatchCardClub;
 }) {
-  const columns = HOME_VENUES.map((venue) => ({
-    ...venue,
-    matches: matches.filter((match) => resolveVenueColumnKey(match.venueLabel) === venue.key),
-  }));
   const autreMatches = matches.filter((match) => resolveVenueColumnKey(match.venueLabel) === "autre");
+  // Colonnes vides masquées : avec le regroupement par week-end, une salle
+  // sans match ce week-end-là répéterait sinon « aucun match » à chaque journée.
+  const columns = [
+    ...HOME_VENUES.map((venue) => ({ key: venue.key as string, label: venue.label as string, matches: matches.filter((match) => resolveVenueColumnKey(match.venueLabel) === venue.key) })),
+    { key: "autre", label: "Autre salle", matches: autreMatches },
+  ].filter((column) => column.matches.length > 0);
 
   return (
-    <div className={`grid grid-cols-1 gap-8 ${autreMatches.length > 0 ? "xl:grid-cols-3" : "lg:grid-cols-2"}`}>
+    <div className={`grid grid-cols-1 gap-8 ${columns.length >= 3 ? "xl:grid-cols-3" : columns.length === 2 ? "lg:grid-cols-2" : ""}`}>
       {columns.map((column) => (
-        <AgendaColumn key={column.key} label={column.label} matches={column.matches} basePath={basePath} club={club} />
+        <AgendaColumn key={column.key} label={column.label} matches={column.matches} basePath={basePath} club={club} wide={columns.length === 1} />
       ))}
-      {autreMatches.length > 0 ? <AgendaColumn label="Autre salle" matches={autreMatches} basePath={basePath} club={club} /> : null}
     </div>
   );
 }

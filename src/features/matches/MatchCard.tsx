@@ -4,7 +4,7 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { TeamLogo } from "@/components/ui/Logo";
 import { cn } from "@/components/ui/cn";
 import type { MatchListItemDto } from "@/lib/api/matches";
-import { derogationBadge, journeeLabel, matchDateParts, matchOutcome, matchStatusBadge, sideBadge } from "./match-display";
+import { clubSideLabel, derogationBadge, journeeLabel, matchDateParts, matchOutcome, matchStatusBadge, sideBadge } from "./match-display";
 
 export interface MatchCardClub {
   name: string;
@@ -21,7 +21,7 @@ interface Side {
 }
 
 function sides(match: MatchListItemDto, club: MatchCardClub): [Side, Side] {
-  const ours: Side = { name: match.teamName ?? club.name, logoName: club.name, logoUrl: club.logoUrl, score: null, isClub: true };
+  const ours: Side = { name: clubSideLabel(match, club.name), logoName: club.name, logoUrl: club.logoUrl, score: null, isClub: true };
   const theirs: Side = { name: match.opponentName ?? "Adversaire à confirmer", logoName: match.opponentName ?? "?", logoUrl: match.opponentLogoUrl, score: null, isClub: false };
   // Ordre FFBB : domicile d'abord. Côté inconnu (null) : le club d'abord, sans badge de côté.
   const [home, away] = match.isHome === false ? [theirs, ours] : [ours, theirs];
@@ -135,7 +135,9 @@ export function MatchCard({ match, href, club, variant = "row" }: { match: Match
 
       <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
         <div className="flex items-center justify-between gap-2">
-          <p className="type-eyebrow truncate">{journee ?? (match.numero ? `Rencontre n° ${match.numero}` : "Championnat")}</p>
+          <p className="type-eyebrow truncate" title={match.competitionName ?? undefined}>
+            {[journee, match.competitionName].filter(Boolean).join(" · ") || (match.numero ? `Rencontre n° ${match.numero}` : "Championnat")}
+          </p>
           {side ? (
             <StatusBadge tone={side.tone} icon={side.icon} size="sm">
               {side.label}

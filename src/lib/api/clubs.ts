@@ -7,6 +7,7 @@ export type ClubCapabilities = components["schemas"]["ClubCapabilities"];
 export type TeamDto = components["schemas"]["TeamDto"];
 export type CreateTeamDto = components["schemas"]["CreateTeamDto"];
 export type UpdateTeamDto = components["schemas"]["UpdateTeamDto"];
+export type UpdateClubDto = components["schemas"]["UpdateClubDto"];
 
 /** GET /v1/clubs — clubs dont l'utilisateur est membre actif (§11 de la demande). */
 export async function listClubs(fetcher: ApiFetcher): Promise<ClubDto[]> {
@@ -17,6 +18,11 @@ export async function listClubs(fetcher: ApiFetcher): Promise<ClubDto[]> {
 /** GET /v1/clubs/:clubId */
 export async function getClub(fetcher: ApiFetcher, clubId: string): Promise<ClubDto> {
   return fetcher<ClubDto>(`/v1/clubs/${clubId}`);
+}
+
+/** PATCH /v1/clubs/:clubId (club_admin) — identité/apparence du club (nom, nom court, fuseau, logo, couleur d'accent). */
+export async function updateClub(fetcher: ApiFetcher, clubId: string, body: UpdateClubDto): Promise<ClubDto> {
+  return fetcher<ClubDto>(`/v1/clubs/${clubId}`, { method: "PATCH", body });
 }
 
 /** GET /v1/clubs/:clubId/capabilities — §16 de la demande : jamais recalculé côté frontend. */

@@ -1,4 +1,4 @@
-import { CalendarSearch, House, Route } from "lucide-react";
+import { CalendarDays, CalendarSearch, House, Route } from "lucide-react";
 import type { TeamDto } from "@/lib/api/clubs";
 import type { MatchListItemDto } from "@/lib/api/matches";
 import { EmptyState } from "@/components/ui/States";
@@ -7,7 +7,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { HomeMatchesAgenda } from "./HomeMatchesAgenda";
 import { MatchCard, type MatchCardClub } from "./MatchCard";
 import { MatchFilters } from "./MatchFilters";
-import { SIDE_OPTIONS, WHEN_OPTIONS, applyMatchFilters, buildFilterHref, type MatchFiltersState } from "./match-filters";
+import { SIDE_OPTIONS, WHEN_OPTIONS, applyMatchFilters, buildFilterHref, groupMatchesByWeekend, type MatchFiltersState, type WeekendGroup } from "./match-filters";
 
 /**
  * Liste des matchs filtrée (vue club ET vue publique — même rendu, seules
@@ -30,11 +30,6 @@ export function MatchesView({
   const href = (changes: Partial<MatchFiltersState>) => buildFilterHref(basePath, filters, changes);
   const isDefault = filters.when === "weekend" && filters.side === "all" && !filters.team;
 
-  // "Pour les matchs à domicile, faut faire 2 colonnes car là il y a 2
-  // gymnases pour le club de sète. Je veux un rendu type agenda carré
-  // propre premium" (demande du club, 2026-09-28) — voir HomeMatchesAgenda.
-  const homeMatches = matches.filter((m) => m.isHome === true);
-  const otherMatches = matches.filter((m) => m.isHome !== true);
   const periodLabel = WHEN_OPTIONS.find((o) => o.value === filters.when)?.label.toLowerCase() ?? "";
 
   return (
@@ -68,28 +63,59 @@ export function MatchesView({
           }
         />
       ) : (
-        <div className="flex flex-col gap-10">
-          {homeMatches.length > 0 ? (
-            <section className="flex flex-col gap-4">
-              <SectionHeader icon={<House />} title="À domicile" description="Par salle — une colonne par gymnase du club." />
-              <HomeMatchesAgenda matches={homeMatches} basePath={basePath} club={club} />
-            </section>
-          ) : null}
-
-          {otherMatches.length > 0 ? (
-            <section className="flex flex-col gap-4">
-              {homeMatches.length > 0 ? <SectionHeader icon={<Route />} title="À l'extérieur" /> : null}
-              <ul className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-                {otherMatches.map((match) => (
-                  <li key={match.id}>
-                    <MatchCard match={match} href={`${basePath}/${match.id}`} club={club} />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
+        <div className="flex flex-col gap-12">
+          {groupMatchesByWeekend(matches).map((group) => (
+            <WeekendSection key={group.saturday} group={group} basePath={basePath} club={club} />
+          ))}
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Une journée (week-end) : en-tête daté, puis matchs à domicile par salle
+ * ("Pour les matchs à domicile, faut faire 2 colonnes car là il y a 2
+ * gymnases pour le club de sète" — demande du club, 2026-09-28, voir
+ * HomeMatchesAgenda) et matchs à l'extérieur.
+ */
+function WeekendSection({ group, basePath, club }: { group: WeekendGroup; basePath: string; club: MatchCardClub }) {
+  const homeMatches = group.matches.filter((m) => m.isHome === true);
+  const otherMatches = group.matches.filter((m) => m.isHome !== true);
+  const titleId = `journee-${group.saturday}`;
+
+  return (
+    <section aria-labelledby={titleId} className="flex flex-col gap-6">
+      <div className="surface-glass sticky top-[var(--topbar-height)] z-10 -mx-4 flex items-center justify-between gap-3 border-y border-border px-4 py-2.5 sm:mx-0 sm:rounded-[var(--radius-md)] sm:border-x sm:px-4">
+        <h2 id={titleId} className="type-section flex items-center gap-2 text-foreground">
+          <CalendarDays aria-hidden className="size-4 text-accent-text" />
+          <span className="first-letter:uppercase">{group.label}</span>
+        </h2>
+        <span className="type-numeric shrink-0 text-xs text-muted">
+          {group.matches.length} match{group.matches.length > 1 ? "s" : ""}
+          {homeMatches.length > 0 ? ` · ${homeMatches.length} à domicile` : ""}
+        </span>
+      </div>
+
+      {homeMatches.length > 0 ? (
+        <div className="flex flex-col gap-4">
+          <SectionHeader as="h3" icon={<House />} title="À domicile" description="Par salle — une colonne par gymnase du club." />
+          <HomeMatchesAgenda matches={homeMatches} basePath={basePath} club={club} />
+        </div>
+      ) : null}
+
+      {otherMatches.length > 0 ? (
+        <div className="flex flex-col gap-4">
+          <SectionHeader as="h3" icon={<Route />} title="À l'extérieur" />
+          <ul className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            {otherMatches.map((match) => (
+              <li key={match.id}>
+                <MatchCard match={match} href={`${basePath}/${match.id}`} club={club} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </section>
   );
 }

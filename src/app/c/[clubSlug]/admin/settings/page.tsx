@@ -2,10 +2,8 @@ import { Building2, Palette } from "lucide-react";
 import { requireClubAdminContext } from "@/lib/tenancy/club-context";
 import { Card } from "@/components/ui/Card";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
-import { ClubLogo } from "@/components/ui/Logo";
-import { DataList } from "@/components/ui/DataList";
-import { deriveClubAccent, FALLBACK_ACCENT } from "@/lib/ui/accent";
 import { ClubSettingsForm } from "@/features/admin/ClubSettingsForm";
+import { ClubAppearanceForm } from "@/features/admin/ClubAppearanceForm";
 import type { ReactNode } from "react";
 
 function SettingsSection({ icon, title, description, children }: { icon: ReactNode; title: string; description: string; children: ReactNode }) {
@@ -29,13 +27,12 @@ function SettingsSection({ icon, title, description, children }: { icon: ReactNo
  * Réglages du club (§42 du brief SaaS) : uniquement le branding léger
  * (nom, nom court, fuseau horaire) — écriture inchangée via
  * `updateClubSettingsAction` (voir docs/MIGRATION_TO_API.md, catégorie D).
- * L'apparence (logo, couleur d'accent) est affichée en lecture seule : sa
- * modification n'est pas proposée ici.
+ * L'apparence (logo, couleur d'accent) passe par PATCH /v1/clubs/:clubId
+ * (`ClubAppearanceForm`, retour du club 2026-10-01).
  */
 export default async function ClubSettingsPage({ params }: { params: Promise<{ clubSlug: string }> }) {
   const { clubSlug } = await params;
   const club = await requireClubAdminContext(clubSlug);
-  const accent = deriveClubAccent(club.accentColor);
 
   return (
     <PageContainer width="default">
@@ -48,26 +45,9 @@ export default async function ClubSettingsPage({ params }: { params: Promise<{ c
           </Card>
         </SettingsSection>
 
-        <SettingsSection icon={<Palette />} title="Apparence" description="Logo et couleur d'accent utilisés par l'interface. Lecture seule depuis cette page.">
+        <SettingsSection icon={<Palette />} title="Apparence" description="Logo affiché en haut à gauche et sur les cartes de match, et couleur d'accent de l'interface.">
           <Card>
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-              <ClubLogo name={club.name} src={club.logoUrl} size="xl" />
-              <DataList
-                className="flex-1"
-                items={[
-                  { label: "Logo", value: club.logoUrl ? "Défini" : "Non défini — monogramme utilisé" },
-                  {
-                    label: "Couleur d'accent",
-                    value: (
-                      <span className="flex items-center gap-2">
-                        <span aria-hidden className="size-4 rounded-[5px] border border-border shadow-1" style={{ background: accent.accent }} />
-                        <span className="type-numeric uppercase">{club.accentColor ?? `${FALLBACK_ACCENT} (par défaut)`}</span>
-                      </span>
-                    ),
-                  },
-                ]}
-              />
-            </div>
+            <ClubAppearanceForm clubId={club.id} clubName={club.name} logoUrl={club.logoUrl} accentColor={club.accentColor} />
           </Card>
         </SettingsSection>
       </div>
