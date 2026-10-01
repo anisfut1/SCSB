@@ -1,10 +1,15 @@
-import { PublicEntryRedirect } from "@/features/public/PublicLoginApp";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { KNOWN_COOKIE } from "@/features/public/known-cookie";
 
 /**
- * `/public/{slug}` seul — le lien commun à distribuer : déjà reconnu → accueil
- * personnel, sinon → page de connexion (retour du club, 2026-10-01).
+ * `/public/{slug}` seul : un licencié déjà reconnu sur ce navigateur (marqueur
+ * posé par `PublicIdentityProvider`, jamais le jeton) arrive sur son accueil ;
+ * tous les autres — robots d'indexation compris — sur les résultats publics.
+ * Rien n'impose de se connecter (retour du club, 2026-10-01, SEO).
  */
 export default async function PublicClubIndex({ params }: { params: Promise<{ clubSlug: string }> }) {
   const { clubSlug } = await params;
-  return <PublicEntryRedirect clubSlug={clubSlug} />;
+  const known = (await cookies()).get(KNOWN_COOKIE)?.value === "1";
+  redirect(`/public/${clubSlug}/${known ? "accueil" : "resultats"}`);
 }

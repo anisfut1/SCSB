@@ -151,7 +151,7 @@ export function LicenciePublicAccessCard({
             )}
           </p>
           <p className="type-meta">
-            Lien commun : <span className="type-numeric">/public/{clubSlug}</span>
+            Lien de connexion : <span className="type-numeric">/public/{clubSlug}/connexion</span>
           </p>
         </div>
         {/* Retour du club, 2026-10-01 : rôles de l'espace public sans compte — aucun droit dans l'espace connecté. */}

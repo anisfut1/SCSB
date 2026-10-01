@@ -13,7 +13,7 @@ import { RequestSections } from "@/features/derogation-requests/RequestList";
 import { NO_COORDINATOR_MESSAGE } from "@/features/derogation-requests/RequestWizard";
 import type { DerogationContextDto, DerogationRequestSummaryDto } from "@/lib/api/derogationRequests";
 import { DerogationsList } from "@/features/admin/DerogationsList";
-import { IdentifyView } from "@/features/public/IdentifyView";
+import { PublicLoginPanel } from "@/features/public/PublicLoginApp";
 import { usePublicIdentity, type PublicIdentity } from "@/features/public/PublicIdentityProvider";
 import { listPublicDerogations } from "@/lib/api/publicTables";
 import type { DerogationListItemDto } from "@/lib/api/derogations";
@@ -37,15 +37,13 @@ export function PublicDerogationsApp({ clubSlug, clubName }: { clubSlug: string;
 
   if (identity === null) {
     return (
-      <IdentifyView
-        clubSlug={clubSlug}
-        clubName={clubName}
+      <PublicLoginPanel
         returnTo="derogations"
         title="Dérogations"
-        description="Réservé aux coachs, au coordinateur et aux administrateurs du club. Retrouve ton nom pour recevoir ton lien personnel par email."
+        lead="Réservé aux coachs, au coordinateur et aux administrateurs du club. Retrouve ton nom pour recevoir ton lien d'accès par email."
         notice={
           <Notice tone="info" icon={<Lock />}>
-            Identifie-toi pour continuer : seuls les coachs, le coordinateur et les administrateurs du club accèdent aux dérogations.
+            Seuls les coachs, le coordinateur et les administrateurs du club accèdent aux dérogations.
           </Notice>
         }
       />

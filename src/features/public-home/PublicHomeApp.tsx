@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowRight, CalendarClock, CalendarDays, CalendarPlus, ClipboardList, Megaphone, Shirt, Trophy } from "lucide-react";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -13,6 +12,7 @@ import { ListSkeleton } from "@/components/ui/Skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/States";
 import { formatShortDateTime } from "@/features/derogation-requests/labels";
 import { MatchCard } from "@/features/matches/MatchCard";
+import { PublicLoginPanel } from "@/features/public/PublicLoginApp";
 import { usePublicIdentity, type PublicIdentity } from "@/features/public/PublicIdentityProvider";
 import { TABLE_ROLE_LABELS } from "@/features/tables/role-labels";
 import { ApiError } from "@/lib/api/client";
@@ -35,14 +35,9 @@ const RELATION_LABEL: Record<HomeRelation, string> = { COACH: "Tu coaches", PLAY
  */
 export function PublicHomeApp({ clubSlug, club }: { clubSlug: string; club: HomeClub }) {
   const { identity, forget } = usePublicIdentity();
-  const router = useRouter();
 
-  // Pas encore reconnu : page de connexion (nom → email → retour ici avec le lien).
-  useEffect(() => {
-    if (identity === null) router.replace(`/public/${clubSlug}/connexion`);
-  }, [identity, clubSlug, router]);
-
-  if (!identity) return <ListSkeleton rows={5} />;
+  if (identity === undefined) return <ListSkeleton rows={5} />;
+  if (identity === null) return <PublicLoginPanel returnTo="accueil" title="Mon espace" lead="Ton équipe, tes prochains matchs et tes tables de marque au même endroit : retrouve ton nom pour recevoir ton lien d'accès par email." />;
   return <PersonalHome key={identity.token} clubSlug={clubSlug} club={club} identity={identity} onForget={forget} />;
 }
 

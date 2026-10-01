@@ -15,7 +15,7 @@ import { PublicBottomNav, PublicTopTabs } from "./PublicNav";
  */
 export function PublicShell({ clubSlug, club, children }: { clubSlug: string; club: { name: string; logoUrl: string | null; accentColor: string | null }; children: ReactNode }) {
   return (
-    <PublicIdentityProvider clubSlug={clubSlug}>
+    <PublicIdentityProvider clubSlug={clubSlug} club={{ name: club.name, logoUrl: club.logoUrl }}>
       <div style={clubAccentStyle(club.accentColor)} className="accent-scope flex min-h-full flex-1 flex-col">
         <a
           href="#main"

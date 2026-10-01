@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getPublicMe } from "@/lib/api/publicTables";
 import { clearStoredPublicToken, getStoredPublicToken, setStoredPublicToken } from "@/lib/publicToken";
+import { KNOWN_COOKIE } from "./known-cookie";
 
 export interface PublicIdentity {
   token: string;
@@ -32,8 +33,28 @@ function stripTokenFromUrl(): void {
   window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
+/**
+ * Marqueur « déjà reconnu sur ce navigateur » (jamais le jeton) lu côté
+ * serveur par `/public/{slug}` : accueil pour un licencié reconnu, pages
+ * publiques pour tous les autres — robots d'indexation compris.
+ */
+
+function setKnownCookie(clubSlug: string, known: boolean): void {
+  try {
+    document.cookie = `${KNOWN_COOKIE}=${known ? "1" : ""}; Path=/public/${clubSlug}; Max-Age=${known ? 60 * 60 * 24 * 365 : 0}; SameSite=Lax`;
+  } catch {
+    // Cookies bloqués : l'entrée retombe simplement sur les pages publiques.
+  }
+}
+
+export interface PublicClubInfo {
+  name: string;
+  logoUrl: string | null;
+}
+
 interface PublicIdentityContextValue {
   clubSlug: string;
+  club: PublicClubInfo;
   identity: PublicIdentityState;
   /** Oublie le lien mémorisé dans CE navigateur (le lien de l'email reste valable ailleurs). */
   forget: () => void;
@@ -48,7 +69,7 @@ const PublicIdentityContext = createContext<PublicIdentityContextValue | null>(n
  * toujours revalidé par `GET /v1/public/clubs/:slug/me` — jamais une
  * identité supposée côté client.
  */
-export function PublicIdentityProvider({ clubSlug, children }: { clubSlug: string; children: ReactNode }) {
+export function PublicIdentityProvider({ clubSlug, club, children }: { clubSlug: string; club: PublicClubInfo; children: ReactNode }) {
   const [identity, setIdentity] = useState<PublicIdentityState>(undefined);
 
   useEffect(() => {
@@ -68,12 +89,14 @@ export function PublicIdentityProvider({ clubSlug, children }: { clubSlug: strin
       .then((result) => {
         if (cancelled) return;
         setStoredPublicToken(clubSlug, candidate);
+        setKnownCookie(clubSlug, true);
         stripTokenFromUrl();
         setIdentity({ token: candidate, licencie: result.licencie, isClubAdmin: result.isClubAdmin, derogationRequests: result.derogationRequests });
       })
       .catch(() => {
         if (cancelled) return;
         clearStoredPublicToken(clubSlug);
+        setKnownCookie(clubSlug, false);
         stripTokenFromUrl();
         setIdentity(null);
       });
@@ -85,10 +108,12 @@ export function PublicIdentityProvider({ clubSlug, children }: { clubSlug: strin
 
   const forget = useCallback(() => {
     clearStoredPublicToken(clubSlug);
+    setKnownCookie(clubSlug, false);
     setIdentity(null);
   }, [clubSlug]);
 
-  const value = useMemo(() => ({ clubSlug, identity, forget }), [clubSlug, identity, forget]);
+  const { name: clubName, logoUrl: clubLogoUrl } = club;
+  const value = useMemo(() => ({ clubSlug, club: { name: clubName, logoUrl: clubLogoUrl }, identity, forget }), [clubSlug, clubName, clubLogoUrl, identity, forget]);
   return <PublicIdentityContext.Provider value={value}>{children}</PublicIdentityContext.Provider>;
 }
 

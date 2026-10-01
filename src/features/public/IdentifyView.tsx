@@ -210,7 +210,7 @@ export function IdentifyView({
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={searchFirst ? "Commence à taper ton nom ou ton prénom…" : "Rechercher ton nom…"}
+            placeholder={searchFirst ? "Tape ton nom ou ton prénom…" : "Rechercher ton nom…"}
             className={cn("pl-10", searchFirst && "h-12 text-base")}
             autoComplete="off"
             autoFocus={searchFirst}

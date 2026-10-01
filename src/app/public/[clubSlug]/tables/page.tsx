@@ -13,7 +13,7 @@ export default async function PublicTablesPage({ params }: { params: Promise<{ c
 
   return (
     <PageContainer width="wide">
-      <PublicTablesApp clubSlug={clubSlug} clubName={club.name} clubTimezone={club.timezone} />
+      <PublicTablesApp clubSlug={clubSlug} clubTimezone={club.timezone} />
     </PageContainer>
   );
 }

@@ -36,11 +36,6 @@ function useActiveSegment(clubSlug: string): string | null {
   return pathname.slice(prefix.length).split("/")[0] ?? null;
 }
 
-/** Page de connexion et entrée `/public/{slug}` : pas d'onglets, la personne n'est pas encore entrée. */
-function isBareSegment(segment: string | null): boolean {
-  return segment === null || segment === "" || segment === "connexion";
-}
-
 /** Cadenas sur Dérogations tant que l'identité n'y donne aucun accès (admin, coach ou coordinateur). */
 function showsLock(segment: PublicNavItem["segment"], identity: PublicIdentityState): boolean {
   if (segment !== "derogations") return false;
@@ -51,7 +46,6 @@ function showsLock(segment: PublicNavItem["segment"], identity: PublicIdentitySt
 export function PublicTopTabs({ clubSlug }: { clubSlug: string }) {
   const active = useActiveSegment(clubSlug);
   const { identity } = usePublicIdentity();
-  if (isBareSegment(active)) return null;
   return (
     <nav aria-label="Espace public" className="hidden h-full items-stretch gap-1 lg:flex">
       {ITEMS.map((item) => {
@@ -82,7 +76,6 @@ export function PublicTopTabs({ clubSlug }: { clubSlug: string }) {
 export function PublicBottomNav({ clubSlug }: { clubSlug: string }) {
   const active = useActiveSegment(clubSlug);
   const { identity } = usePublicIdentity();
-  if (isBareSegment(active)) return null;
   return (
     <nav aria-label="Espace public" className="surface-glass pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-border lg:hidden">
       <ul className="mx-auto flex h-[var(--bottom-nav-height)] max-w-xl items-stretch px-2">

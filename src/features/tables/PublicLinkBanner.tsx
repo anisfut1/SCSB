@@ -13,8 +13,8 @@ import { Button } from "@/components/ui/Button";
  */
 export function PublicLinkBanner({ clubSlug }: { clubSlug: string }) {
   const [copied, setCopied] = useState(false);
-  // Entrée commune : connexion pour un nouveau, accueil direct pour quelqu'un déjà reconnu.
-  const path = `/public/${clubSlug}`;
+  // Page de connexion : un nouveau s'y identifie, quelqu'un de déjà reconnu part directement sur son accueil.
+  const path = `/public/${clubSlug}/connexion`;
 
   async function copy() {
     try {
