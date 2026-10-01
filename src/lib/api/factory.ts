@@ -89,6 +89,7 @@ export function createApi(fetcher: ApiFetcher) {
       import: (clubId: string, body: licencies.ImportLicenciesDto) => licencies.importLicencies(fetcher, clubId, body),
       autoAssignTeams: (clubId: string) => licencies.autoAssignTeams(fetcher, clubId),
       remove: (clubId: string, licencieId: string) => licencies.deleteLicencie(fetcher, clubId, licencieId),
+      create: (clubId: string, body: licencies.CreateLicencieDto) => licencies.createLicencie(fetcher, clubId, body),
     },
     platform: {
       listClubs: () => platform.listPlatformClubs(fetcher),
@@ -105,6 +106,7 @@ export function createApi(fetcher: ApiFetcher) {
       setRefereeStatus: (clubId: string, matchId: string, noRefereeNeeded: boolean) => tables.setRefereeStatus(fetcher, clubId, matchId, noRefereeNeeded),
       listPublicAccess: (clubId: string) => tables.listPublicAccess(fetcher, clubId),
       resetPublicAccess: (clubId: string, licencieId: string) => tables.resetPublicAccess(fetcher, clubId, licencieId),
+      personalLink: (clubId: string, licencieId: string) => tables.getPersonalLink(fetcher, clubId, licencieId),
     },
   };
 }

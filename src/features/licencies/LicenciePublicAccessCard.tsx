@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Link2, Mail, RotateCcw } from "lucide-react";
+import { Copy, Eye, Link2, Mail, RotateCcw, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardDivider, CardHeader } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
-import { Checkbox, FormMessage } from "@/components/ui/Field";
+import { Checkbox, FormMessage, Input } from "@/components/ui/Field";
 import { useConfirm } from "@/components/ui/Dialog";
 import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
@@ -153,13 +153,116 @@ export function LicenciePublicAccessCard({
           />
         </div>
         {error ? <FormMessage tone="danger">{error}</FormMessage> : null}
+        <PersonalLinkReveal clubId={clubId} licencieId={licencieId} licencieName={licencieName} email={sendTo} wasClaimed={claimed} onIssued={() => router.refresh()} />
         {claimed ? (
-          <Button variant="secondary" size="sm" loading={resetting} onClick={reset} icon={<RotateCcw />} className="self-start">
+          <Button variant="ghost" size="sm" loading={resetting} onClick={reset} icon={<RotateCcw />} className="self-start">
             Réinitialiser le lien
           </Button>
         ) : null}
       </div>
       {confirmDialog}
     </Card>
+  );
+}
+
+/**
+ * Retour du club, 2026-10-01 : « l'admin doit avoir accès au lien unique par
+ * joueur au cas où il a besoin de l'envoyer ». Le lien ACTIF est réaffiché
+ * tel quel (toujours valable pour le joueur) ; s'il n'y en a pas, un lien est
+ * créé à ce moment-là. Jamais affiché sans clic explicite de l'admin.
+ */
+function PersonalLinkReveal({
+  clubId,
+  licencieId,
+  licencieName,
+  email,
+  wasClaimed,
+  onIssued,
+}: {
+  clubId: string;
+  licencieId: string;
+  licencieName: string;
+  email: string | null;
+  wasClaimed: boolean;
+  onIssued: () => void;
+}) {
+  const [link, setLink] = useState<{ url: string; created: boolean } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function reveal() {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await browserApi.tables.personalLink(clubId, licencieId);
+      setLink({ url: result.link, created: result.created });
+      if (result.created) onIssued();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Impossible d'afficher le lien pour le moment.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function copy() {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setError("Copie impossible : sélectionne le lien et copie-le manuellement.");
+    }
+  }
+
+  async function share() {
+    if (!link) return;
+    const text = `Ton lien personnel pour l'espace du club : ${link.url}`;
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: "Lien personnel", text, url: link.url });
+        return;
+      } catch {
+        // Partage annulé : rien à faire.
+        return;
+      }
+    }
+    if (email) window.location.href = `mailto:${email}?subject=${encodeURIComponent("Ton lien personnel")}&body=${encodeURIComponent(text)}`;
+    else void copy();
+  }
+
+  if (!link) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Button variant="secondary" size="sm" icon={<Eye />} loading={loading} onClick={reveal} className="self-start">
+          Afficher le lien
+        </Button>
+        {error ? <FormMessage tone="danger">{error}</FormMessage> : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-border bg-surface p-3">
+      <p className="text-[13px] font-medium text-foreground">Lien personnel de {licencieName}</p>
+      <Input readOnly value={link.url} onFocus={(e) => e.currentTarget.select()} aria-label={`Lien personnel de ${licencieName}`} className="type-numeric text-[12.5px]" />
+      <div className="flex flex-wrap gap-2">
+        <Button variant="primary" size="sm" icon={<Copy />} onClick={copy}>
+          {copied ? "Copié !" : "Copier"}
+        </Button>
+        <Button variant="secondary" size="sm" icon={<Share2 />} onClick={share}>
+          Envoyer
+        </Button>
+      </div>
+      <p className="type-meta">
+        {link.created
+          ? wasClaimed
+            ? "Un nouveau lien vient d'être créé : l'ancien ne fonctionne plus."
+            : "Lien créé. Il donne accès à son espace sans mot de passe : ne l'envoie qu'à cette personne."
+          : "C'est le lien actuel, toujours valable. Il donne accès à son espace sans mot de passe : ne l'envoie qu'à cette personne."}
+      </p>
+      {error ? <FormMessage tone="danger">{error}</FormMessage> : null}
+    </div>
   );
 }

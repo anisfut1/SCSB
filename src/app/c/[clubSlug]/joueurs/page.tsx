@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/States";
 import { StatusBadge } from "@/components/ui/Badge";
 import { ImportLicenciesPanel } from "@/features/licencies/ImportLicenciesPanel";
 import { RosterBoard } from "@/features/licencies/RosterBoard";
+import { AddPersonButton } from "@/features/licencies/AddPersonButton";
 
 /**
  * Roster du club, sectorisé par équipe (demande du club, voir
@@ -33,6 +34,7 @@ export default async function JoueursPage({ params }: { params: Promise<{ clubSl
         eyebrow="Effectif"
         title="Joueurs"
         description="Licenciés du club, regroupés par équipe. Chaque fiche retrace les matchs et statistiques lus sur les feuilles e-Marque."
+        actions={isAdmin ? <AddPersonButton clubId={club.id} teams={teams} /> : null}
         meta={
           licencies.length > 0 ? (
             <>

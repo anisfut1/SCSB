@@ -138,3 +138,14 @@ export async function listPublicAccess(fetcher: ApiFetcher, clubId: string): Pro
 export async function resetPublicAccess(fetcher: ApiFetcher, clubId: string, licencieId: string): Promise<void> {
   await fetcher<{ reset: true }>(`/v1/clubs/${clubId}/table-assignments/public-access/${licencieId}/reset`, { method: "POST" });
 }
+
+export type PersonalLinkDto = components["schemas"]["PersonalLinkDto"];
+
+/**
+ * POST .../public-access/:licencieId/link (club_admin) — retour du club,
+ * 2026-10-01 : « l'admin doit avoir accès au lien unique par joueur ».
+ * Réaffiche le lien ACTIF (inchangé) ou en émet un s'il n'en a pas (`created`).
+ */
+export async function getPersonalLink(fetcher: ApiFetcher, clubId: string, licencieId: string): Promise<PersonalLinkDto> {
+  return fetcher<PersonalLinkDto>(`/v1/clubs/${clubId}/table-assignments/public-access/${licencieId}/link`, { method: "POST" });
+}

@@ -77,3 +77,10 @@ export async function autoAssignTeams(fetcher: ApiFetcher, clubId: string): Prom
 export async function deleteLicencie(fetcher: ApiFetcher, clubId: string, licencieId: string): Promise<DeleteLicencieResultDto> {
   return fetcher<DeleteLicencieResultDto>(`/v1/clubs/${clubId}/licencies/${licencieId}`, { method: "DELETE" });
 }
+
+export type CreateLicencieDto = components["schemas"]["CreateLicencieDto"];
+
+/** POST /v1/clubs/:clubId/licencies (club_admin) — ajout manuel, ex. un coach non licencié dans ce club. */
+export async function createLicencie(fetcher: ApiFetcher, clubId: string, body: CreateLicencieDto): Promise<LicencieDto> {
+  return fetcher<LicencieDto>(`/v1/clubs/${clubId}/licencies`, { method: "POST", body });
+}
