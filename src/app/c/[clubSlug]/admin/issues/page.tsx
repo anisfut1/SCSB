@@ -25,7 +25,11 @@ export default async function IssuesPage({ params }: { params: Promise<{ clubSlu
   const { clubSlug } = await params;
   const club = await requireClubAdminContext(clubSlug);
 
-  const issues = await api.issues.list(club.id);
+  // Les anomalies « corrigées automatiquement » (FBI fait foi, rien à faire)
+  // ne sont plus affichées — retour du club, 2026-10-01 : « n'affiche pas
+  // sur le front ces anomalies, on s'en fout ». Seules restent celles qui
+  // demandent une action.
+  const issues = (await api.issues.list(club.id)).filter((issue) => issue.status !== "auto_corrected");
   const errors = issues.filter((i) => i.severity === "error" && i.status === "open").length;
   const warnings = issues.filter((i) => i.severity === "warning" && i.status === "open").length;
 
