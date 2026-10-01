@@ -63,7 +63,24 @@ function resolveDemandeurTeam(derogation: Pick<DerogationListItemDto, "demandeur
  * connues qu'à l'exécution). Filtre 100% client (la liste complète est déjà
  * chargée), aucun aller-retour serveur par clic.
  */
-export function DerogationsList({ clubId, clubSlug, derogations }: { clubId: string; clubSlug: string; derogations: DerogationListItemDto[] }) {
+export function DerogationsList({
+  clubId,
+  derogations,
+  matchBasePath,
+  readOnly = false,
+}: {
+  /** Requis pour répondre à une dérogation — absent en lecture seule. */
+  clubId?: string;
+  derogations: DerogationListItemDto[];
+  /** Préfixe des liens vers la fiche match (`/c/{slug}/matchs` ou `/public/{slug}/matchs`). */
+  matchBasePath: string;
+  /**
+   * Espace public (licencié admin reconnu par lien personnel, retour du
+   * club, 2026-10-01) : consultation uniquement, jamais d'accepter/refuser
+   * — une écriture FBI exige une vraie session club_admin.
+   */
+  readOnly?: boolean;
+}) {
   const [selectedEtat, setSelectedEtat] = useState<string | null>(null);
 
   const etatCounts = useMemo(() => {
@@ -83,7 +100,11 @@ export function DerogationsList({ clubId, clubSlug, derogations }: { clubId: str
       <EmptyState
         icon={<CalendarClock />}
         title="Aucune dérogation connue"
-        description="Lance une vérification globale depuis Intégrations → FBI pour récupérer les demandes de dérogation connues de FBI."
+        description={
+          readOnly
+            ? "Aucune demande de dérogation n'a encore été récupérée depuis FBI pour ce club."
+            : "Lance une vérification globale depuis Intégrations → FBI pour récupérer les demandes de dérogation connues de FBI."
+        }
       />
     );
   }
@@ -114,7 +135,7 @@ export function DerogationsList({ clubId, clubSlug, derogations }: { clubId: str
                     <div className="text-reflow flex-1">
                       <p className="type-eyebrow">{derogation.etat ?? "État inconnu"}</p>
                       <h2 className="type-card mt-1 text-foreground">
-                        <Link href={`/c/${clubSlug}/matchs/${derogation.matchId}`} className="underline-offset-4 hover:text-accent-text hover:underline">
+                        <Link href={`${matchBasePath}/${derogation.matchId}`} className="underline-offset-4 hover:text-accent-text hover:underline">
                           Rencontre {derogation.numero ?? "?"}
                           {/*
                            * `teamName` (ex. "Seniors 2") plutôt que `categoryLabel`
@@ -149,7 +170,7 @@ export function DerogationsList({ clubId, clubSlug, derogations }: { clubId: str
                       </Notice>
                     ) : null}
 
-                    {derogation.actionRequired ? <RespondToDerogationAction clubId={clubId} derogationId={derogation.id} /> : null}
+                    {derogation.actionRequired && !readOnly && clubId ? <RespondToDerogationAction clubId={clubId} derogationId={derogation.id} /> : null}
 
                     <DataList
                       columns={3}

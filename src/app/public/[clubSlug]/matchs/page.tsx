@@ -4,7 +4,6 @@ import { listPublicMatches, listPublicTeams } from "@/lib/api/publicMatches";
 import { ApiError } from "@/lib/api/client";
 import { currentSeasonStart } from "@/lib/season";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
-import { PublicFrame } from "@/components/public/PublicFrame";
 import { MatchesView } from "@/features/matches/MatchesView";
 import { parseMatchFilters } from "@/features/matches/match-filters";
 
@@ -38,11 +37,9 @@ export default async function PublicMatchsPage({
   const [teams, matches] = await Promise.all([listPublicTeams(clubSlug), listPublicMatches(clubSlug, { from: currentSeasonStart().toISOString() })]);
 
   return (
-    <PublicFrame club={club}>
-      <PageContainer width="wide">
-        <PageHeader eyebrow={club.name} title="Matchs de la saison" description="Horaires, salles et résultats, mis à jour automatiquement." />
-        <MatchesView all={matches} teams={teams} filters={filters} basePath={`/public/${clubSlug}/matchs`} club={{ name: club.name, logoUrl: club.logoUrl }} />
-      </PageContainer>
-    </PublicFrame>
+    <PageContainer width="wide">
+      <PageHeader eyebrow={club.name} title="Matchs de la saison" description="Horaires, salles et résultats, mis à jour automatiquement." />
+      <MatchesView all={matches} teams={teams} filters={filters} basePath={`/public/${clubSlug}/matchs`} club={{ name: club.name, logoUrl: club.logoUrl }} />
+    </PageContainer>
   );
 }

@@ -36,7 +36,7 @@ export default async function DerogationsPage({ params }: { params: Promise<{ cl
           </ButtonLink>
         }
       />
-      <DerogationsList clubId={club.id} clubSlug={clubSlug} derogations={derogations} />
+      <DerogationsList clubId={club.id} matchBasePath={`/c/${clubSlug}/matchs`} derogations={derogations} />
     </PageContainer>
   );
 }

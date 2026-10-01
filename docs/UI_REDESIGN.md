@@ -60,9 +60,11 @@ Légende : **R** = redesign effectué · **M** = largeurs réellement vérifiée
 
 | Route | Fichiers | Composants | R | M |
 |---|---|---|---|---|
-| Matchs publics | `public/[clubSlug]/matchs/page.tsx` | PublicFrame, MatchesView, MatchCard | [x] | 390 · 1440 |
+| Shell public | `public/[clubSlug]/layout.tsx` | `PublicShell` (onglets ≥ lg, barre du bas < lg), `PublicIdentityProvider`, `PublicAccountChip` | [x] | 390 · 1440 |
+| Matchs publics | `public/[clubSlug]/matchs/page.tsx` | MatchesView, MatchCard | [x] | 390 · 1440 |
 | Détail match public | `public/[clubSlug]/matchs/[id]/page.tsx` | Scoreboard, Tabs | [x] | 390 |
-| Tables publiques | `public/[clubSlug]/tables/page.tsx` | `PublicTablesApp`, `ClaimView`, `BoardView`, `PublicMatchCard` | [x] | 390 |
+| Tables publiques | `public/[clubSlug]/tables/page.tsx` | `PublicTablesApp`, `IdentifyView`, `BoardView`, `PublicMatchCard` | [x] | 390 |
+| Dérogations publiques | `public/[clubSlug]/derogations/page.tsx` | `PublicDerogationsApp`, `IdentifyView`, `DerogationsList` (lecture seule) — licenciés admins du club uniquement | [x] | 390 · 1440 |
 
 ## Composants partagés
 

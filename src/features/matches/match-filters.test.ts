@@ -10,6 +10,8 @@ function match(overrides: Partial<MatchListItemDto>): MatchListItemDto {
     matchDatetime: null,
     isHome: true,
     teamName: "U15",
+    competitionName: null,
+    categoryLabel: null,
     opponentName: "Agde",
     opponentLogoUrl: null,
     venueLabel: null,

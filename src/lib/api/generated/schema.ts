@@ -2387,7 +2387,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/public/clubs/{clubSlug}/licencies/{licencieId}/claim": {
+    "/v1/public/clubs/{clubSlug}/licencies/{licencieId}/request-link": {
         parameters: {
             query?: never;
             header?: never;
@@ -2409,17 +2409,26 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["ClaimLicencieDto"];
+                    "application/json": components["schemas"]["RequestPersonalLinkDto"];
                 };
             };
             responses: {
-                /** @description Jeton personnel — renvoyé UNE SEULE FOIS, jamais récupérable ensuite */
+                /** @description Lien personnel envoyé par email (adresse masquée) */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ClaimResultDto"];
+                        "application/json": components["schemas"]["RequestPersonalLinkResultDto"];
+                    };
+                };
+                /** @description Requête invalide ou email requis (EMAIL_REQUIRED) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
                     };
                 };
                 /** @description Introuvable */
@@ -2431,8 +2440,35 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorEnvelope"];
                     };
                 };
-                /** @description Déjà revendiqué */
+                /** @description Nom déjà choisi sans adresse email connue (ALREADY_CLAIMED) */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Lien envoyé il y a moins d'une minute (LINK_RECENTLY_SENT) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Envoi refusé par le service d'email (EMAIL_SEND_FAILED) */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Envoi d'email non configuré (EMAIL_NOT_CONFIGURED) */
+                503: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2442,6 +2478,75 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/clubs/{clubSlug}/derogations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    token: string;
+                };
+                header?: never;
+                path: {
+                    /** @description Slug du club (flux public sans compte) */
+                    clubSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Dérogations connues du club (lecture seule) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            derogations: components["schemas"]["DerogationListItemDto"][];
+                        };
+                    };
+                };
+                /** @description Jeton invalide ou révoqué */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Licencié non administrateur du club (CLUB_ADMIN_REQUIRED) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4435,6 +4540,8 @@ export interface components {
             matchDatetime: string | null;
             isHome: boolean | null;
             teamName: string | null;
+            competitionName: string | null;
+            categoryLabel: string | null;
             opponentName: string | null;
             opponentLogoUrl: string | null;
             venueLabel: string | null;
@@ -4459,6 +4566,8 @@ export interface components {
             matchDatetime: string | null;
             isHome: boolean | null;
             teamName: string | null;
+            competitionName: string | null;
+            categoryLabel: string | null;
             opponentName: string | null;
             opponentLogoUrl: string | null;
             venueLabel: string | null;
@@ -4604,11 +4713,6 @@ export interface components {
             };
             fbi: components["schemas"]["FbiIntegrationStatusDto"];
         };
-        FbiActiveJobDto: {
-            /** @enum {string} */
-            type: "test_connection" | "discover_emarque" | "reconcile_schedule" | "check_derogation" | "check_all_derogations";
-            startedAt: string;
-        };
         FbiIntegrationStatusDto: {
             configured: boolean;
             username: string | null;
@@ -4616,8 +4720,13 @@ export interface components {
             lastLoginAt: string | null;
             autoImportEmarque: boolean;
             lastError: string | null;
-            activeJob: components["schemas"]["FbiActiveJobDto"] | null;
+            activeJob: components["schemas"]["FbiActiveJobDto"];
         };
+        FbiActiveJobDto: {
+            /** @enum {string} */
+            type: "test_connection" | "discover_emarque" | "reconcile_schedule" | "check_derogation" | "check_all_derogations";
+            startedAt: string;
+        } | null;
         SaveFbiCredentialsResponseDto: {
             /** @enum {boolean} */
             saved: true;
@@ -4771,6 +4880,7 @@ export interface components {
             slug: string;
             name: string;
             logoUrl: string | null;
+            accentColor: string | null;
             timezone: string;
         };
         PublicLicenciesListDto: {
@@ -4783,16 +4893,21 @@ export interface components {
             lastName: string;
             claimed: boolean;
         };
-        ClaimResultDto: {
-            token: string;
-            licencie: components["schemas"]["TableLicencieRefDto"];
+        RequestPersonalLinkResultDto: {
+            /** @enum {boolean} */
+            sent: true;
+            maskedEmail: string;
         };
-        ClaimLicencieDto: {
+        RequestPersonalLinkDto: {
             /** Format: email */
             email?: string | null;
+            returnTo?: components["schemas"]["PublicLinkTarget"];
         };
+        /** @enum {string} */
+        PublicLinkTarget: "matchs" | "tables" | "derogations";
         PublicMeDto: {
             licencie: components["schemas"]["TableLicencieRefDto"];
+            isClubAdmin: boolean;
         };
         PublicTableAssignmentsListDto: {
             me: components["schemas"]["TableLicencieRefDto"];

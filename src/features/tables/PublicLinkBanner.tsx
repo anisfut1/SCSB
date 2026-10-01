@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/Button";
 /**
  * Rappel du lien commun à distribuer (retour du club, 2026-09-29 : "je vais
  * envoyer le lien à tout le monde"). Un seul lien, sans jeton — chacun
- * choisit ensuite son nom dans la liste (`ClaimView`) pour obtenir son
- * propre lien personnel.
+ * retrouve ensuite son nom dans la liste (`IdentifyView`) et reçoit son
+ * lien personnel par email (2026-10-01).
  */
 export function PublicLinkBanner({ clubSlug }: { clubSlug: string }) {
   const [copied, setCopied] = useState(false);
@@ -27,7 +27,7 @@ export function PublicLinkBanner({ clubSlug }: { clubSlug: string }) {
 
   return (
     <Card variant="glow">
-      <CardHeader icon={<Link2 />} title="Lien commun à distribuer" description="Un seul lien pour tout le monde — chacun choisit ensuite son nom dans la liste." />
+      <CardHeader icon={<Link2 />} title="Lien commun à distribuer" description="Un seul lien pour tout le monde — chacun retrouve son nom et reçoit son lien personnel par email." />
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
         <code className="type-numeric min-w-0 flex-1 truncate rounded-md border border-border bg-surface px-3 py-2.5 text-[13px] text-foreground">{path}</code>
         <Button variant={copied ? "success" : "primary"} onClick={copy} icon={copied ? <Check /> : <Copy />}>

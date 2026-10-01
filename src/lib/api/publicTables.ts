@@ -1,5 +1,6 @@
 import { apiFetch } from "./client";
 import type { components } from "./generated/schema";
+import type { DerogationListItemDto } from "./derogations";
 
 /**
  * Client HTTP pour le flux Tables de marque SANS COMPTE (retour du club,
@@ -13,7 +14,8 @@ import type { components } from "./generated/schema";
 
 export type PublicClubDto = components["schemas"]["PublicClubDto"];
 export type PublicLicencieDto = components["schemas"]["PublicLicencieDto"];
-export type ClaimResultDto = components["schemas"]["ClaimResultDto"];
+export type RequestPersonalLinkResultDto = components["schemas"]["RequestPersonalLinkResultDto"];
+export type PublicLinkTarget = components["schemas"]["PublicLinkTarget"];
 export type PublicMeDto = components["schemas"]["PublicMeDto"];
 export type TableAssignmentRole = components["schemas"]["TableAssignmentRole"];
 export type TableAssignmentSlotDto = components["schemas"]["TableAssignmentSlotDto"];
@@ -49,12 +51,24 @@ export async function listPublicLicencies(clubSlug: string): Promise<PublicLicen
   return licencies;
 }
 
-/** POST .../licencies/:licencieId/claim — mint le jeton personnel, renvoyé UNE SEULE FOIS. */
-export async function claimLicencie(clubSlug: string, licencieId: string, email: string | null): Promise<ClaimResultDto> {
-  return apiFetch<ClaimResultDto>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/licencies/${licencieId}/claim`, {
+/**
+ * POST .../licencies/:licencieId/request-link — envoie le lien personnel
+ * PAR EMAIL uniquement (retour du club, 2026-10-01) : le jeton n'est jamais
+ * dans la réponse, seulement l'adresse masquée. `email` n'est utilisé par
+ * le serveur que si aucune adresse n'est encore connue (sinon `400
+ * EMAIL_REQUIRED` est renvoyé quand il en faut une).
+ */
+export async function requestPersonalLink(clubSlug: string, licencieId: string, params: { email?: string | null; returnTo: PublicLinkTarget }): Promise<RequestPersonalLinkResultDto> {
+  return apiFetch<RequestPersonalLinkResultDto>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/licencies/${licencieId}/request-link`, {
     method: "POST",
-    body: { email },
+    body: { email: params.email ?? null, returnTo: params.returnTo },
   });
+}
+
+/** GET .../derogations?token= — lecture seule, réservée aux licenciés admins du club (403 `CLUB_ADMIN_REQUIRED` sinon). */
+export async function listPublicDerogations(clubSlug: string, token: string): Promise<DerogationListItemDto[]> {
+  const { derogations } = await apiFetch<{ derogations: DerogationListItemDto[] }>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/derogations?token=${encodeURIComponent(token)}`);
+  return derogations;
 }
 
 /** GET .../me?token= — vérifie/résout l'identité d'un lien déjà en poche. */

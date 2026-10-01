@@ -3,7 +3,6 @@ import { getPublicClub } from "@/lib/api/publicTables";
 import { getPublicMatch, listPublicMatchDocuments } from "@/lib/api/publicMatches";
 import { ApiError } from "@/lib/api/client";
 import { PageContainer, BackButton } from "@/components/ui/PageHeader";
-import { PublicFrame } from "@/components/public/PublicFrame";
 import { MatchDetailView } from "@/features/matches/detail/MatchDetailView";
 import { parseMatchTab } from "@/features/matches/detail/labels";
 import type { MatchDetailsDto } from "@/lib/api/matches";
@@ -37,21 +36,19 @@ export default async function PublicMatchDetailPage({
   const documents = tab === "emarque" ? await listPublicMatchDocuments(clubSlug, id) : null;
 
   return (
-    <PublicFrame club={club}>
-      <PageContainer width="wide" className="gap-6">
-        <BackButton href={`/public/${clubSlug}/matchs`} label="Retour aux matchs" />
-        <MatchDetailView
-          match={match}
-          derogation={null}
-          documents={documents}
-          tab={tab}
-          basePath={`/public/${clubSlug}/matchs`}
-          club={{ name: club.name, logoUrl: club.logoUrl }}
-          derogationClubId={club.slug}
-          mode="public"
-          isAdmin={false}
-        />
-      </PageContainer>
-    </PublicFrame>
+    <PageContainer width="wide" className="gap-6">
+      <BackButton href={`/public/${clubSlug}/matchs`} label="Retour aux matchs" />
+      <MatchDetailView
+        match={match}
+        derogation={null}
+        documents={documents}
+        tab={tab}
+        basePath={`/public/${clubSlug}/matchs`}
+        club={{ name: club.name, logoUrl: club.logoUrl }}
+        derogationClubId={club.slug}
+        mode="public"
+        isAdmin={false}
+      />
+    </PageContainer>
   );
 }
