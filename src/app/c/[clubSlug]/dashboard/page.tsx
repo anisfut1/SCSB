@@ -80,46 +80,26 @@ export default async function ClubDashboardPage({ params }: { params: Promise<{ 
 
       <div className="grid grid-cols-1 gap-10 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="flex flex-col gap-4">
+          {/* Retour du club, 2026-10-01 : « sur la page accueil enlève prochains matchs, mets juste derniers résultats ». */}
           <SectionHeader
-            title="Prochains matchs"
+            title="Derniers résultats"
             action={
-              <ButtonLink href={`${base}/matchs?when=upcoming`} variant="ghost" size="sm" iconRight={<ArrowRight />}>
+              <ButtonLink href={`${base}/matchs?when=past`} variant="ghost" size="sm" iconRight={<ArrowRight />}>
                 Tout voir
               </ButtonLink>
             }
           />
-          {upcoming.length === 0 ? (
-            <EmptyState icon={<CalendarDays />} title="Aucun match à venir" description="Le calendrier de la saison est synchronisé automatiquement depuis la FFBB." compact />
+          {results.length === 0 ? (
+            <EmptyState icon={<Trophy />} title="Aucun résultat pour l'instant" description="Les scores apparaissent ici dès qu'ils sont publiés par la FFBB." compact />
           ) : (
             <ul className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
-              {upcoming.slice(0, 4).map((match) => (
+              {results.slice(0, 6).map((match) => (
                 <li key={match.id}>
                   <MatchCard match={match} href={`${base}/matchs/${match.id}`} club={cardClub} />
                 </li>
               ))}
             </ul>
           )}
-
-          {results.length > 0 ? (
-            <>
-              <SectionHeader
-                className="mt-6"
-                title="Derniers résultats"
-                action={
-                  <ButtonLink href={`${base}/matchs?when=past`} variant="ghost" size="sm" iconRight={<ArrowRight />}>
-                    Tout voir
-                  </ButtonLink>
-                }
-              />
-              <ul className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
-                {results.slice(0, 2).map((match) => (
-                  <li key={match.id}>
-                    <MatchCard match={match} href={`${base}/matchs/${match.id}`} club={cardClub} />
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : null}
         </section>
 
         <aside className="flex flex-col gap-4">
