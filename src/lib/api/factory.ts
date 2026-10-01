@@ -9,6 +9,7 @@ import * as licencies from "./licencies";
 import * as platform from "./platform";
 import * as derogations from "./derogations";
 import * as tables from "./tables";
+import * as standings from "./standings";
 
 /**
  * Fonctions ergonomiques (§40 de la demande) : un composant appelle
@@ -48,6 +49,9 @@ export function createApi(fetcher: ApiFetcher) {
       checkAllDerogations: (clubId: string) => integrations.checkAllDerogations(fetcher, clubId),
       triggerFfbbSync: (clubId: string) => integrations.triggerFfbbSync(fetcher, clubId),
       syncRuns: (clubId: string) => integrations.listSyncRuns(fetcher, clubId),
+    },
+    standings: {
+      list: (clubId: string) => standings.listStandings(fetcher, clubId),
     },
     derogations: {
       list: (clubId: string) => derogations.listDerogations(fetcher, clubId),

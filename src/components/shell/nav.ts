@@ -10,6 +10,7 @@ import { hasAnyRole, isClubAdmin } from "@/lib/permissions/roles";
 export type NavIcon =
   | "home"
   | "matches"
+  | "results"
   | "players"
   | "tables"
   | "integrations"
@@ -39,6 +40,8 @@ export function buildClubNav(slug: string, roles: readonly ClubRole[]): NavSecti
   const main: NavItem[] = [
     { href: `${base}/dashboard`, label: "Accueil", icon: "home" },
     { href: `${base}/matchs`, label: "Matchs", icon: "matches", prefix: true },
+    // Retour du club, 2026-10-01 : « ici aussi dans le menu me faut le classement, c'est pas only public ».
+    { href: `${base}/resultats`, label: "Résultats", icon: "results" },
     { href: `${base}/joueurs`, label: "Joueurs", icon: "players", prefix: true },
   ];
   if (hasAnyRole(roles, ["club_admin", "responsable_tables"])) {

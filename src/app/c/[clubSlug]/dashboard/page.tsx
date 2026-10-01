@@ -84,7 +84,7 @@ export default async function ClubDashboardPage({ params }: { params: Promise<{ 
           <SectionHeader
             title="Derniers résultats"
             action={
-              <ButtonLink href={`${base}/matchs?when=past`} variant="ghost" size="sm" iconRight={<ArrowRight />}>
+              <ButtonLink href={`${base}/resultats`} variant="ghost" size="sm" iconRight={<ArrowRight />}>
                 Tout voir
               </ButtonLink>
             }

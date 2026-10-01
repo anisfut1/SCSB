@@ -10,6 +10,7 @@ import {
   Settings2,
   ShieldCheck,
   Shirt,
+  Trophy,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -18,6 +19,7 @@ import type { NavIcon } from "./nav";
 export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   home: House,
   matches: CalendarDays,
+  results: Trophy,
   players: Users,
   tables: ClipboardList,
   integrations: PlugZap,

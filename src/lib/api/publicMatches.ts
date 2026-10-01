@@ -2,10 +2,9 @@ import { apiFetch } from "./client";
 import type { TeamDto } from "./clubs";
 import type { DerogationStatusDto, MatchDetailsDto, MatchDocumentDto, MatchListItemDto } from "./matches";
 import type { ListMatchesParams } from "./matches";
-import type { components } from "./generated/schema";
+import type { PoolStandingsDto } from "./standings";
 
-export type PoolStandingsDto = components["schemas"]["PoolStandingsDto"];
-export type StandingRowDto = components["schemas"]["StandingRowDto"];
+export type { PoolStandingsDto, StandingRowDto } from "./standings";
 
 /**
  * Client HTTP pour la vue PUBLIQUE en lecture seule des matchs (retour du
