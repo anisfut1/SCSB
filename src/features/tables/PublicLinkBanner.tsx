@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/Button";
  */
 export function PublicLinkBanner({ clubSlug }: { clubSlug: string }) {
   const [copied, setCopied] = useState(false);
-  const path = `/public/${clubSlug}/tables`;
+  // Entrée commune : connexion pour un nouveau, accueil direct pour quelqu'un déjà reconnu.
+  const path = `/public/${clubSlug}`;
 
   async function copy() {
     try {
@@ -27,7 +28,7 @@ export function PublicLinkBanner({ clubSlug }: { clubSlug: string }) {
 
   return (
     <Card variant="glow">
-      <CardHeader icon={<Link2 />} title="Lien commun à distribuer" description="Un seul lien pour tout le monde — chacun retrouve son nom et reçoit son lien personnel par email." />
+      <CardHeader icon={<Link2 />} title="Lien commun à distribuer" description="Un seul lien pour tout le monde — chacun tape son nom, reçoit son lien personnel par email puis arrive sur son accueil." />
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
         <code className="type-numeric min-w-0 flex-1 truncate rounded-md border border-border bg-surface px-3 py-2.5 text-[13px] text-foreground">{path}</code>
         <Button variant={copied ? "success" : "primary"} onClick={copy} icon={copied ? <Check /> : <Copy />}>

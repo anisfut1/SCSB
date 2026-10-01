@@ -139,7 +139,7 @@ export function LicenciePublicAccessCard({
       <CardDivider />
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5 text-sm text-foreground">
-          {claimed ? <p>{since ? `Lien actif depuis le ${since}.` : "Lien actif."}</p> : <p>Aucun lien actif. Il peut le demander depuis l&apos;onglet Tables de l&apos;espace public.</p>}
+          {claimed ? <p>{since ? `Lien actif depuis le ${since}.` : "Lien actif."}</p> : <p>Aucun lien actif. Il peut le demander depuis la page de connexion de l&apos;espace public.</p>}
           <p className="flex items-center gap-2 text-muted">
             <Mail aria-hidden className="size-4 shrink-0 text-subtle" />
             {sendTo ? (
@@ -151,7 +151,7 @@ export function LicenciePublicAccessCard({
             )}
           </p>
           <p className="type-meta">
-            Lien commun : <span className="type-numeric">/public/{clubSlug}/accueil</span>
+            Lien commun : <span className="type-numeric">/public/{clubSlug}</span>
           </p>
         </div>
         {/* Retour du club, 2026-10-01 : rôles de l'espace public sans compte — aucun droit dans l'espace connecté. */}

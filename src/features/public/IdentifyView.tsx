@@ -18,6 +18,10 @@ type Step = { kind: "pick" } | { kind: "confirm"; licencie: PublicLicencieDto; n
 
 type Feedback = { tone: "danger" | "warning" | "info"; message: string } | null;
 
+/** Mode « connexion » : rien n'est listé avant 2 lettres, puis au plus 8 noms. */
+const SEARCH_MIN_CHARS = 2;
+const SEARCH_MAX_RESULTS = 8;
+
 /**
  * Identification de l'espace public sans compte (retour du club,
  * 2026-10-01 : "il va chercher son nom, il va mettre son mail... un bouton
@@ -25,6 +29,10 @@ type Feedback = { tone: "danger" | "warning" | "info"; message: string } | null;
  * affiché ici : il part uniquement par email (club-manager-api, Resend).
  * Un nom déjà inscrit reste sélectionnable — c'est le « lien perdu ? » :
  * le nouveau lien repart à l'adresse déjà enregistrée, jamais ailleurs.
+ *
+ * `searchFirst` (page de connexion, retour du club 2026-10-01 : « il va
+ * commencer à taper son nom ou prénom pour se retrouver ») : aucune liste
+ * affichée d'emblée, seulement les noms qui correspondent à la frappe.
  */
 export function IdentifyView({
   clubSlug,
@@ -33,13 +41,18 @@ export function IdentifyView({
   title,
   description,
   notice,
+  header,
+  searchFirst = false,
 }: {
   clubSlug: string;
   clubName: string;
   returnTo: PublicLinkTarget;
-  title: string;
-  description: ReactNode;
+  title?: string;
+  description?: ReactNode;
   notice?: ReactNode;
+  /** Remplace l'en-tête de page par défaut (page de connexion). */
+  header?: ReactNode;
+  searchFirst?: boolean;
 }) {
   const [licencies, setLicencies] = useState<PublicLicencieDto[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -63,12 +76,14 @@ export function IdentifyView({
     };
   }, [clubSlug]);
 
-  const filtered = useMemo(() => {
+  const query = normalize(search.trim());
+  const waitingForInput = searchFirst && query.length < SEARCH_MIN_CHARS;
+  const matches = useMemo(() => {
     if (!licencies) return [];
-    const query = normalize(search.trim());
     if (!query) return licencies;
     return licencies.filter((l) => normalize(`${l.firstName} ${l.lastName}`).includes(query) || normalize(`${l.lastName} ${l.firstName}`).includes(query));
-  }, [licencies, search]);
+  }, [licencies, query]);
+  const filtered = searchFirst ? matches.slice(0, SEARCH_MAX_RESULTS) : matches;
 
   function choose(licencie: PublicLicencieDto) {
     setFeedback(null);
@@ -178,7 +193,7 @@ export function IdentifyView({
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow={clubName} title={title} description={description} />
+      {header ?? <PageHeader eyebrow={clubName} title={title ?? ""} description={description} />}
 
       {notice}
       {loadError ? (
@@ -191,13 +206,23 @@ export function IdentifyView({
         <label className="relative block">
           <span className="sr-only">Rechercher ton nom</span>
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" aria-hidden />
-          <Input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher ton nom…" className="pl-10" autoComplete="off" />
+          <Input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={searchFirst ? "Commence à taper ton nom ou ton prénom…" : "Rechercher ton nom…"}
+            className={cn("pl-10", searchFirst && "h-12 text-base")}
+            autoComplete="off"
+            autoFocus={searchFirst}
+          />
         </label>
 
-        {licencies === null && !loadError ? (
-          <ListSkeleton rows={6} />
+        {waitingForInput ? (
+          <p className="type-meta px-1">Tape au moins {SEARCH_MIN_CHARS} lettres pour te retrouver dans la liste du club.</p>
+        ) : licencies === null && !loadError ? (
+          <ListSkeleton rows={searchFirst ? 3 : 6} />
         ) : (
-          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className={cn("grid grid-cols-1 gap-2", !searchFirst && "sm:grid-cols-2 xl:grid-cols-3")}>
             {filtered.map((l) => (
               <li key={l.id}>
                 <button
@@ -223,6 +248,7 @@ export function IdentifyView({
               </li>
             ))}
             {licencies !== null && filtered.length === 0 ? <p className="type-meta col-span-full py-4">Aucun licencié ne correspond à « {search.trim()} ».</p> : null}
+            {matches.length > filtered.length ? <p className="type-meta col-span-full px-1">Et {matches.length - filtered.length} autre(s) — précise ta recherche (nom + prénom).</p> : null}
           </ul>
         )}
       </div>
