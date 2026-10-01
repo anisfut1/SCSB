@@ -8,9 +8,9 @@ import { Notice } from "@/components/ui/Notice";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/States";
 import { cn } from "@/components/ui/cn";
-import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
 import type { ClubVenueDto, DerogationAvailabilityDto } from "@/lib/api/derogationRequests";
+import { derogationClient, type DerogationSource } from "./client";
 import { formatTime, localDateKey, upcomingWeekendDays, zonedIso } from "./labels";
 import { AwaySlots, VenuePlanning, type SlotSelection } from "./VenuePlanning";
 
@@ -80,7 +80,7 @@ export function DateChooser({ timezone, value, onChange }: { timezone: string; v
  * de toute façon à l'envoi).
  */
 export function SlotChooser({
-  clubId,
+  source,
   matchId,
   date,
   timezone,
@@ -88,7 +88,7 @@ export function SlotChooser({
   value,
   onChange,
 }: {
-  clubId: string;
+  source: DerogationSource;
   matchId: string;
   date: string;
   timezone: string;
@@ -104,8 +104,8 @@ export function SlotChooser({
 
   useEffect(() => {
     let cancelled = false;
-    browserApi.derogationRequests
-      .availability(clubId, matchId, date)
+    derogationClient(source)
+      .availability(matchId, date)
       .then((result) => {
         if (!cancelled) setLoaded({ key: requestKey, availability: result, error: null });
       })
@@ -115,7 +115,7 @@ export function SlotChooser({
     return () => {
       cancelled = true;
     };
-  }, [clubId, matchId, date, requestKey]);
+  }, [source, matchId, date, requestKey]);
 
   const current = loaded?.key === requestKey ? loaded : null;
   const availability = current?.availability ?? null;
@@ -176,7 +176,7 @@ export function SlotChooser({
 
       <CustomTime
         key={date}
-        clubId={clubId}
+        source={source}
         matchId={matchId}
         date={date}
         timezone={timezone}
@@ -189,7 +189,7 @@ export function SlotChooser({
 }
 
 function CustomTime({
-  clubId,
+  source,
   matchId,
   date,
   timezone,
@@ -197,7 +197,7 @@ function CustomTime({
   home,
   onSelect,
 }: {
-  clubId: string;
+  source: DerogationSource;
   matchId: string;
   date: string;
   timezone: string;
@@ -225,7 +225,7 @@ function CustomTime({
     setMessage(null);
     try {
       const startAt = zonedIso(date, time, timezone);
-      const result = await browserApi.derogationRequests.checkSlot(clubId, matchId, startAt, home ? venueId || null : null);
+      const result = await derogationClient(source).checkSlot(matchId, startAt, home ? venueId || null : null);
       if (!result.ok) {
         setMessage({ tone: "danger", text: result.message ?? "Créneau impossible." });
         return;

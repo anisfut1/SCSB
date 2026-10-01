@@ -13,7 +13,7 @@ import { Notice } from "@/components/ui/Notice";
 import { Sheet } from "@/components/ui/Sheet";
 import { Toast } from "@/components/ui/Toast";
 import { cn } from "@/components/ui/cn";
-import { browserApi } from "@/lib/api/browserClient";
+import { derogationClient, type DerogationSource } from "./client";
 import { ApiError } from "@/lib/api/client";
 import type { ClubVenueDto, DerogationAction, DerogationMessageDto, DerogationRequestDetailDto } from "@/lib/api/derogationRequests";
 import { ACTION_LABELS, formatDayLongCapitalized, formatShortDateTime, formatTime, isActive } from "./labels";
@@ -27,7 +27,7 @@ import type { SlotSelection } from "./VenuePlanning";
  * créneau…) s'affichent comme des lignes discrètes. Aucune action ici ne
  * modifie FFBB/FBI ni la date officielle du match.
  */
-export function RequestThread({ clubId, initial, timezone, venues, justSent }: { clubId: string; initial: DerogationRequestDetailDto; timezone: string; venues: ClubVenueDto[]; justSent: boolean }) {
+export function RequestThread({ source, initial, timezone, venues, justSent }: { source: DerogationSource; initial: DerogationRequestDetailDto; timezone: string; venues: ClubVenueDto[]; justSent: boolean }) {
   const router = useRouter();
   const [request, setRequest] = useState(initial);
   const [toast, setToast] = useState<string | null>(justSent ? "Demande envoyée au coordinateur." : null);
@@ -63,7 +63,7 @@ export function RequestThread({ clubId, initial, timezone, venues, justSent }: {
     setBusy(action);
     setError(null);
     try {
-      const next = await browserApi.derogationRequests.action(clubId, request.id, action, message ?? null);
+      const next = await derogationClient(source).action(request.id, action, message ?? null);
       const toasts: Record<DerogationAction, string> = {
         TAKE_IN_CHARGE: "Tu t'occupes de cette demande.",
         REQUEST_CHANGE: "Le coach est invité à proposer un autre créneau.",
@@ -183,7 +183,7 @@ export function RequestThread({ clubId, initial, timezone, venues, justSent }: {
             setBusy("message");
             setError(null);
             try {
-              const next = await browserApi.derogationRequests.message(clubId, request.id, body);
+              const next = await derogationClient(source).message(request.id, body);
               setRequest(next);
               router.refresh();
               return true;
@@ -204,7 +204,7 @@ export function RequestThread({ clubId, initial, timezone, venues, justSent }: {
         <ProposeSheet
           open={proposeOpen}
           onClose={() => setProposeOpen(false)}
-          clubId={clubId}
+          source={source}
           request={request}
           timezone={timezone}
           venues={venues}
@@ -359,7 +359,7 @@ function RequestChangeSheet({ open, onClose, busy, onSubmit }: { open: boolean; 
 function ProposeSheet({
   open,
   onClose,
-  clubId,
+  source,
   request,
   timezone,
   venues,
@@ -367,7 +367,7 @@ function ProposeSheet({
 }: {
   open: boolean;
   onClose: () => void;
-  clubId: string;
+  source: DerogationSource;
   request: DerogationRequestDetailDto;
   timezone: string;
   venues: ClubVenueDto[];
@@ -384,7 +384,7 @@ function ProposeSheet({
     setSending(true);
     setError(null);
     try {
-      const next = await browserApi.derogationRequests.propose(clubId, request.id, { requestedStartAt: slot.startAt, requestedVenueId: slot.venueId, message: message.trim() || null });
+      const next = await derogationClient(source).propose(request.id, { requestedStartAt: slot.startAt, requestedVenueId: slot.venueId, message: message.trim() || null });
       setDate(null);
       setSlot(null);
       setMessage("");
@@ -429,7 +429,7 @@ function ProposeSheet({
             setDate(d);
           }}
         />
-        {date ? <SlotChooser clubId={clubId} matchId={request.match.id} date={date} timezone={timezone} venues={venues} value={slot} onChange={setSlot} /> : null}
+        {date ? <SlotChooser source={source} matchId={request.match.id} date={date} timezone={timezone} venues={venues} value={slot} onChange={setSlot} /> : null}
         <Field label="Message" optional>
           {(props) => <Textarea {...props} rows={2} maxLength={3000} value={message} onChange={(e) => setMessage(e.target.value)} />}
         </Field>

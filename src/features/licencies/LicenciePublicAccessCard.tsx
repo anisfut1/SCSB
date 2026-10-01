@@ -29,6 +29,8 @@ export function LicenciePublicAccessCard({
   licencieName,
   licencieEmail,
   publicAdmin,
+  publicCoach,
+  publicCoordinator,
   entry,
 }: {
   clubId: string;
@@ -37,27 +39,30 @@ export function LicenciePublicAccessCard({
   licencieName: string;
   licencieEmail: string | null;
   publicAdmin: boolean;
+  publicCoach: boolean;
+  publicCoordinator: boolean;
   entry: PublicAccessEntryDto | null;
 }) {
   const router = useRouter();
   const [resetting, setResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, confirmDialog] = useConfirm();
-  const [admin, setAdmin] = useState(publicAdmin);
-  const [savingAdmin, setSavingAdmin] = useState(false);
+  // Rôles de l'espace public sans compte (retour du club, 2026-10-01) : admin, puis coach / coordinateur des dérogations.
+  const [flags, setFlags] = useState({ publicAdmin, publicCoach, publicCoordinator });
+  const [savingFlag, setSavingFlag] = useState<keyof typeof flags | null>(null);
 
-  async function toggleAdmin(next: boolean) {
-    setAdmin(next);
-    setSavingAdmin(true);
+  async function toggleFlag(flag: keyof typeof flags, next: boolean) {
+    setFlags((f) => ({ ...f, [flag]: next }));
+    setSavingFlag(flag);
     setError(null);
     try {
-      await browserApi.licencies.updateProfile(clubId, licencieId, { publicAdmin: next });
+      await browserApi.licencies.updateProfile(clubId, licencieId, { [flag]: next });
       router.refresh();
     } catch (err) {
-      setAdmin(!next);
-      setError(err instanceof ApiError ? err.message : "Modification du profil admin impossible.");
+      setFlags((f) => ({ ...f, [flag]: !next }));
+      setError(err instanceof ApiError ? err.message : "Modification du rôle impossible.");
     } finally {
-      setSavingAdmin(false);
+      setSavingFlag(null);
     }
   }
 
@@ -92,7 +97,7 @@ export function LicenciePublicAccessCard({
       <CardHeader
         icon={<Link2 />}
         title="Lien personnel"
-        description="Accès sans compte à l'espace public (Tables, Dérogations pour les admins), envoyé par email."
+        description="Accès sans compte à l'espace public (Tables, et Dérogations pour les admins, coachs et coordinateurs), envoyé par email."
         actions={
           claimed ? (
             <StatusBadge tone="success" size="sm">
@@ -123,14 +128,30 @@ export function LicenciePublicAccessCard({
             Lien commun : <span className="type-numeric">/public/{clubSlug}/tables</span>
           </p>
         </div>
-        {/* Retour du club, 2026-10-01 : "mettre un profil admin et qu'il ait accès aux dérogs" — aucun compte requis, aucun droit dans l'espace connecté. */}
-        <Checkbox
-          label="Profil admin"
-          description="Accès aux dérogations (lecture seule) depuis l'espace public, avec son lien personnel. Ne donne aucun droit dans l'espace club."
-          checked={admin}
-          disabled={savingAdmin}
-          onChange={(e) => toggleAdmin(e.target.checked)}
-        />
+        {/* Retour du club, 2026-10-01 : rôles de l'espace public sans compte — aucun droit dans l'espace connecté. */}
+        <div className="flex flex-col">
+          <Checkbox
+            label="Profil admin"
+            description="Accès aux dérogations (dont le statut officiel FBI, en lecture) depuis l'espace public, avec son lien personnel."
+            checked={flags.publicAdmin}
+            disabled={savingFlag !== null}
+            onChange={(e) => toggleFlag("publicAdmin", e.target.checked)}
+          />
+          <Checkbox
+            label="Coach"
+            description="Peut demander une dérogation pour les matchs à venir du club (aucune équipe à préciser)."
+            checked={flags.publicCoach}
+            disabled={savingFlag !== null}
+            onChange={(e) => toggleFlag("publicCoach", e.target.checked)}
+          />
+          <Checkbox
+            label="Coordinateur"
+            description="Reçoit et traite les demandes de dérogation des coachs."
+            checked={flags.publicCoordinator}
+            disabled={savingFlag !== null}
+            onChange={(e) => toggleFlag("publicCoordinator", e.target.checked)}
+          />
+        </div>
         {error ? <FormMessage tone="danger">{error}</FormMessage> : null}
         {claimed ? (
           <Button variant="secondary" size="sm" loading={resetting} onClick={reset} icon={<RotateCcw />} className="self-start">

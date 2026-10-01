@@ -36,6 +36,13 @@ export function PublicAccountChip() {
                   <ShieldCheck aria-hidden className="size-3.5 text-accent-text" />
                   Administrateur du club
                 </>
+              ) : identity.derogationRequests.canManage ? (
+                <>
+                  <ShieldCheck aria-hidden className="size-3.5 text-accent-text" />
+                  Coordinateur des dérogations
+                </>
+              ) : identity.derogationRequests.canCreate ? (
+                "Coach · reconnu·e via ton lien personnel"
               ) : (
                 "Reconnu·e via ton lien personnel"
               )}

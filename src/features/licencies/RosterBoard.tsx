@@ -7,13 +7,22 @@ import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
 import type { LicencieDto } from "@/lib/api/licencies";
 import type { TeamDto } from "@/lib/api/clubs";
-import { GripVertical, Search, ShieldCheck, Shirt, Trash2, UserX, Wand2 } from "lucide-react";
+import { CalendarCog, GripVertical, Megaphone, Search, ShieldCheck, Shirt, Trash2, UserX, Wand2 } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 import { Button, IconButton } from "@/components/ui/Button";
 import { FormMessage, Input, Select } from "@/components/ui/Field";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Notice } from "@/components/ui/Notice";
 import { PersonAvatar } from "@/components/ui/Avatar";
+
+type PublicRoleFlag = "publicAdmin" | "publicCoach" | "publicCoordinator";
+
+/** Rôles posés depuis /joueurs pour l'espace public sans compte (lien personnel). */
+const PUBLIC_ROLE_FLAGS: { flag: PublicRoleFlag; label: string; short: string; hint: string; icon: typeof ShieldCheck }[] = [
+  { flag: "publicAdmin", label: "admin", short: "Admin", hint: "accès aux dérogations FBI", icon: ShieldCheck },
+  { flag: "publicCoach", label: "coach", short: "Coach", hint: "demande des dérogations", icon: Megaphone },
+  { flag: "publicCoordinator", label: "coordinateur", short: "Coordinateur", hint: "traite les demandes de dérogation", icon: CalendarCog },
+];
 
 interface Bucket {
   teamId: string | null;
@@ -49,7 +58,7 @@ function LicencieCard({
   teams,
   isAdmin,
   onAssignTeam,
-  onTogglePublicAdmin,
+  onToggleFlag,
   isConfirmingDelete,
   onRequestDelete,
   onConfirmDelete,
@@ -60,7 +69,7 @@ function LicencieCard({
   teams: TeamDto[];
   isAdmin: boolean;
   onAssignTeam: (teamId: string | null) => void;
-  onTogglePublicAdmin: () => void;
+  onToggleFlag: (flag: PublicRoleFlag) => void;
   isConfirmingDelete: boolean;
   onRequestDelete: () => void;
   onConfirmDelete: () => void;
@@ -84,11 +93,11 @@ function LicencieCard({
             </span>
             {/* Catégorie/sexe FFBB — repère pour choisir la bonne équipe (un club a souvent plusieurs équipes par catégorie, ex. SM1/SM2/SF). */}
             <span className="type-meta truncate">
-              {licencie.publicAdmin ? (
-                <span className="font-medium text-accent-text">
-                  <ShieldCheck aria-hidden className="inline size-3.5 align-[-2px]" /> Admin ·{" "}
+              {PUBLIC_ROLE_FLAGS.filter((f) => licencie[f.flag]).map((f) => (
+                <span key={f.flag} className="font-medium text-accent-text">
+                  <f.icon aria-hidden className="inline size-3.5 align-[-2px]" /> {f.short} ·{" "}
                 </span>
-              ) : null}
+              ))}
               <span className="type-numeric">{licencie.licenseNumber ?? "Licence —"}</span>
               {licencie.categoryLabel || licencie.sexe ? ` · ${[licencie.categoryLabel, licencie.sexe].filter(Boolean).join(" · ")}` : ""}
             </span>
@@ -96,7 +105,7 @@ function LicencieCard({
         </Link>
       </div>
       {isAdmin ? (
-        <div className="flex shrink-0 items-center gap-1.5 pl-12 sm:pl-0">
+        <div className="flex shrink-0 items-center gap-1 pl-12 sm:pl-0">
           {isConfirmingDelete ? (
             <span className="flex items-center gap-1.5" role="group" aria-label={`Confirmer la suppression de ${name}`}>
               <Button variant="danger" size="sm" onClick={onConfirmDelete}>
@@ -108,7 +117,7 @@ function LicencieCard({
             </span>
           ) : (
             <>
-              <span className="w-44 sm:w-48">
+              <span className="w-44 sm:w-36 2xl:w-44">
                 <Select
                   aria-label={`Équipe de ${name}`}
                   value={licencie.teamId ?? NO_TEAM_VALUE}
@@ -123,17 +132,24 @@ function LicencieCard({
                   ))}
                 </Select>
               </span>
-              {/* Profil admin de l'espace public (retour du club, 2026-10-01 : "mettre un profil admin et qu'il ait accès aux dérogs") — aucun compte requis. */}
-              <IconButton
-                label={licencie.publicAdmin ? `Retirer le profil admin de ${name}` : `Donner le profil admin à ${name} (accès aux dérogations)`}
-                aria-pressed={licencie.publicAdmin}
-                variant="ghost"
-                size="sm"
-                onClick={onTogglePublicAdmin}
-                className={cn(licencie.publicAdmin && "bg-accent-soft text-accent-text hover:bg-accent-soft hover:text-accent-text")}
-              >
-                <ShieldCheck />
-              </IconButton>
+              {/*
+                Rôles de l'espace public sans compte, posés ici (retour du club, 2026-10-01) :
+                « mettre un profil admin et qu'il ait accès aux dérogs », puis « comme on a fait
+                pour l'admin, on le fait pour les coachs et coordinateurs » — sans équipe à préciser.
+              */}
+              {PUBLIC_ROLE_FLAGS.map((f) => (
+                <IconButton
+                  key={f.flag}
+                  label={licencie[f.flag] ? `Retirer le rôle ${f.label} de ${name}` : `Donner le rôle ${f.label} à ${name} (${f.hint})`}
+                  aria-pressed={licencie[f.flag]}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onToggleFlag(f.flag)}
+                  className={cn(licencie[f.flag] && "bg-accent-soft text-accent-text hover:bg-accent-soft hover:text-accent-text")}
+                >
+                  <f.icon />
+                </IconButton>
+              ))}
               <IconButton label="Supprimer ce licencié" variant="danger-ghost" size="sm" onClick={onRequestDelete}>
                 <Trash2 />
               </IconButton>
@@ -236,25 +252,25 @@ export function RosterBoard({
   }
 
   /**
-   * Profil admin de l'espace public (retour du club, 2026-10-01) : ouvre
-   * au licencié les dérogations en lecture seule via son lien personnel,
-   * sans compte. Optimiste, annulé si l'appel API échoue.
+   * Rôles de l'espace public sans compte (retour du club, 2026-10-01) :
+   * Admin (dérogations FBI en lecture), Coach (demande des dérogations),
+   * Coordinateur (traite les demandes). Optimiste, annulé si l'API échoue.
    */
-  function togglePublicAdmin(licencieId: string) {
+  function toggleFlag(licencieId: string, flag: PublicRoleFlag) {
     const licencie = items.find((l) => l.id === licencieId);
     if (!licencie) return;
-    const next = !licencie.publicAdmin;
+    const next = !licencie[flag];
     const previous = items;
     setError(null);
-    setItems(items.map((l) => (l.id === licencieId ? { ...l, publicAdmin: next } : l)));
+    setItems(items.map((l) => (l.id === licencieId ? { ...l, [flag]: next } : l)));
 
     startTransition(async () => {
       try {
-        await browserApi.licencies.updateProfile(clubId, licencieId, { publicAdmin: next });
+        await browserApi.licencies.updateProfile(clubId, licencieId, { [flag]: next });
         router.refresh();
       } catch (e) {
         setItems(previous);
-        setError(e instanceof ApiError ? e.message : "Modification du profil admin impossible.");
+        setError(e instanceof ApiError ? e.message : "Modification du rôle impossible.");
       }
     });
   }
@@ -318,7 +334,10 @@ export function RosterBoard({
       {isAdmin ? (
         <p className="type-meta -mt-2">
           <span className="hidden sm:inline">Glissez une carte d&apos;une équipe à l&apos;autre, ou utilisez le sélecteur d&apos;équipe de chaque ligne. </span>
-          <ShieldCheck aria-hidden className="inline size-3.5 align-[-2px] text-accent-text" /> donne le profil admin : accès aux dérogations depuis l&apos;espace public, avec son lien personnel.
+          Rôles de l&apos;espace public (avec son lien personnel, sans compte) :{" "}
+          <ShieldCheck aria-hidden className="inline size-3.5 align-[-2px] text-accent-text" /> Admin ·{" "}
+          <Megaphone aria-hidden className="inline size-3.5 align-[-2px] text-accent-text" /> Coach (demande des dérogations) ·{" "}
+          <CalendarCog aria-hidden className="inline size-3.5 align-[-2px] text-accent-text" /> Coordinateur (traite les demandes).
         </p>
       ) : null}
 
@@ -371,7 +390,7 @@ export function RosterBoard({
                         teams={sortedTeams}
                         isAdmin={isAdmin}
                         onAssignTeam={(teamId) => assignTeam(licencie.id, teamId)}
-                        onTogglePublicAdmin={() => togglePublicAdmin(licencie.id)}
+                        onToggleFlag={(flag) => toggleFlag(licencie.id, flag)}
                         isConfirmingDelete={confirmingDeleteId === licencie.id}
                         onRequestDelete={() => setConfirmingDeleteId(licencie.id)}
                         onConfirmDelete={() => handleDelete(licencie.id)}

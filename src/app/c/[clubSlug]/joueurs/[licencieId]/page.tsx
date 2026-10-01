@@ -99,6 +99,8 @@ export default async function LicencieProfilePage({ params }: { params: Promise<
           licencieName={`${licencie.firstName} ${licencie.lastName}`}
           licencieEmail={licencie.email}
           publicAdmin={licencie.publicAdmin}
+          publicCoach={licencie.publicCoach}
+          publicCoordinator={licencie.publicCoordinator}
           entry={publicAccessEntry}
         />
       ) : null}

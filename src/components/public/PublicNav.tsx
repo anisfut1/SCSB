@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarClock, CalendarDays, ClipboardList, Lock, Trophy, type LucideIcon } from "lucide-react";
 import { cn } from "@/components/ui/cn";
-import { usePublicIdentity } from "@/features/public/PublicIdentityProvider";
+import { usePublicIdentity, type PublicIdentityState } from "@/features/public/PublicIdentityProvider";
 
 interface PublicNavItem {
   segment: "resultats" | "matchs" | "tables" | "derogations";
@@ -34,8 +34,10 @@ function useActiveSegment(clubSlug: string): string | null {
   return pathname.slice(prefix.length).split("/")[0] ?? null;
 }
 
-function showsLock(segment: PublicNavItem["segment"], isClubAdmin: boolean | undefined): boolean {
-  return segment === "derogations" && isClubAdmin !== true;
+/** Cadenas sur Dérogations tant que l'identité n'y donne aucun accès (admin, coach ou coordinateur). */
+function showsLock(segment: PublicNavItem["segment"], identity: PublicIdentityState): boolean {
+  if (segment !== "derogations") return false;
+  return !(identity && (identity.isClubAdmin || identity.derogationRequests.canCreate || identity.derogationRequests.canManage));
 }
 
 /** Onglets horizontaux dans l'en-tête, ≥ lg. */
@@ -59,7 +61,7 @@ export function PublicTopTabs({ clubSlug }: { clubSlug: string }) {
           >
             <Icon aria-hidden className={cn("size-[17px]", isActive ? "text-accent-text" : "")} />
             {item.label}
-            {showsLock(item.segment, identity?.isClubAdmin) ? <Lock aria-label="Accès réservé" className="size-3 text-subtle" /> : null}
+            {showsLock(item.segment, identity) ? <Lock aria-label="Accès réservé" className="size-3 text-subtle" /> : null}
             <span aria-hidden className={cn("absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-accent transition-opacity duration-150", isActive ? "opacity-100" : "opacity-0")} />
           </Link>
         );
@@ -92,7 +94,7 @@ export function PublicBottomNav({ clubSlug }: { clubSlug: string }) {
                   )}
                 >
                   <Icon aria-hidden className={cn("size-[19px]", isActive ? "text-accent-text" : "")} />
-                  {showsLock(item.segment, identity?.isClubAdmin) ? (
+                  {showsLock(item.segment, identity) ? (
                     <span className="absolute -right-0.5 -top-0.5 inline-flex size-4 items-center justify-center rounded-full border border-border bg-surface-raised">
                       <Lock aria-label="Accès réservé" className="size-2.5 text-subtle" />
                     </span>

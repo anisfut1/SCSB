@@ -10,7 +10,7 @@ import { Field, Input, Textarea } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
 import { EmptyState } from "@/components/ui/States";
 import { cn } from "@/components/ui/cn";
-import { browserApi } from "@/lib/api/browserClient";
+import { derogationClient, type DerogationSource } from "./client";
 import { ApiError } from "@/lib/api/client";
 import type { DerogationContextDto } from "@/lib/api/derogationRequests";
 import { formatDayLongCapitalized, formatShortDateTime } from "./labels";
@@ -28,9 +28,9 @@ type StepIndex = 0 | 1 | 2 | 3;
  * Créneau → Résumé → Envoyer. Rien ici ne touche FFBB/FBI : l'envoi crée
  * seulement une demande interne que le coordinateur traitera lui-même.
  */
-export function RequestWizard({ clubId, clubSlug, context, initialMatchId }: { clubId: string; clubSlug: string; context: DerogationContextDto; initialMatchId: string | null }) {
+export function RequestWizard({ source, basePath, context, initialMatchId }: { source: DerogationSource; basePath: string; context: DerogationContextDto; initialMatchId: string | null }) {
   const router = useRouter();
-  const base = `/c/${clubSlug}/derogations`;
+  const base = basePath;
   const initial = context.eligibleMatches.find((m) => m.id === initialMatchId && !m.activeRequestId) ?? null;
   const [step, setStep] = useState<StepIndex>(initial ? 1 : 0);
   const [matchId, setMatchId] = useState<string | null>(initial?.id ?? null);
@@ -56,7 +56,7 @@ export function RequestWizard({ clubId, clubSlug, context, initialMatchId }: { c
     setSending(true);
     setError(null);
     try {
-      const created = await browserApi.derogationRequests.create(clubId, {
+      const created = await derogationClient(source).create({
         matchId: match.id,
         requestedStartAt: slot.startAt,
         requestedVenueId: slot.venueId,
@@ -193,7 +193,7 @@ export function RequestWizard({ clubId, clubSlug, context, initialMatchId }: { c
           <h2 id="step-slot" className="type-section text-foreground">
             {formatDayLongCapitalized(`${date}T12:00:00Z`, "UTC")} — quel créneau ?
           </h2>
-          <SlotChooser clubId={clubId} matchId={match.id} date={date} timezone={tz} venues={context.venues} value={slot} onChange={setSlot} />
+          <SlotChooser source={source} matchId={match.id} date={date} timezone={tz} venues={context.venues} value={slot} onChange={setSlot} />
           <Footer onBack={() => go(1)} backLabel="Changer de date">
             <Button variant="primary" iconRight={<ArrowRight />} disabled={!slot} onClick={() => go(3)}>
               {slot ? `Continuer avec ${slot.localStart}` : "Choisis un créneau"}

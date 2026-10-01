@@ -46,7 +46,7 @@ export default async function DerogationRequestsPage({ params }: { params: Promi
           tone="warning"
           action={
             isClubAdmin(club.roles) ? (
-              <ButtonLink href={`/c/${clubSlug}/admin/membres`} size="sm" variant="secondary" icon={<UsersRound />}>
+              <ButtonLink href={`/c/${clubSlug}/joueurs`} size="sm" variant="secondary" icon={<UsersRound />}>
                 Désigner un coordinateur
               </ButtonLink>
             ) : undefined

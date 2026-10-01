@@ -30,7 +30,7 @@ export default async function DerogationRequestPage({
   return (
     <PageContainer className="gap-5">
       <BackButton href={`/c/${clubSlug}/derogations`} label="Dérogations" />
-      <RequestThread key={request.id} clubId={club.id} initial={request} timezone={context.timezone} venues={context.venues} justSent={sent} />
+      <RequestThread key={request.id} source={{ kind: "club", clubId: club.id }} initial={request} timezone={context.timezone} venues={context.venues} justSent={sent} />
     </PageContainer>
   );
 }

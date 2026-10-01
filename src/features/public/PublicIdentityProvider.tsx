@@ -8,6 +8,8 @@ export interface PublicIdentity {
   token: string;
   licencie: { id: string; firstName: string; lastName: string };
   isClubAdmin: boolean;
+  /** Demandes de dérogation internes : coach / coordinateur (rôles posés depuis /joueurs). */
+  derogationRequests: { canCreate: boolean; canManage: boolean };
 }
 
 /** `undefined` = résolution en cours, `null` = aucun lien reconnu, sinon identité résolue. */
@@ -67,7 +69,7 @@ export function PublicIdentityProvider({ clubSlug, children }: { clubSlug: strin
         if (cancelled) return;
         setStoredPublicToken(clubSlug, candidate);
         stripTokenFromUrl();
-        setIdentity({ token: candidate, licencie: result.licencie, isClubAdmin: result.isClubAdmin });
+        setIdentity({ token: candidate, licencie: result.licencie, isClubAdmin: result.isClubAdmin, derogationRequests: result.derogationRequests });
       })
       .catch(() => {
         if (cancelled) return;

@@ -67,9 +67,6 @@ export function createApi(fetcher: ApiFetcher) {
       checkSlot: (clubId: string, matchId: string, startAt: string, venueId: string | null) => derogationRequests.checkDerogationSlot(fetcher, clubId, matchId, startAt, venueId),
     },
     members: {
-      list: (clubId: string) => members.listMembers(fetcher, clubId),
-      setRoles: (clubId: string, membershipId: string, roles: members.RoleGrantDto[]) => members.setMemberRoles(fetcher, clubId, membershipId, roles),
-      invite: (clubId: string, email: string, roles: members.RoleGrantDto[]) => members.inviteMember(fetcher, clubId, email, roles),
       venues: (clubId: string) => members.listClubVenues(fetcher, clubId),
       updateVenue: (clubId: string, venueId: string, body: members.UpdateClubVenueDto) => members.updateClubVenue(fetcher, clubId, venueId, body),
     },

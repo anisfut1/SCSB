@@ -20,7 +20,7 @@ export default async function NewDerogationRequestPage({
   return (
     <PageContainer width="wide" className="gap-6">
       <PageHeader back={{ href: `/c/${clubSlug}/derogations`, label: "Dérogations" }} eyebrow={club.name} title="Demander une dérogation" description="Choisis le match, la nouvelle date et un créneau libre : le coordinateur du club reçoit ta demande." />
-      <RequestWizard clubId={club.id} clubSlug={clubSlug} context={context} initialMatchId={typeof match === "string" ? match : null} />
+      <RequestWizard source={{ kind: "club", clubId: club.id }} basePath={`/c/${clubSlug}/derogations`} context={context} initialMatchId={typeof match === "string" ? match : null} />
     </PageContainer>
   );
 }

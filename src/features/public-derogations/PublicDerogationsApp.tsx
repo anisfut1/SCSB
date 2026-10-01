@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Lock, LogOut } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { useEffect, useMemo, useState } from "react";
+import { CalendarClock, Lock, LogOut, Plus } from "lucide-react";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, IconMedallion } from "@/components/ui/Card";
 import { Notice } from "@/components/ui/Notice";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { PageHeader, SectionHeader } from "@/components/ui/PageHeader";
 import { ListSkeleton } from "@/components/ui/Skeleton";
-import { ErrorState } from "@/components/ui/States";
+import { EmptyState, ErrorState } from "@/components/ui/States";
+import { derogationClient, type DerogationSource } from "@/features/derogation-requests/client";
+import { RequestSections } from "@/features/derogation-requests/RequestList";
+import { NO_COORDINATOR_MESSAGE } from "@/features/derogation-requests/RequestWizard";
+import type { DerogationContextDto, DerogationRequestSummaryDto } from "@/lib/api/derogationRequests";
 import { DerogationsList } from "@/features/admin/DerogationsList";
 import { IdentifyView } from "@/features/public/IdentifyView";
 import { usePublicIdentity, type PublicIdentity } from "@/features/public/PublicIdentityProvider";
@@ -20,8 +24,9 @@ import { ApiError } from "@/lib/api/client";
  * "s'il clique sur dérogation, ça va lui demander de se co si token pas
  * reconnu") :
  *  - aucun lien reconnu → identification (lien personnel par email) ;
- *  - lien reconnu mais licencié non administrateur du club → accès réservé ;
- *  - licencié administrateur du club → liste en lecture seule.
+ *  - lien reconnu mais licencié sans rôle → accès réservé ;
+ *  - coach / coordinateur (rôles posés depuis /joueurs) → demandes internes ;
+ *  - administrateur du club → demandes internes + statut officiel FBI (lecture seule).
  * Le serveur revérifie le rôle à chaque lecture (403 sinon) : l'indicateur
  * `isClubAdmin` ne sert ici qu'à choisir l'écran.
  */
@@ -37,19 +42,100 @@ export function PublicDerogationsApp({ clubSlug, clubName }: { clubSlug: string;
         clubName={clubName}
         returnTo="derogations"
         title="Dérogations"
-        description="Réservé aux administrateurs du club. Retrouve ton nom pour recevoir ton lien personnel par email."
+        description="Réservé aux coachs, au coordinateur et aux administrateurs du club. Retrouve ton nom pour recevoir ton lien personnel par email."
         notice={
           <Notice tone="info" icon={<Lock />}>
-            Identifie-toi pour continuer : seul un administrateur du club peut consulter les dérogations.
+            Identifie-toi pour continuer : seuls les coachs, le coordinateur et les administrateurs du club accèdent aux dérogations.
           </Notice>
         }
       />
     );
   }
 
-  if (!identity.isClubAdmin) return <RestrictedAccess identity={identity} onForget={forget} />;
+  if (!hasDerogationAccess(identity)) return <RestrictedAccess identity={identity} onForget={forget} />;
 
-  return <AdminDerogations clubSlug={clubSlug} clubName={clubName} identity={identity} onForget={forget} />;
+  return (
+    <div className="flex flex-col gap-10">
+      <PublicRequestsHome clubSlug={clubSlug} clubName={clubName} identity={identity} onForget={forget} />
+      {identity.isClubAdmin ? <AdminDerogations clubSlug={clubSlug} identity={identity} /> : null}
+    </div>
+  );
+}
+
+export function hasDerogationAccess(identity: PublicIdentity): boolean {
+  return identity.isClubAdmin || identity.derogationRequests.canCreate || identity.derogationRequests.canManage;
+}
+
+/**
+ * Demandes de dérogation INTERNES (coach → coordinateur) depuis l'espace
+ * public — retour du club, 2026-10-01 : coachs et coordinateur désignés
+ * depuis /joueurs, sans compte. Mêmes écrans que l'espace club.
+ */
+function PublicRequestsHome({ clubSlug, clubName, identity, onForget }: { clubSlug: string; clubName: string; identity: PublicIdentity; onForget: () => void }) {
+  const source = useMemo<DerogationSource>(() => ({ kind: "public", clubSlug, token: identity.token }), [clubSlug, identity.token]);
+  const [data, setData] = useState<{ context: DerogationContextDto; requests: DerogationRequestSummaryDto[] } | null>(null);
+  const [error, setError] = useState<ApiError | Error | null>(null);
+  const base = `/public/${clubSlug}/derogations`;
+
+  useEffect(() => {
+    let cancelled = false;
+    const client = derogationClient(source);
+    Promise.all([client.context(), client.list({ limit: 200 })])
+      .then(([context, list]) => {
+        if (!cancelled) setData({ context, requests: list.requests });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err : new Error("Impossible de charger les demandes."));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [source]);
+
+  if (error instanceof ApiError && error.isUnauthorized) {
+    return <ErrorState title="Lien personnel expiré" description="Ton lien a été remplacé ou révoqué. Demande un nouveau lien depuis cet onglet." action={<Button onClick={onForget}>Demander un nouveau lien</Button>} />;
+  }
+  if (error instanceof ApiError && error.isForbidden) return <RestrictedAccess identity={identity} onForget={onForget} />;
+
+  const manager = data?.context.canManage ?? identity.derogationRequests.canManage;
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        eyebrow={clubName}
+        title="Dérogations"
+        description={
+          manager
+            ? "Les demandes de changement de date envoyées par les coachs. Tu t'occupes des démarches officielles, la conversation garde la trace de tout."
+            : "Demande au coordinateur de déplacer un match, puis suis sa réponse ici."
+        }
+        actions={
+          identity.derogationRequests.canCreate ? (
+            <ButtonLink href={`${base}/nouvelle`} variant="primary" icon={<Plus />}>
+              Nouvelle demande
+            </ButtonLink>
+          ) : null
+        }
+      />
+      {error ? (
+        <ErrorState title="Impossible de charger les demandes" description={error.message} />
+      ) : data === null ? (
+        <ListSkeleton rows={4} />
+      ) : (
+        <>
+          {!data.context.coordinatorsConfigured ? <Notice tone="warning">{NO_COORDINATOR_MESSAGE}</Notice> : null}
+          {data.requests.length === 0 ? (
+            <EmptyState
+              icon={<CalendarClock />}
+              title="Aucune demande de dérogation"
+              description={manager ? "Les demandes des coachs apparaîtront ici dès leur envoi." : "Besoin de déplacer un match ? Choisis le match, la date et le créneau : le coordinateur reçoit ta demande."}
+            />
+          ) : (
+            <RequestSections requests={data.requests} manager={manager} timezone={data.context.timezone} basePath={base} />
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 function RestrictedAccess({ identity, onForget }: { identity: PublicIdentity; onForget: () => void }) {
@@ -63,11 +149,11 @@ function RestrictedAccess({ identity, onForget }: { identity: PublicIdentity; on
           <div className="text-reflow">
             <h1 className="type-title text-foreground">Accès réservé</h1>
             <p className="mt-2 text-[15px] leading-relaxed text-muted">
-              Les dérogations sont réservées aux administrateurs du club. Tu es reconnu·e comme{" "}
+              Les dérogations sont réservées aux coachs, au coordinateur et aux administrateurs du club. Tu es reconnu·e comme{" "}
               <span className="font-medium text-foreground">
                 {identity.licencie.firstName} {identity.licencie.lastName}
               </span>
-              , qui n&apos;a pas ce rôle.
+              , qui n&apos;a aucun de ces rôles. Un administrateur peut te l&apos;attribuer depuis la liste des joueurs.
             </p>
           </div>
           <Button variant="ghost" icon={<LogOut />} onClick={onForget}>
@@ -79,7 +165,7 @@ function RestrictedAccess({ identity, onForget }: { identity: PublicIdentity; on
   );
 }
 
-function AdminDerogations({ clubSlug, clubName, identity, onForget }: { clubSlug: string; clubName: string; identity: PublicIdentity; onForget: () => void }) {
+function AdminDerogations({ clubSlug, identity }: { clubSlug: string; identity: PublicIdentity }) {
   const [derogations, setDerogations] = useState<DerogationListItemDto[] | null>(null);
   const [error, setError] = useState<ApiError | Error | null>(null);
 
@@ -97,15 +183,12 @@ function AdminDerogations({ clubSlug, clubName, identity, onForget }: { clubSlug
     };
   }, [clubSlug, identity.token]);
 
-  // Rôle retiré ou lien révoqué entre-temps : le serveur fait foi.
-  if (error instanceof ApiError && error.isForbidden) return <RestrictedAccess identity={identity} onForget={onForget} />;
-  if (error instanceof ApiError && error.isUnauthorized) {
-    return <ErrorState title="Lien personnel expiré" description="Ton lien a été remplacé ou révoqué. Demande un nouveau lien depuis cet onglet." action={<Button onClick={onForget}>Demander un nouveau lien</Button>} />;
-  }
+  // Rôle retiré ou lien révoqué entre-temps : le serveur fait foi (le bloc des demandes internes gère déjà le lien expiré).
+  if (error instanceof ApiError && (error.isForbidden || error.isUnauthorized)) return null;
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader eyebrow={clubName} title="Dérogations" description="Demandes de dérogation FBI connues pour le club, en consultation. Pour accepter ou refuser une demande, connecte-toi à l'espace club." />
+    <section aria-labelledby="fbi-title" className="flex flex-col gap-4">
+      <SectionHeader id="fbi-title" title="Statut officiel (FBI)" description="Dérogations FBI connues pour le club, en consultation. Pour accepter ou refuser une demande FBI, connecte-toi à l'espace club." />
       {error ? (
         <ErrorState title="Impossible de charger les dérogations" description={error.message} />
       ) : derogations === null ? (
@@ -113,6 +196,6 @@ function AdminDerogations({ clubSlug, clubName, identity, onForget }: { clubSlug
       ) : (
         <DerogationsList derogations={derogations} matchBasePath={`/public/${clubSlug}/matchs`} readOnly />
       )}
-    </div>
+    </section>
   );
 }
