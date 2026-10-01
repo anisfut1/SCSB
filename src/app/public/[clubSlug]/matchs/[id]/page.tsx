@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import { getPublicClub } from "@/lib/api/publicTables";
-import { getPublicMatch, getPublicMatchDerogation, listPublicMatchDocuments } from "@/lib/api/publicMatches";
+import { getPublicMatch, listPublicMatchDocuments } from "@/lib/api/publicMatches";
 import { ApiError } from "@/lib/api/client";
 import { PageContainer, BackButton } from "@/components/ui/PageHeader";
 import { PublicFrame } from "@/components/public/PublicFrame";
 import { MatchDetailView } from "@/features/matches/detail/MatchDetailView";
 import { parseMatchTab } from "@/features/matches/detail/labels";
-import type { DerogationStatusDto, MatchDetailsDto } from "@/lib/api/matches";
+import type { MatchDetailsDto } from "@/lib/api/matches";
 
 /**
  * Fiche match PUBLIQUE (retour du club, 2026-09-29 : "toutes les infos en
@@ -26,9 +26,9 @@ export default async function PublicMatchDetailPage({
 
   let club;
   let match: MatchDetailsDto;
-  let derogation: DerogationStatusDto | null;
   try {
-    [club, match, derogation] = await Promise.all([getPublicClub(clubSlug), getPublicMatch(clubSlug, id), getPublicMatchDerogation(clubSlug, id)]);
+    // Aucune dérogation en vue publique (retour du club, 2026-10-01) : jamais chargée ici.
+    [club, match] = await Promise.all([getPublicClub(clubSlug), getPublicMatch(clubSlug, id)]);
   } catch (error) {
     if (error instanceof ApiError && error.isNotFound) notFound();
     throw error;
@@ -42,7 +42,7 @@ export default async function PublicMatchDetailPage({
         <BackButton href={`/public/${clubSlug}/matchs`} label="Retour aux matchs" />
         <MatchDetailView
           match={match}
-          derogation={derogation}
+          derogation={null}
           documents={documents}
           tab={tab}
           basePath={`/public/${clubSlug}/matchs`}

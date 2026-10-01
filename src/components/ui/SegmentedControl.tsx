@@ -15,7 +15,7 @@ export interface SegmentItem {
  */
 export function SegmentedControl({ items, label, className, size = "md" }: { items: SegmentItem[]; label: string; className?: string; size?: "sm" | "md" }) {
   return (
-    <nav aria-label={label} className={cn("inline-flex max-w-full", className)}>
+    <nav aria-label={label} className={cn("inline-flex min-w-0 max-w-full", className)}>
       <ul className="scrollbar-none flex w-full gap-0.5 overflow-x-auto rounded-[12px] border border-border bg-surface-muted p-0.5 shadow-[inset_0_1px_2px_rgb(23_23_26/0.05)]">
         {items.map((item) => (
           <li key={item.href} className="flex-1 shrink-0">

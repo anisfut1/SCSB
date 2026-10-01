@@ -9,7 +9,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { ButtonLink } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/States";
 import { MatchCard } from "@/features/matches/MatchCard";
-import { currentWeekendRange } from "@/features/matches/match-filters";
+import { defaultWeekend, matchWeekendKey } from "@/features/matches/match-filters";
 import { QuickLink } from "@/features/dashboard/QuickLink";
 
 function greetingDate(): string {
@@ -36,9 +36,9 @@ export default async function ClubDashboardPage({ params }: { params: Promise<{ 
   ]);
 
   const now = new Date();
-  const { start, end } = currentWeekendRange(now);
+  const thisWeekend = defaultWeekend(now);
   const dated = matches.filter((m) => m.matchDatetime !== null);
-  const weekend = dated.filter((m) => new Date(m.matchDatetime!) >= start && new Date(m.matchDatetime!) < end);
+  const weekend = dated.filter((m) => matchWeekendKey(m.matchDatetime!) === thisWeekend);
   const upcoming = dated.filter((m) => new Date(m.matchDatetime!) >= now).sort((a, b) => new Date(a.matchDatetime!).getTime() - new Date(b.matchDatetime!).getTime());
   const results = dated
     .filter((m) => new Date(m.matchDatetime!) < now && m.scoreHome !== null && m.scoreAway !== null)
@@ -47,7 +47,7 @@ export default async function ClubDashboardPage({ params }: { params: Promise<{ 
   const derogationsToAnswer = derogations?.filter((d) => d.actionRequired) ?? null;
 
   const firstName = identity.user.displayName.includes("@") ? null : identity.user.displayName.split(" ")[0];
-  const cardClub = { name: club.shortName ?? club.name, logoUrl: club.logoUrl };
+  const cardClub = { name: club.shortName ?? club.name, logoUrl: club.logoUrl, showDerogation: admin || identity.isPlatformAdmin };
   const base = `/c/${clubSlug}`;
 
   return (
@@ -64,7 +64,7 @@ export default async function ClubDashboardPage({ params }: { params: Promise<{ 
       </header>
 
       <section aria-label="Indicateurs" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard label="Ce week-end" value={weekend.length} icon={<CalendarDays />} hint={`dont ${weekend.filter((m) => m.isHome === true).length} à domicile`} href={`${base}/matchs`} />
+        <StatCard label="Cette journée" value={weekend.length} icon={<CalendarDays />} hint={`dont ${weekend.filter((m) => m.isHome === true).length} à domicile`} href={`${base}/matchs`} />
         <StatCard label="À venir" value={upcoming.length} icon={<CalendarRange />} hint="matchs restants cette saison" href={`${base}/matchs?when=upcoming`} tone="neutral" />
         {openIssues ? (
           <StatCard label="Anomalies" value={openIssues.length} icon={<AlertTriangle />} hint={openIssues.length ? "à examiner" : "rien à signaler"} href={`${base}/admin/issues`} tone={openIssues.length ? "warning" : "success"} />

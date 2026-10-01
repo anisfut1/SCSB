@@ -3,6 +3,7 @@ import { requireClubContext } from "@/lib/tenancy/club-context";
 import { api } from "@/lib/api/server";
 import { ApiError } from "@/lib/api/client";
 import { isClubAdmin } from "@/lib/permissions/roles";
+import { getShellIdentity } from "@/components/shell/session";
 import { PageContainer, BackButton } from "@/components/ui/PageHeader";
 import { MatchDetailView } from "@/features/matches/detail/MatchDetailView";
 import { parseMatchTab } from "@/features/matches/detail/labels";
@@ -26,12 +27,14 @@ export default async function MatchDetailPage({
   const { clubSlug, id } = await params;
   const club = await requireClubContext(clubSlug);
   const isAdmin = isClubAdmin(club.roles);
+  // Dérogations : club_admin ou platform_admin uniquement (jamais chargées sinon).
+  const canSeeDerogation = isAdmin || (await getShellIdentity()).isPlatformAdmin;
   const tab = parseMatchTab((await searchParams).tab);
 
   let match: MatchDetailsDto;
   let derogation: DerogationStatusDto | null;
   try {
-    [match, derogation] = await Promise.all([api.matches.get(club.id, id), api.matches.derogation(club.id, id)]);
+    [match, derogation] = await Promise.all([api.matches.get(club.id, id), canSeeDerogation ? api.matches.derogation(club.id, id) : Promise.resolve(null)]);
   } catch (error) {
     if (error instanceof ApiError && error.isNotFound) notFound();
     throw error;
@@ -54,6 +57,7 @@ export default async function MatchDetailPage({
         mode="club"
         isAdmin={isAdmin}
         playerBasePath={`/c/${clubSlug}/joueurs`}
+        showDerogation={canSeeDerogation}
       />
     </PageContainer>
   );

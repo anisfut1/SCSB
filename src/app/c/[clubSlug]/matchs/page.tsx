@@ -1,5 +1,7 @@
 import { Globe } from "lucide-react";
 import { requireClubContext } from "@/lib/tenancy/club-context";
+import { isClubAdmin } from "@/lib/permissions/roles";
+import { getShellIdentity } from "@/components/shell/session";
 import { api } from "@/lib/api/server";
 import { currentSeasonStart } from "@/lib/season";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
@@ -44,7 +46,7 @@ export default async function MatchsPage({
           </ButtonLink>
         }
       />
-      <MatchesView all={matches} teams={teams} filters={filters} basePath={`/c/${clubSlug}/matchs`} club={{ name: club.shortName ?? club.name, logoUrl: club.logoUrl }} />
+      <MatchesView all={matches} teams={teams} filters={filters} basePath={`/c/${clubSlug}/matchs`} club={{ name: club.shortName ?? club.name, logoUrl: club.logoUrl, showDerogation: isClubAdmin(club.roles) || (await getShellIdentity()).isPlatformAdmin }} />
     </PageContainer>
   );
 }

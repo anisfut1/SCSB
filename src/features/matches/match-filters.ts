@@ -15,10 +15,16 @@ export interface MatchFiltersState {
   when: WhenFilter;
   side: SideFilter;
   team: string | null;
+  /**
+   * Journée choisie (samedi YYYY-MM-DD) quand `when === "weekend"` — `null` =
+   * la journée en cours/à venir. Retour du club, 2026-10-01 : « faut un
+   * sélecteur en haut pour choisir sa journée, ou sa semaine ».
+   */
+  weekend: string | null;
 }
 
 export const WHEN_OPTIONS: { value: WhenFilter; label: string }[] = [
-  { value: "weekend", label: "Ce week-end" },
+  { value: "weekend", label: "Journée" },
   { value: "upcoming", label: "À venir" },
   { value: "past", label: "Passés" },
 ];
@@ -33,25 +39,35 @@ export function parseMatchFilters(searchParams: Record<string, string | string[]
   const when: WhenFilter = searchParams.when === "upcoming" || searchParams.when === "past" ? searchParams.when : "weekend";
   const side: SideFilter = searchParams.side === "home" || searchParams.side === "away" ? searchParams.side : "all";
   const team = typeof searchParams.team === "string" ? searchParams.team : null;
-  return { when, side, team };
+  const weekend = when === "weekend" && typeof searchParams.weekend === "string" && isSaturday(searchParams.weekend) ? searchParams.weekend : null;
+  return { when, side, team, weekend };
 }
 
-/** Samedi 00:00 -> lundi 00:00 de la semaine courante (Europe/Paris implicite : dates stockées en UTC, affichées en heure locale). */
-export function currentWeekendRange(now: Date = new Date()): { start: Date; end: Date } {
-  const day = now.getDay(); // 0 = dimanche ... 6 = samedi
-  const daysUntilSaturday = (6 - day) % 7;
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() + daysUntilSaturday);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 2);
-  return { start, end };
+function isSaturday(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [y, m, d] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDay() === 6;
+}
+
+/**
+ * Journée (week-end) d'un match : le samedi du week-end qui le contient, ou
+ * qui le suit pour un match en semaine — même règle que les Tables de marque.
+ */
+export function matchWeekendKey(matchDatetime: string): string {
+  return currentOrNextWeekendSaturday("Europe/Paris", new Date(matchDatetime));
+}
+
+/** Journée par défaut : celle en cours (samedi/dimanche) ou la prochaine. */
+export function defaultWeekend(now: Date = new Date()): string {
+  return currentOrNextWeekendSaturday("Europe/Paris", now);
 }
 
 export function buildFilterHref(basePath: string, current: MatchFiltersState, changes: Partial<MatchFiltersState>): string {
   const next = { ...current, ...changes };
   const search = new URLSearchParams();
   if (next.when !== "weekend") search.set("when", next.when);
+  if (next.when === "weekend" && next.weekend) search.set("weekend", next.weekend);
   if (next.side !== "all") search.set("side", next.side);
   if (next.team) search.set("team", next.team);
   const query = search.toString();
@@ -67,8 +83,8 @@ export function applyMatchFilters(all: MatchListItemDto[], teams: TeamDto[], fil
   if (filters.side !== "all") matches = matches.filter((m) => m.isHome === (filters.side === "home"));
 
   if (filters.when === "weekend") {
-    const { start, end } = currentWeekendRange(now);
-    matches = matches.filter((m) => m.matchDatetime !== null && new Date(m.matchDatetime) >= start && new Date(m.matchDatetime) < end);
+    const saturday = filters.weekend ?? defaultWeekend(now);
+    matches = matches.filter((m) => m.matchDatetime !== null && matchWeekendKey(m.matchDatetime) === saturday);
   } else if (filters.when === "upcoming") {
     matches = matches.filter((m) => m.matchDatetime !== null && new Date(m.matchDatetime) >= now);
   } else {
@@ -105,7 +121,7 @@ export function groupMatchesByWeekend(matches: MatchListItemDto[]): WeekendGroup
       undated.push(match);
       continue;
     }
-    const saturday = currentOrNextWeekendSaturday("Europe/Paris", new Date(match.matchDatetime));
+    const saturday = matchWeekendKey(match.matchDatetime);
     const group = groups.get(saturday) ?? { saturday, label: formatWeekendLabel(saturday), matches: [] };
     group.matches.push(match);
     groups.set(saturday, group);
@@ -113,4 +129,28 @@ export function groupMatchesByWeekend(matches: MatchListItemDto[]): WeekendGroup
   const result = [...groups.values()];
   if (undated.length > 0) result.push({ saturday: "undated", label: "Date à confirmer", matches: undated });
   return result;
+}
+
+export interface WeekendOption {
+  saturday: string;
+  label: string;
+  count: number;
+}
+
+/**
+ * Journées de la saison qui ont au moins un match (après filtres équipe/lieu),
+ * triées chronologiquement — alimente le sélecteur de journée. La journée
+ * par défaut y figure toujours, même vide, pour rester sélectionnable.
+ */
+export function weekendOptions(all: MatchListItemDto[], teams: TeamDto[], filters: MatchFiltersState, now: Date = new Date()): WeekendOption[] {
+  const scoped = applyMatchFilters(all, teams, { ...filters, when: "upcoming" }, new Date(0));
+  const counts = new Map<string, number>();
+  for (const m of scoped) {
+    if (!m.matchDatetime) continue;
+    const key = matchWeekendKey(m.matchDatetime);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const current = defaultWeekend(now);
+  if (!counts.has(current)) counts.set(current, 0);
+  return [...counts.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([saturday, count]) => ({ saturday, label: formatWeekendLabel(saturday), count }));
 }

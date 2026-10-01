@@ -9,6 +9,12 @@ import { clubSideLabel, derogationBadge, journeeLabel, matchDateParts, matchOutc
 export interface MatchCardClub {
   name: string;
   logoUrl: string | null;
+  /**
+   * Badges de dérogation : réservés aux admins (club_admin / platform_admin) —
+   * retour du club, 2026-10-01 : « tout ce qui est dérogation ça doit pas être
+   * visible au public, seulement aux admin et admin du club ». Absent = masqué.
+   */
+  showDerogation?: boolean;
 }
 
 interface Side {
@@ -57,7 +63,7 @@ export function MatchCard({ match, href, club, variant = "row" }: { match: Match
   const [home, away] = sides(match, club);
   const outcome = matchOutcome(match);
   const status = matchStatusBadge(match.status);
-  const derog = derogationBadge(match.derogationStatus);
+  const derog = club.showDerogation ? derogationBadge(match.derogationStatus) : null;
   const side = sideBadge(match.isHome);
   const journee = journeeLabel(match.journee);
 

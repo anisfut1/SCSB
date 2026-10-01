@@ -32,6 +32,7 @@ export function MatchDetailView({
   mode,
   isAdmin,
   playerBasePath,
+  showDerogation = false,
 }: {
   match: MatchDetailsDto;
   derogation: DerogationStatusDto | null;
@@ -43,6 +44,8 @@ export function MatchDetailView({
   derogationClubId: string;
   mode: "club" | "public";
   isAdmin: boolean;
+  /** Bloc dérogation affiché uniquement aux admins (club_admin / platform_admin), jamais en public. */
+  showDerogation?: boolean;
   playerBasePath?: string;
 }) {
   const admin = mode === "club" && isAdmin;
@@ -66,10 +69,14 @@ export function MatchDetailView({
 
       <div className="[animation:rise-in_var(--duration-slow)_var(--ease-out)]" key={tab}>
         {tab === "informations" ? (
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+          showDerogation && mode === "club" ? (
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+              <InformationsPanel match={match} home={home} away={away} />
+              <DerogationCard clubId={derogationClubId} matchId={match.id} derogation={derogation} isAdmin={admin} />
+            </div>
+          ) : (
             <InformationsPanel match={match} home={home} away={away} />
-            <DerogationCard clubId={derogationClubId} matchId={match.id} derogation={derogation} isAdmin={admin} />
-          </div>
+          )
         ) : null}
         {tab === "composition" ? <CompositionPanel match={match} home={home} away={away} /> : null}
         {tab === "statistiques" ? <StatsPanel match={match} home={home} away={away} playerBasePath={mode === "club" ? playerBasePath : undefined} /> : null}
