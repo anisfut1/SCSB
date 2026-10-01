@@ -2,6 +2,10 @@ import { apiFetch } from "./client";
 import type { TeamDto } from "./clubs";
 import type { DerogationStatusDto, MatchDetailsDto, MatchDocumentDto, MatchListItemDto } from "./matches";
 import type { ListMatchesParams } from "./matches";
+import type { components } from "./generated/schema";
+
+export type PoolStandingsDto = components["schemas"]["PoolStandingsDto"];
+export type StandingRowDto = components["schemas"]["StandingRowDto"];
 
 /**
  * Client HTTP pour la vue PUBLIQUE en lecture seule des matchs (retour du
@@ -50,4 +54,10 @@ export async function listPublicMatchDocuments(clubSlug: string, matchId: string
 export async function getPublicMatchDerogation(clubSlug: string, matchId: string): Promise<DerogationStatusDto | null> {
   const { derogation } = await apiFetch<{ derogation: DerogationStatusDto | null }>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/matches/${matchId}/derogation`);
   return derogation;
+}
+
+/** GET /v1/public/clubs/:clubSlug/standings — classements FFBB des poules où le club est engagé (copiés à chaque synchronisation). */
+export async function listPublicStandings(clubSlug: string): Promise<PoolStandingsDto[]> {
+  const { standings } = await apiFetch<{ standings: PoolStandingsDto[] }>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/standings`);
+  return standings;
 }

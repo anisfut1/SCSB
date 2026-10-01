@@ -2814,6 +2814,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/public/clubs/{clubSlug}/standings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Slug du club (flux public sans compte) */
+                    clubSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Classements FFBB (copiés à chaque synchronisation) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PoolStandingsListDto"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/public/clubs/{clubSlug}/teams": {
         parameters: {
             query?: never;
@@ -4926,6 +4973,37 @@ export interface components {
         };
         PublicAssignResultDto: {
             assignment: components["schemas"]["TableAssignmentSlotDto"];
+        };
+        PoolStandingsListDto: {
+            standings: components["schemas"]["PoolStandingsDto"][];
+        };
+        PoolStandingsDto: {
+            /** Format: uuid */
+            poolId: string;
+            poolName: string;
+            competitionName: string | null;
+            categoryLabel: string | null;
+            /** Format: uuid */
+            teamId: string | null;
+            teamName: string | null;
+            updatedAt: string | null;
+            rows: components["schemas"]["StandingRowDto"][];
+        };
+        StandingRowDto: {
+            position: number | null;
+            teamName: string;
+            logoUrl: string | null;
+            points: number | null;
+            played: number | null;
+            won: number | null;
+            lost: number | null;
+            draws: number | null;
+            forfeits: number | null;
+            pointsFor: number | null;
+            pointsAgainst: number | null;
+            difference: number | null;
+            outOfRanking: boolean;
+            isClub: boolean;
         };
         CreateDerogationResultDto: {
             /** @enum {string} */

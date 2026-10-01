@@ -2,24 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarClock, CalendarDays, ClipboardList, Lock, type LucideIcon } from "lucide-react";
+import { CalendarClock, CalendarDays, ClipboardList, Lock, Trophy, type LucideIcon } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 import { usePublicIdentity } from "@/features/public/PublicIdentityProvider";
 
 interface PublicNavItem {
-  segment: "matchs" | "tables" | "derogations";
+  segment: "resultats" | "matchs" | "tables" | "derogations";
   label: string;
   icon: LucideIcon;
 }
 
 /**
  * Onglets de l'espace public (retour du club, 2026-10-01 : "la personne
- * doit avoir accès aussi à la tab bar en bas"). Toujours les trois mêmes
+ * doit avoir accès aussi à la tab bar en bas"). Toujours les mêmes
  * destinations : un onglet qui exige un lien personnel (Tables,
  * Dérogations) ne disparaît jamais, il demande à s'identifier une fois
  * ouvert. Le cadenas sur Dérogations signale seulement l'accès réservé.
  */
 const ITEMS: PublicNavItem[] = [
+  // Retour du club, 2026-10-01 : « à gauche de matchs dans la barre, un nouveau truc "derniers résultats" ».
+  { segment: "resultats", label: "Résultats", icon: Trophy },
   { segment: "matchs", label: "Matchs", icon: CalendarDays },
   { segment: "tables", label: "Tables", icon: ClipboardList },
   { segment: "derogations", label: "Dérogations", icon: CalendarClock },

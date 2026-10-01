@@ -61,6 +61,7 @@ Légende : **R** = redesign effectué · **M** = largeurs réellement vérifiée
 | Route | Fichiers | Composants | R | M |
 |---|---|---|---|---|
 | Shell public | `public/[clubSlug]/layout.tsx` | `PublicShell` (onglets ≥ lg, barre du bas < lg), `PublicIdentityProvider`, `PublicAccountChip` | [x] | 390 · 1440 |
+| Résultats publics | `public/[clubSlug]/resultats/page.tsx` | `ResultsView` (par équipe, `?equipe=`), `StandingsTable` (classement FFBB), MatchCard | [x] | 360 · 390 · 1440 |
 | Matchs publics | `public/[clubSlug]/matchs/page.tsx` | MatchesView, MatchCard | [x] | 390 · 1440 |
 | Détail match public | `public/[clubSlug]/matchs/[id]/page.tsx` | Scoreboard, Tabs | [x] | 390 |
 | Tables publiques | `public/[clubSlug]/tables/page.tsx` | `PublicTablesApp`, `IdentifyView`, `BoardView`, `PublicMatchCard` | [x] | 390 |
