@@ -57,7 +57,20 @@ function TeamLine({ side, size, emphasis, showScore }: { side: Side; size: "sm" 
  * - logos réels, monogramme en repli. Aucune donnée inventée : un champ
  *   absent affiche explicitement « à confirmer ».
  */
-export function MatchCard({ match, href, club, variant = "row" }: { match: MatchListItemDto; href: string; club: MatchCardClub; variant?: "row" | "tile" }) {
+export function MatchCard({
+  match,
+  href,
+  club,
+  variant = "row",
+  hideDate = false,
+}: {
+  match: MatchListItemDto;
+  href: string;
+  club: MatchCardClub;
+  variant?: "row" | "tile";
+  /** Liste déjà regroupée par jour (en-tête de date commun) : pas de rail de date répété sur chaque carte. */
+  hideDate?: boolean;
+}) {
   const parts = matchDateParts(match.matchDatetime);
   const played = match.scoreHome !== null && match.scoreAway !== null;
   const [home, away] = sides(match, club);
@@ -133,11 +146,13 @@ export function MatchCard({ match, href, club, variant = "row" }: { match: Match
   return (
     <Link href={href} aria-label={label} data-interactive="true" className="surface-card group flex overflow-hidden">
       {/* Rail de date : relief en creux, jour en chiffres de données */}
-      <div className={cn("flex w-16 shrink-0 flex-col items-center justify-center gap-1 border-r border-border px-1.5 py-4 sm:w-[88px]", played ? "bg-surface" : "bg-[color-mix(in_oklab,var(--club-accent)_4%,var(--surface))]")}>
-        <span className="type-eyebrow">{parts?.weekday ?? "—"}</span>
-        <span className="type-numeric text-[1.75rem] font-medium leading-none text-foreground">{parts?.day ?? "--"}</span>
-        <span className="type-eyebrow">{parts?.month ?? ""}</span>
-      </div>
+      {hideDate ? null : (
+        <div className={cn("flex w-16 shrink-0 flex-col items-center justify-center gap-1 border-r border-border px-1.5 py-4 sm:w-[88px]", played ? "bg-surface" : "bg-[color-mix(in_oklab,var(--club-accent)_4%,var(--surface))]")}>
+          <span className="type-eyebrow">{parts?.weekday ?? "—"}</span>
+          <span className="type-numeric text-[1.75rem] font-medium leading-none text-foreground">{parts?.day ?? "--"}</span>
+          <span className="type-eyebrow">{parts?.month ?? ""}</span>
+        </div>
+      )}
 
       <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
         <div className="flex items-center justify-between gap-2">

@@ -17,6 +17,7 @@ import { usePublicIdentity, type PublicIdentity } from "@/features/public/Public
 import { TABLE_ROLE_LABELS } from "@/features/tables/role-labels";
 import { ApiError } from "@/lib/api/client";
 import { getPublicHome, type HomeRelation, type PublicHomeDto } from "@/lib/api/publicHome";
+import { groupByDay } from "./group-by-day";
 
 interface HomeClub {
   name: string;
@@ -134,9 +135,10 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
           {home.upcoming.length === 0 ? (
             <EmptyState compact icon={<CalendarDays />} title="Aucun match à venir" description={home.teams.length ? "Les prochains matchs de tes équipes apparaîtront ici dès leur publication par la FFBB." : "Ton agenda s'affichera dès qu'une équipe sera associée à ton profil."} />
           ) : (
-            <ul className="flex flex-col gap-3">
-              {home.upcoming.map(({ match, relations }) => (
-                <li key={match.id} className="flex flex-col gap-1.5">
+            <DayGroups
+              groups={groupByDay(home.upcoming, (e) => e.match.matchDatetime, club.timezone)}
+              render={({ match, relations }) => (
+                <div className="flex flex-col gap-1.5">
                   {home.teams.length > 1 || relations.includes("COACH") ? (
                     <p className="flex flex-wrap gap-1.5">
                       {relations.map((r) => (
@@ -146,10 +148,11 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
                       ))}
                     </p>
                   ) : null}
-                  <MatchCard match={match} href={`${base}/matchs/${match.id}`} club={cardClub} />
-                </li>
-              ))}
-            </ul>
+                  <MatchCard match={match} href={`${base}/matchs/${match.id}`} club={cardClub} hideDate />
+                </div>
+              )}
+              itemKey={(e) => e.match.id}
+            />
           )}
         </section>
 
@@ -196,17 +199,37 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
             {home.recentResults.length === 0 ? (
               <EmptyState compact icon={<Trophy />} title="Pas encore de résultat" description="Les scores de tes équipes apparaissent ici dès leur publication." />
             ) : (
-              <ul className="flex flex-col gap-3">
-                {home.recentResults.map(({ match }) => (
-                  <li key={match.id}>
-                    <MatchCard match={match} href={`${base}/matchs/${match.id}`} club={cardClub} />
-                  </li>
-                ))}
-              </ul>
+              <DayGroups
+                groups={groupByDay(home.recentResults, (e) => e.match.matchDatetime, club.timezone)}
+                render={({ match }) => <MatchCard match={match} href={`${base}/matchs/${match.id}`} club={cardClub} hideDate />}
+                itemKey={(e) => e.match.id}
+                compact
+              />
             )}
           </section>
         </aside>
       </div>
     </div>
+  );
+}
+
+/** Un en-tête de date par jour, puis les matchs de ce jour (jamais la même date répétée sur chaque carte). */
+function DayGroups<T>({ groups, render, itemKey, compact }: { groups: ReturnType<typeof groupByDay<T>>; render: (item: T) => React.ReactNode; itemKey: (item: T) => string; compact?: boolean }) {
+  return (
+    <ol className={compact ? "flex flex-col gap-5" : "flex flex-col gap-7"}>
+      {groups.map((g) => (
+        <li key={g.key} className="flex flex-col gap-2.5">
+          <h3 className="flex items-baseline gap-2 border-b border-border pb-1.5">
+            <span className={compact ? "text-[14px] font-semibold text-foreground" : "text-[15.5px] font-semibold text-foreground"}>{g.label}</span>
+            {g.items.length > 1 ? <span className="type-meta">{g.items.length} matchs</span> : null}
+          </h3>
+          <ul className="flex flex-col gap-3">
+            {g.items.map((item) => (
+              <li key={itemKey(item)}>{render(item)}</li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ol>
   );
 }

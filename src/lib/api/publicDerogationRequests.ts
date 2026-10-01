@@ -8,7 +8,9 @@ import type {
   DerogationRequestListDto,
   DerogationSlotCheckDto,
   ListDerogationRequestsParams,
+  OfficialDerogationDto,
   ProposeDerogationSlotDto,
+  SubmitOfficialDerogationResultDto,
 } from "./derogationRequests";
 
 /**
@@ -69,4 +71,8 @@ export function getPublicDerogationAvailability(clubSlug: string, token: string,
 
 export function checkPublicDerogationSlot(clubSlug: string, token: string, matchId: string, startAt: string, venueId: string | null): Promise<DerogationSlotCheckDto> {
   return apiFetch<DerogationSlotCheckDto>(withToken(`${base(clubSlug)}/slot-check`, token, { matchId, startAt, venueId: venueId ?? undefined }));
+}
+
+export function submitPublicOfficialDerogation(clubSlug: string, token: string, requestId: string, body: OfficialDerogationDto): Promise<SubmitOfficialDerogationResultDto> {
+  return apiFetch<SubmitOfficialDerogationResultDto>(withToken(`${base(clubSlug)}/${requestId}/official`, token), { method: "POST", body });
 }

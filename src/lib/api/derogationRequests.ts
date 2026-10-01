@@ -79,3 +79,11 @@ export function checkDerogationSlot(fetcher: ApiFetcher, clubId: string, matchId
   if (venueId) search.set("venueId", venueId);
   return fetcher<DerogationSlotCheckDto>(`/v1/clubs/${clubId}/matches/${matchId}/derogation-slot-check?${search.toString()}`);
 }
+
+export type SubmitOfficialDerogationResultDto = components["schemas"]["SubmitOfficialDerogationResultDto"];
+export type OfficialDerogationDto = components["schemas"]["CreateDerogationDto"];
+
+/** Coordinateur, demande « En cours » : envoie la dérogation OFFICIELLE sur FBI (même process que la fiche match). */
+export function submitOfficialDerogation(fetcher: ApiFetcher, clubId: string, requestId: string, body: OfficialDerogationDto): Promise<SubmitOfficialDerogationResultDto> {
+  return fetcher<SubmitOfficialDerogationResultDto>(`${base(clubId)}/${requestId}/official`, { method: "POST", body });
+}

@@ -8,7 +8,9 @@ import type {
   DerogationRequestListDto,
   DerogationSlotCheckDto,
   ListDerogationRequestsParams,
+  OfficialDerogationDto,
   ProposeDerogationSlotDto,
+  SubmitOfficialDerogationResultDto,
 } from "@/lib/api/derogationRequests";
 import * as pub from "@/lib/api/publicDerogationRequests";
 
@@ -29,6 +31,7 @@ export interface DerogationRequestsClient {
   propose(requestId: string, body: ProposeDerogationSlotDto): Promise<DerogationRequestDetailDto>;
   availability(matchId: string, date: string): Promise<DerogationAvailabilityDto>;
   checkSlot(matchId: string, startAt: string, venueId: string | null): Promise<DerogationSlotCheckDto>;
+  official(requestId: string, body: OfficialDerogationDto): Promise<SubmitOfficialDerogationResultDto>;
 }
 
 export function derogationClient(source: DerogationSource): DerogationRequestsClient {
@@ -45,6 +48,7 @@ export function derogationClient(source: DerogationSource): DerogationRequestsCl
       propose: (requestId, body) => api.propose(id, requestId, body),
       availability: (matchId, date) => api.availability(id, matchId, date),
       checkSlot: (matchId, startAt, venueId) => api.checkSlot(id, matchId, startAt, venueId),
+      official: (requestId, body) => api.official(id, requestId, body),
     };
   }
   const { clubSlug: slug, token } = source;
@@ -58,5 +62,6 @@ export function derogationClient(source: DerogationSource): DerogationRequestsCl
     propose: (requestId, body) => pub.proposePublicDerogationSlot(slug, token, requestId, body),
     availability: (matchId, date) => pub.getPublicDerogationAvailability(slug, token, matchId, date),
     checkSlot: (matchId, startAt, venueId) => pub.checkPublicDerogationSlot(slug, token, matchId, startAt, venueId),
+    official: (requestId, body) => pub.submitPublicOfficialDerogation(slug, token, requestId, body),
   };
 }

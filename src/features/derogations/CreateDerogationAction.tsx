@@ -8,8 +8,9 @@ import { CalendarPlus, Send } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Checkbox, Field, FormMessage, Input, Textarea } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
+import type { CreateDerogationDto, CreateDerogationResultDto } from "@/lib/api/matches";
 
-type FormState = {
+export type FormState = {
   modifierDate: boolean;
   dateDerogation: string; // <input type="date"> → "YYYY-MM-DD"
   modifierHoraire: boolean;
@@ -49,15 +50,32 @@ type Status = { kind: "success" | "error" | "warning"; text: string } | null;
  * PAS proposée ici (mécanique de la modale FBI jamais observée sur du HTML
  * réel — voir la doc de `BrowserFbiClient.createDerogation`).
  */
-export function CreateDerogationAction({ clubId, matchId }: { clubId: string; matchId: string }) {
+export function CreateDerogationAction({
+  clubId,
+  matchId,
+  submit: submitOverride,
+  initial,
+  openLabel = "Créer une dérogation",
+  onSuccess,
+}: {
+  clubId: string;
+  matchId: string;
+  /** Autre déclencheur du MÊME envoi FBI (ex. depuis une demande interne, retour du club 2026-10-01). */
+  submit?: (body: CreateDerogationDto) => Promise<CreateDerogationResultDto>;
+  /** Pré-remplissage (ex. date et heure du créneau demandé par le coach). */
+  initial?: Partial<FormState>;
+  openLabel?: string;
+  onSuccess?: () => void;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<FormState>(INITIAL_FORM);
+  const startForm = { ...INITIAL_FORM, ...initial };
+  const [form, setForm] = useState<FormState>(startForm);
   const [status, setStatus] = useState<Status>(null);
 
   function reset() {
-    setForm(INITIAL_FORM);
+    setForm(startForm);
     setStatus(null);
     setOpen(false);
   }
@@ -78,7 +96,7 @@ export function CreateDerogationAction({ clubId, matchId }: { clubId: string; ma
         const [year, month, day] = form.dateDerogation.split("-");
         const dateDerogation = form.modifierDate && year && month && day ? `${day}/${month}/${year}` : null;
 
-        const result = await browserApi.matches.createDerogation(clubId, matchId, {
+        const body: CreateDerogationDto = {
           motif: form.motif.trim(),
           modifierDate: form.modifierDate,
           dateDerogation,
@@ -86,12 +104,14 @@ export function CreateDerogationAction({ clubId, matchId }: { clubId: string; ma
           horaire: form.modifierHoraire ? form.horaire : null,
           inverserRencontre: form.inverserRencontre,
           inverserEquipe: form.inverserEquipe,
-        });
+        };
+        const result = submitOverride ? await submitOverride(body) : await browserApi.matches.createDerogation(clubId, matchId, body);
 
         if (result.outcome === "success") {
           setStatus({ kind: "success", text: "Dérogation créée sur FBI." });
-          setForm(INITIAL_FORM);
+          setForm(startForm);
           setOpen(false);
+          onSuccess?.();
           router.refresh();
         } else if (result.outcome === "error") {
           setStatus({ kind: "error", text: result.message ?? "FBI a rejeté la création." });
@@ -118,7 +138,7 @@ export function CreateDerogationAction({ clubId, matchId }: { clubId: string; ma
     return (
       <div className="flex flex-col items-start gap-2">
         <Button variant="secondary" onClick={() => setOpen(true)} icon={<CalendarPlus />}>
-          Créer une dérogation
+          {openLabel}
         </Button>
         {feedback}
       </div>

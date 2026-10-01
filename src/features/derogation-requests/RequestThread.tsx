@@ -16,7 +16,8 @@ import { cn } from "@/components/ui/cn";
 import { derogationClient, type DerogationSource } from "./client";
 import { ApiError } from "@/lib/api/client";
 import type { ClubVenueDto, DerogationAction, DerogationMessageDto, DerogationRequestDetailDto } from "@/lib/api/derogationRequests";
-import { ACTION_LABELS, formatDayLongCapitalized, formatShortDateTime, formatTime, isActive } from "./labels";
+import { ACTION_LABELS, formatDayLongCapitalized, formatShortDateTime, formatTime, isActive, localDateKey } from "./labels";
+import { CreateDerogationAction, type FormState as OfficialFormState } from "@/features/derogations/CreateDerogationAction";
 import { MatchHeadline, RequestStatusBadge } from "./parts";
 import { AWAY_NOTICE, DateChooser, SlotChooser } from "./SlotPicker";
 import type { SlotSelection } from "./VenuePlanning";
@@ -161,6 +162,25 @@ export function RequestThread({ source, initial, timezone, venues, justSent }: {
                 {ACTION_LABELS.CANCEL}
               </Button>
             ) : null}
+          </div>
+        ) : null}
+        {request.permissions.canSubmitOfficial ? (
+          <div className="flex flex-col gap-2 border-t border-border pt-4">
+            <p className="type-meta">
+              Demande officielle : envoie la dérogation à la FFBB (FBI) avec la nouvelle date et l&apos;horaire déjà remplis. Puis « Marquer comme traitée ».
+            </p>
+            <CreateDerogationAction
+              clubId={source.kind === "club" ? source.clubId : ""}
+              matchId={request.match.id}
+              openLabel="Faire la demande officielle (FBI)"
+              initial={officialPrefill(request, timezone)}
+              submit={async (body) => {
+                const result = await derogationClient(source).official(request.id, body);
+                setRequest(result.request);
+                if (result.outcome === "success") setToast("Demande officielle envoyée à la FFBB.");
+                return { outcome: result.outcome, message: result.message };
+              }}
+            />
           </div>
         ) : null}
         {managerActions.includes("COMPLETE") ? (
@@ -436,4 +456,19 @@ function ProposeSheet({
       </div>
     </Sheet>
   );
+}
+
+/**
+ * Pré-remplissage de la demande officielle FBI à partir du créneau demandé
+ * (fuseau du club) : la date/l'horaire ne sont cochés que s'ils changent
+ * réellement par rapport au calendrier officiel actuel.
+ */
+function officialPrefill(request: DerogationRequestDetailDto, timezone: string): Partial<OfficialFormState> {
+  const requested = new Date(request.requestedStartAt);
+  const current = request.officialSchedule.currentScheduledAt ?? request.originalScheduledAt;
+  const newDate = localDateKey(requested, timezone);
+  const newTime = formatTime(request.requestedStartAt, timezone);
+  const sameDate = current ? localDateKey(new Date(current), timezone) === newDate : false;
+  const sameTime = current ? formatTime(current, timezone) === newTime : false;
+  return { modifierDate: !sameDate, dateDerogation: newDate, modifierHoraire: !sameTime, horaire: newTime };
 }
