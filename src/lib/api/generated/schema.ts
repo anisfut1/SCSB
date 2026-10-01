@@ -6165,6 +6165,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/public/clubs/{clubSlug}/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    token: string;
+                };
+                header?: never;
+                path: {
+                    /** @description Slug du club (flux public sans compte) */
+                    clubSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Accueil personnel */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublicHomeDto"];
+                    };
+                };
+                /** @description Lien manquant */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Lien invalide ou révoqué */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/clubs/{clubId}/members": {
         parameters: {
             query?: never;
@@ -6993,7 +7060,7 @@ export interface components {
             returnTo?: components["schemas"]["PublicLinkTarget"];
         };
         /** @enum {string} */
-        PublicLinkTarget: "matchs" | "tables" | "derogations";
+        PublicLinkTarget: "accueil" | "matchs" | "tables" | "derogations";
         PublicMeDto: {
             licencie: components["schemas"]["TableLicencieRefDto"];
             isClubAdmin: boolean;
@@ -7105,6 +7172,7 @@ export interface components {
             publicAdmin: boolean;
             publicCoach: boolean;
             publicCoordinator: boolean;
+            coachedTeamIds: string[];
         };
         LicencieProfileDto: {
             licencie: components["schemas"]["LicencieDto"];
@@ -7153,6 +7221,7 @@ export interface components {
             publicAdmin?: boolean;
             publicCoach?: boolean;
             publicCoordinator?: boolean;
+            coachedTeamIds?: string[];
         };
         CreateLicencieDto: {
             firstName: string;
@@ -7166,6 +7235,7 @@ export interface components {
             publicAdmin?: boolean;
             publicCoach?: boolean;
             publicCoordinator?: boolean;
+            coachedTeamIds?: string[];
         };
         ImportLicenciesResultDto: {
             total: number;
@@ -7468,6 +7538,44 @@ export interface components {
             conflicts: components["schemas"]["SlotConflictDto"][];
             warnings: components["schemas"]["SlotWarningDto"][];
         };
+        PublicHomeDto: {
+            licencie: {
+                /** Format: uuid */
+                id: string;
+                firstName: string;
+                lastName: string;
+            };
+            roles: {
+                coach: boolean;
+                coordinator: boolean;
+                admin: boolean;
+            };
+            teams: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                relation: components["schemas"]["HomeRelation"];
+            }[];
+            upcoming: {
+                match: components["schemas"]["MatchListItemDto"];
+                relations: components["schemas"]["HomeRelation"][];
+            }[];
+            recentResults: {
+                match: components["schemas"]["MatchListItemDto"];
+                relations: components["schemas"]["HomeRelation"][];
+            }[];
+            tableDuties: {
+                /** Format: uuid */
+                matchId: string;
+                role: components["schemas"]["TableAssignmentRole"];
+                matchDatetime: string | null;
+                teamName: string | null;
+                opponentName: string | null;
+                venueLabel: string | null;
+            }[];
+        };
+        /** @enum {string} */
+        HomeRelation: "PLAYER" | "COACH";
         ClubMemberListDto: {
             members: components["schemas"]["ClubMemberDto"][];
         };

@@ -101,6 +101,8 @@ export default async function LicencieProfilePage({ params }: { params: Promise<
           publicAdmin={licencie.publicAdmin}
           publicCoach={licencie.publicCoach}
           publicCoordinator={licencie.publicCoordinator}
+          coachedTeamIds={licencie.coachedTeamIds}
+          teams={teams}
           entry={publicAccessEntry}
         />
       ) : null}

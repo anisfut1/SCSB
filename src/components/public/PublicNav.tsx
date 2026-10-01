@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarClock, CalendarDays, ClipboardList, Lock, Trophy, type LucideIcon } from "lucide-react";
+import { CalendarClock, CalendarDays, ClipboardList, House, Lock, Trophy, type LucideIcon } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 import { usePublicIdentity, type PublicIdentityState } from "@/features/public/PublicIdentityProvider";
 
 interface PublicNavItem {
-  segment: "resultats" | "matchs" | "tables" | "derogations";
+  segment: "accueil" | "resultats" | "matchs" | "tables" | "derogations";
   label: string;
   icon: LucideIcon;
 }
@@ -20,6 +20,8 @@ interface PublicNavItem {
  * ouvert. Le cadenas sur Dérogations signale seulement l'accès réservé.
  */
 const ITEMS: PublicNavItem[] = [
+  // Retour du club, 2026-10-01 : accueil personnel (agenda du coach, équipe du joueur).
+  { segment: "accueil", label: "Accueil", icon: House },
   // Retour du club, 2026-10-01 : « à gauche de matchs dans la barre, un nouveau truc "derniers résultats" ».
   { segment: "resultats", label: "Résultats", icon: Trophy },
   { segment: "matchs", label: "Matchs", icon: CalendarDays },

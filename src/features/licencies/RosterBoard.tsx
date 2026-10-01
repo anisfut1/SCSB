@@ -76,6 +76,7 @@ function LicencieCard({
   onCancelDelete: () => void;
 }) {
   const name = `${licencie.lastName} ${licencie.firstName}`;
+  const coachedNames = licencie.coachedTeamIds.map((id) => teams.find((t) => t.id === id)?.name).filter((n): n is string => Boolean(n));
   return (
     <div className="group flex flex-col gap-2 px-3 py-2.5 transition-colors duration-150 hover:bg-surface sm:flex-row sm:items-center sm:gap-3 sm:px-4">
       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -95,7 +96,8 @@ function LicencieCard({
             <span className="type-meta truncate">
               {PUBLIC_ROLE_FLAGS.filter((f) => licencie[f.flag]).map((f) => (
                 <span key={f.flag} className="font-medium text-accent-text">
-                  <f.icon aria-hidden className="inline size-3.5 align-[-2px]" /> {f.short} ·{" "}
+                  <f.icon aria-hidden className="inline size-3.5 align-[-2px]" /> {f.short}
+                  {f.flag === "publicCoach" && coachedNames.length ? ` (${coachedNames.join(", ")})` : ""} ·{" "}
                 </span>
               ))}
               <span className="type-numeric">{licencie.licenseNumber ?? "Licence —"}</span>

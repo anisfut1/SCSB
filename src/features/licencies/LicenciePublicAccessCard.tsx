@@ -11,6 +11,7 @@ import { useConfirm } from "@/components/ui/Dialog";
 import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
 import type { PublicAccessEntryDto } from "@/lib/api/tables";
+import type { TeamDto } from "@/lib/api/clubs";
 
 function formatDate(value: string | null): string | null {
   return value ? new Date(value).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris", day: "numeric", month: "long", year: "numeric" }) : null;
@@ -31,6 +32,8 @@ export function LicenciePublicAccessCard({
   publicAdmin,
   publicCoach,
   publicCoordinator,
+  coachedTeamIds,
+  teams,
   entry,
 }: {
   clubId: string;
@@ -41,6 +44,8 @@ export function LicenciePublicAccessCard({
   publicAdmin: boolean;
   publicCoach: boolean;
   publicCoordinator: boolean;
+  coachedTeamIds: string[];
+  teams: TeamDto[];
   entry: PublicAccessEntryDto | null;
 }) {
   const router = useRouter();
@@ -63,6 +68,27 @@ export function LicenciePublicAccessCard({
       setError(err instanceof ApiError ? err.message : "Modification du rôle impossible.");
     } finally {
       setSavingFlag(null);
+    }
+  }
+
+  // Équipes coachées (retour du club, 2026-10-01) : son accueil public affiche l'agenda de ces équipes.
+  const [coached, setCoached] = useState<string[]>(coachedTeamIds);
+  const [savingTeams, setSavingTeams] = useState(false);
+
+  async function toggleCoachedTeam(teamId: string, on: boolean) {
+    const previous = coached;
+    const next = on ? [...coached, teamId] : coached.filter((id) => id !== teamId);
+    setCoached(next);
+    setSavingTeams(true);
+    setError(null);
+    try {
+      await browserApi.licencies.updateProfile(clubId, licencieId, { coachedTeamIds: next });
+      router.refresh();
+    } catch (err) {
+      setCoached(previous);
+      setError(err instanceof ApiError ? err.message : "Modification des équipes impossible.");
+    } finally {
+      setSavingTeams(false);
     }
   }
 
@@ -125,7 +151,7 @@ export function LicenciePublicAccessCard({
             )}
           </p>
           <p className="type-meta">
-            Lien commun : <span className="type-numeric">/public/{clubSlug}/tables</span>
+            Lien commun : <span className="type-numeric">/public/{clubSlug}/accueil</span>
           </p>
         </div>
         {/* Retour du club, 2026-10-01 : rôles de l'espace public sans compte — aucun droit dans l'espace connecté. */}
@@ -139,11 +165,22 @@ export function LicenciePublicAccessCard({
           />
           <Checkbox
             label="Coach"
-            description="Peut demander une dérogation pour les matchs à venir du club (aucune équipe à préciser)."
+            description="Peut demander une dérogation pour les matchs à venir du club. Ses équipes servent à son agenda d'accueil."
             checked={flags.publicCoach}
             disabled={savingFlag !== null}
             onChange={(e) => toggleFlag("publicCoach", e.target.checked)}
           />
+          {flags.publicCoach ? (
+            <fieldset className="mb-2 ml-8 flex flex-col rounded-[var(--radius-md)] border border-border px-3 py-2">
+              <legend className="px-1 text-[12.5px] font-medium text-muted">Équipes coachées — son agenda sur l&apos;accueil</legend>
+              {teams.length === 0 ? <p className="type-meta py-1">Aucune équipe créée pour le club.</p> : null}
+              <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+                {teams.map((t) => (
+                  <Checkbox key={t.id} label={t.name} checked={coached.includes(t.id)} disabled={savingTeams} onChange={(e) => toggleCoachedTeam(t.id, e.target.checked)} />
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
           <Checkbox
             label="Coordinateur"
             description="Reçoit et traite les demandes de dérogation des coachs."

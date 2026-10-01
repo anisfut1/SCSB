@@ -23,7 +23,7 @@ const NO_TEAM = "";
 export function AddPersonButton({ clubId, teams }: { clubId: string; teams: TeamDto[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", teamId: NO_TEAM, publicCoach: true, publicCoordinator: false, publicAdmin: false });
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", teamId: NO_TEAM, publicCoach: true, publicCoordinator: false, publicAdmin: false, coachedTeamIds: [] as string[] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -44,9 +44,10 @@ export function AddPersonButton({ clubId, teams }: { clubId: string; teams: Team
         publicCoach: form.publicCoach,
         publicCoordinator: form.publicCoordinator,
         publicAdmin: form.publicAdmin,
+        coachedTeamIds: form.publicCoach ? form.coachedTeamIds : [],
       });
       setOpen(false);
-      setForm({ firstName: "", lastName: "", email: "", phone: "", teamId: NO_TEAM, publicCoach: true, publicCoordinator: false, publicAdmin: false });
+      setForm({ firstName: "", lastName: "", email: "", phone: "", teamId: NO_TEAM, publicCoach: true, publicCoordinator: false, publicAdmin: false, coachedTeamIds: [] });
       setToast(`${created.firstName} ${created.lastName} ajouté·e.`);
       setTimeout(() => setToast(null), 4000);
       router.refresh();
@@ -101,7 +102,7 @@ export function AddPersonButton({ clubId, teams }: { clubId: string; teams: Team
           <Field label="Téléphone" optional>
             {(props) => <Input {...props} type="tel" inputMode="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)} autoComplete="off" />}
           </Field>
-          <Field label="Équipe" optional>
+          <Field label="Équipe où il/elle joue" optional>
             {(props) => (
               <Select {...props} value={form.teamId} onChange={(e) => set("teamId", e.target.value)}>
                 <option value={NO_TEAM}>Sans équipe</option>
@@ -116,6 +117,21 @@ export function AddPersonButton({ clubId, teams }: { clubId: string; teams: Team
           <fieldset className="flex flex-col">
             <legend className="mb-1 text-[13px] font-medium text-foreground">Rôles (espace public, avec son lien personnel)</legend>
             <Checkbox label="Coach" description="Peut demander une dérogation pour les matchs à venir du club." checked={form.publicCoach} onChange={(e) => set("publicCoach", e.target.checked)} />
+            {form.publicCoach && teams.length > 0 ? (
+              <div className="mb-2 ml-8 rounded-[var(--radius-md)] border border-border px-3 py-2">
+                <p className="text-[12.5px] font-medium text-muted">Équipes coachées — son agenda sur l&apos;accueil</p>
+                <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+                  {teams.map((t) => (
+                    <Checkbox
+                      key={t.id}
+                      label={t.name}
+                      checked={form.coachedTeamIds.includes(t.id)}
+                      onChange={(e) => set("coachedTeamIds", e.target.checked ? [...form.coachedTeamIds, t.id] : form.coachedTeamIds.filter((id) => id !== t.id))}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <Checkbox label="Coordinateur" description="Reçoit et traite les demandes de dérogation." checked={form.publicCoordinator} onChange={(e) => set("publicCoordinator", e.target.checked)} />
             <Checkbox label="Profil admin" description="Accès aux dérogations, dont le statut officiel FBI en lecture." checked={form.publicAdmin} onChange={(e) => set("publicAdmin", e.target.checked)} />
           </fieldset>
