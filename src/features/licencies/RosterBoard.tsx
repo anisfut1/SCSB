@@ -7,7 +7,8 @@ import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
 import type { LicencieDto } from "@/lib/api/licencies";
 import type { TeamDto } from "@/lib/api/clubs";
-import { GripVertical, Search, Shirt, Trash2, UserX, Wand2 } from "lucide-react";
+import { GripVertical, Search, ShieldCheck, Shirt, Trash2, UserX, Wand2 } from "lucide-react";
+import { cn } from "@/components/ui/cn";
 import { Button, IconButton } from "@/components/ui/Button";
 import { FormMessage, Input, Select } from "@/components/ui/Field";
 import { StatusBadge } from "@/components/ui/Badge";
@@ -48,6 +49,7 @@ function LicencieCard({
   teams,
   isAdmin,
   onAssignTeam,
+  onTogglePublicAdmin,
   isConfirmingDelete,
   onRequestDelete,
   onConfirmDelete,
@@ -58,6 +60,7 @@ function LicencieCard({
   teams: TeamDto[];
   isAdmin: boolean;
   onAssignTeam: (teamId: string | null) => void;
+  onTogglePublicAdmin: () => void;
   isConfirmingDelete: boolean;
   onRequestDelete: () => void;
   onConfirmDelete: () => void;
@@ -81,6 +84,11 @@ function LicencieCard({
             </span>
             {/* Catégorie/sexe FFBB — repère pour choisir la bonne équipe (un club a souvent plusieurs équipes par catégorie, ex. SM1/SM2/SF). */}
             <span className="type-meta truncate">
+              {licencie.publicAdmin ? (
+                <span className="font-medium text-accent-text">
+                  <ShieldCheck aria-hidden className="inline size-3.5 align-[-2px]" /> Admin ·{" "}
+                </span>
+              ) : null}
               <span className="type-numeric">{licencie.licenseNumber ?? "Licence —"}</span>
               {licencie.categoryLabel || licencie.sexe ? ` · ${[licencie.categoryLabel, licencie.sexe].filter(Boolean).join(" · ")}` : ""}
             </span>
@@ -115,6 +123,17 @@ function LicencieCard({
                   ))}
                 </Select>
               </span>
+              {/* Profil admin de l'espace public (retour du club, 2026-10-01 : "mettre un profil admin et qu'il ait accès aux dérogs") — aucun compte requis. */}
+              <IconButton
+                label={licencie.publicAdmin ? `Retirer le profil admin de ${name}` : `Donner le profil admin à ${name} (accès aux dérogations)`}
+                aria-pressed={licencie.publicAdmin}
+                variant="ghost"
+                size="sm"
+                onClick={onTogglePublicAdmin}
+                className={cn(licencie.publicAdmin && "bg-accent-soft text-accent-text hover:bg-accent-soft hover:text-accent-text")}
+              >
+                <ShieldCheck />
+              </IconButton>
               <IconButton label="Supprimer ce licencié" variant="danger-ghost" size="sm" onClick={onRequestDelete}>
                 <Trash2 />
               </IconButton>
@@ -217,6 +236,30 @@ export function RosterBoard({
   }
 
   /**
+   * Profil admin de l'espace public (retour du club, 2026-10-01) : ouvre
+   * au licencié les dérogations en lecture seule via son lien personnel,
+   * sans compte. Optimiste, annulé si l'appel API échoue.
+   */
+  function togglePublicAdmin(licencieId: string) {
+    const licencie = items.find((l) => l.id === licencieId);
+    if (!licencie) return;
+    const next = !licencie.publicAdmin;
+    const previous = items;
+    setError(null);
+    setItems(items.map((l) => (l.id === licencieId ? { ...l, publicAdmin: next } : l)));
+
+    startTransition(async () => {
+      try {
+        await browserApi.licencies.updateProfile(clubId, licencieId, { publicAdmin: next });
+        router.refresh();
+      } catch (e) {
+        setItems(previous);
+        setError(e instanceof ApiError ? e.message : "Modification du profil admin impossible.");
+      }
+    });
+  }
+
+  /**
    * "faut aussi un bouton pour supprimer un licencié" (demande du club,
    * 2026-09-28) — suppression DÉFINITIVE (voir docs/LICENCIES.md côté
    * club-manager-api : sûre sans condition, jamais de perte d'historique
@@ -272,7 +315,12 @@ export function RosterBoard({
       </div>
       {autoAssignStatus ? <Notice tone="info" live>{autoAssignStatus}</Notice> : null}
       {error ? <FormMessage tone="danger">{error}</FormMessage> : null}
-      {isAdmin ? <p className="type-meta -mt-2 hidden sm:block">Glissez une carte d&apos;une équipe à l&apos;autre, ou utilisez le sélecteur d&apos;équipe de chaque ligne.</p> : null}
+      {isAdmin ? (
+        <p className="type-meta -mt-2">
+          <span className="hidden sm:inline">Glissez une carte d&apos;une équipe à l&apos;autre, ou utilisez le sélecteur d&apos;équipe de chaque ligne. </span>
+          <ShieldCheck aria-hidden className="inline size-3.5 align-[-2px] text-accent-text" /> donne le profil admin : accès aux dérogations depuis l&apos;espace public, avec son lien personnel.
+        </p>
+      ) : null}
 
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
         {buckets.map((bucket) => {
@@ -323,6 +371,7 @@ export function RosterBoard({
                         teams={sortedTeams}
                         isAdmin={isAdmin}
                         onAssignTeam={(teamId) => assignTeam(licencie.id, teamId)}
+                        onTogglePublicAdmin={() => togglePublicAdmin(licencie.id)}
                         isConfirmingDelete={confirmingDeleteId === licencie.id}
                         onRequestDelete={() => setConfirmingDeleteId(licencie.id)}
                         onConfirmDelete={() => handleDelete(licencie.id)}

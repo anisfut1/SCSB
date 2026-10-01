@@ -12,6 +12,7 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/States";
 import { Table, TBody, THead, Td, Th, Tr } from "@/components/ui/Table";
 import { LicencieProfileEditForm } from "@/features/licencies/LicencieProfileEditForm";
+import { LicenciePublicAccessCard } from "@/features/licencies/LicenciePublicAccessCard";
 import { MATCH_STATUS_LABELS, formatSecondsPlayed } from "@/features/matches/detail/labels";
 import type { LicencieMatchDto } from "@/lib/api/licencies";
 import type { TeamDto } from "@/lib/api/clubs";
@@ -36,7 +37,13 @@ export default async function LicencieProfilePage({ params }: { params: Promise<
 
   const { licencie, matches, isSelf } = profile;
   const editMode: "admin" | "self" | null = isClubAdmin(club.roles) ? "admin" : isSelf ? "self" : null;
-  const teams: TeamDto[] = await api.clubs.teams(club.id);
+  const admin = isClubAdmin(club.roles);
+  // Lien personnel sans compte (retour du club, 2026-10-01) : même source que Tables → Accès publics, club_admin uniquement.
+  const [teams, publicAccess]: [TeamDto[], Awaited<ReturnType<typeof api.tables.listPublicAccess>> | null] = await Promise.all([
+    api.clubs.teams(club.id),
+    admin ? api.tables.listPublicAccess(club.id) : Promise.resolve(null),
+  ]);
+  const publicAccessEntry = publicAccess?.find((e) => e.licencie.id === licencie.id) ?? null;
   const currentTeamName = teams.find((t) => t.id === licencie.teamId)?.name ?? null;
   const name = `${licencie.lastName} ${licencie.firstName}`;
 
@@ -82,6 +89,18 @@ export default async function LicencieProfilePage({ params }: { params: Promise<
             ) : null}
           </div>
         </Card>
+      ) : null}
+
+      {admin ? (
+        <LicenciePublicAccessCard
+          clubId={club.id}
+          clubSlug={clubSlug}
+          licencieId={licencie.id}
+          licencieName={`${licencie.firstName} ${licencie.lastName}`}
+          licencieEmail={licencie.email}
+          publicAdmin={licencie.publicAdmin}
+          entry={publicAccessEntry}
+        />
       ) : null}
 
       <section className="flex flex-col gap-4">

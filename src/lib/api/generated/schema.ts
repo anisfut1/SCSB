@@ -4978,6 +4978,7 @@ export interface components {
             categoryLabel: string | null;
             /** @enum {string|null} */
             sexe: "M" | "F" | null;
+            publicAdmin: boolean;
         };
         LicencieProfileDto: {
             licencie: components["schemas"]["LicencieDto"];
@@ -5023,6 +5024,7 @@ export interface components {
             /** Format: uuid */
             teamId?: string | null;
             active?: boolean;
+            publicAdmin?: boolean;
         };
         ImportLicenciesResultDto: {
             total: number;

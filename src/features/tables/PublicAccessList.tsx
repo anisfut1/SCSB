@@ -30,7 +30,7 @@ export function PublicAccessList({ clubId, entries }: { clubId: string; entries:
   async function reset(licencieId: string, label: string) {
     const ok = await confirm({
       title: "Réinitialiser l'accès public ?",
-      description: `Réinitialiser l'accès public de ${label} ? Son lien actuel cessera de fonctionner — son nom redeviendra choisissable sur le lien commun.`,
+      description: `Réinitialiser l'accès public de ${label} ? Son lien actuel cessera de fonctionner ; il pourra en redemander un depuis le lien commun, envoyé à l'email de sa fiche.`,
       confirmLabel: "Réinitialiser",
       destructive: true,
     });
