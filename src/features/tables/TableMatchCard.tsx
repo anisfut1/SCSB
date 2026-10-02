@@ -5,13 +5,13 @@ import { House, MapPin, TriangleAlert } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
 import { useConfirm } from "@/components/ui/Dialog";
-import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
 import type { TableAssignmentRole, TableAssignmentResultDto, TableAssignmentsForMatchDto } from "@/lib/api/tables";
 import { formatMatchDateTime, matchDateParts } from "@/features/matches/match-display";
 import { TableAssignmentSlot } from "./TableAssignmentSlot";
 import { TableSuggestionsSheet } from "./TableSuggestionsSheet";
 import { TABLE_ROLES, TABLE_ROLE_LABELS } from "./role-labels";
+import type { TablesClient } from "./tables-client";
 
 /**
  * Card d'un match à domicile avec ses 4 postes (§64-§66 de la demande,
@@ -21,7 +21,7 @@ import { TABLE_ROLES, TABLE_ROLE_LABELS } from "./role-labels";
  * toast) — jamais de ré-affectation locale silencieuse qui divergerait de
  * l'état réel côté serveur.
  */
-export function TableMatchCard({ clubId, match, onChanged }: { clubId: string; match: TableAssignmentsForMatchDto; onChanged: (message: string) => void }) {
+export function TableMatchCard({ client, match, onChanged }: { client: TablesClient; match: TableAssignmentsForMatchDto; onChanged: (message: string) => void }) {
   const [openRole, setOpenRole] = useState<TableAssignmentRole | null>(null);
   const [removingRole, setRemovingRole] = useState<TableAssignmentRole | null>(null);
   const [togglingReferee, setTogglingReferee] = useState(false);
@@ -51,7 +51,7 @@ export function TableMatchCard({ clubId, match, onChanged }: { clubId: string; m
 
     setRemovingRole(role);
     try {
-      await browserApi.tables.unassign(clubId, match.match.id, role);
+      await client.unassign(match.match.id, role);
       onChanged("Affectation retirée — poste remis à « À attribuer ».");
     } catch (error) {
       onChanged(error instanceof ApiError ? error.message : "Retrait impossible.");
@@ -69,7 +69,7 @@ export function TableMatchCard({ clubId, match, onChanged }: { clubId: string; m
   async function handleToggleRefereeNotNeeded(noRefereeNeeded: boolean) {
     setTogglingReferee(true);
     try {
-      await browserApi.tables.setRefereeStatus(clubId, match.match.id, noRefereeNeeded);
+      await client.setRefereeStatus(match.match.id, noRefereeNeeded);
       onChanged(noRefereeNeeded ? "Marqué « pas besoin d'arbitre »." : "Un arbitre du club est de nouveau nécessaire.");
     } catch (error) {
       onChanged(error instanceof ApiError ? error.message : "Mise à jour du statut arbitre impossible.");
@@ -140,7 +140,7 @@ export function TableMatchCard({ clubId, match, onChanged }: { clubId: string; m
 
       {openRole ? (
         <TableSuggestionsSheet
-          clubId={clubId}
+          client={client}
           matchId={match.match.id}
           role={openRole}
           open={openRole !== null}

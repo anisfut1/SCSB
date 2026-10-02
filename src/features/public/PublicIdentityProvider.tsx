@@ -11,6 +11,8 @@ export interface PublicIdentity {
   isClubAdmin: boolean;
   /** Demandes de dérogation internes : coach / coordinateur (rôles posés depuis /joueurs). */
   derogationRequests: { canCreate: boolean; canManage: boolean };
+  /** Tables de marque : coach ou admin du club → désigne / retire n'importe qui (retour du club, 2026-10-02). */
+  tables: { canManage: boolean };
 }
 
 /** `undefined` = résolution en cours, `null` = aucun lien reconnu, sinon identité résolue. */
@@ -91,7 +93,7 @@ export function PublicIdentityProvider({ clubSlug, club, children }: { clubSlug:
         setStoredPublicToken(clubSlug, candidate);
         setKnownCookie(clubSlug, true);
         stripTokenFromUrl();
-        setIdentity({ token: candidate, licencie: result.licencie, isClubAdmin: result.isClubAdmin, derogationRequests: result.derogationRequests });
+        setIdentity({ token: candidate, licencie: result.licencie, isClubAdmin: result.isClubAdmin, derogationRequests: result.derogationRequests, tables: result.tables });
       })
       .catch(() => {
         if (cancelled) return;

@@ -10,10 +10,10 @@ import { Notice } from "@/components/ui/Notice";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { PersonAvatar } from "@/components/ui/Avatar";
 import { cn } from "@/components/ui/cn";
-import { browserApi } from "@/lib/api/browserClient";
 import { ApiError } from "@/lib/api/client";
 import type { SuggestionReasonCode, TableAssignmentRole, TableAssignmentResultDto, TableSuggestionCandidateDto, TableSuggestionsDto, TableUnavailableCandidateDto, UnavailableReasonCode } from "@/lib/api/tables";
 import { TABLE_ROLE_LABELS, chooseRolePanelTitle } from "./role-labels";
+import type { TablesClient } from "./tables-client";
 
 const REASON_ICON: Record<SuggestionReasonCode, typeof Clock> = {
   NEXT_HOME_MATCH: Clock,
@@ -125,14 +125,14 @@ function SectionTitle({ children, count }: { children: React.ReactNode; count: n
  * "Affecter automatiquement" / "Remplir les tables").
  */
 export function TableSuggestionsSheet({
-  clubId,
+  client,
   matchId,
   role,
   open,
   onClose,
   onAssigned,
 }: {
-  clubId: string;
+  client: TablesClient;
   matchId: string;
   role: TableAssignmentRole;
   open: boolean;
@@ -159,8 +159,8 @@ export function TableSuggestionsSheet({
    */
   useEffect(() => {
     let cancelled = false;
-    browserApi.tables
-      .suggestions(clubId, matchId, role)
+    client
+      .suggestions(matchId, role)
       .then((result) => {
         if (!cancelled) setData(result);
       })
@@ -173,7 +173,7 @@ export function TableSuggestionsSheet({
     return () => {
       cancelled = true;
     };
-  }, [clubId, matchId, role]);
+  }, [client, matchId, role]);
 
   const filtered = useMemo(() => {
     if (!data) return null;
@@ -188,15 +188,15 @@ export function TableSuggestionsSheet({
     setChoosingId(licencieId);
     setError(null);
     try {
-      const result = await browserApi.tables.assign(clubId, matchId, role, { licencieId });
+      const result = await client.assign(matchId, role, licencieId);
       onAssigned(result);
       onClose();
     } catch (err) {
       if (err instanceof ApiError && (err.code === "TABLE_ASSIGNMENT_CONFLICT" || err.code === "ALREADY_ASSIGNED_ON_MATCH" || err.status === 409)) {
         setError(`${err.message} — les suggestions ci-dessous ont été actualisées.`);
         setLoading(true);
-        browserApi.tables
-          .suggestions(clubId, matchId, role)
+        client
+          .suggestions(matchId, role)
           .then(setData)
           .catch(() => undefined)
           .finally(() => setLoading(false));

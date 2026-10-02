@@ -21,5 +21,5 @@ export function PublicTablesApp({ clubSlug, clubTimezone }: { clubSlug: string; 
     return <PublicLoginPanel returnTo="tables" title="Tables de marque" lead="Retrouve ton nom pour recevoir ton lien d'accès par email, puis positionne-toi sur les matchs à domicile." />;
   }
 
-  return <BoardView clubSlug={clubSlug} clubTimezone={clubTimezone} token={identity.token} me={identity.licencie} onLogout={forget} />;
+  return <BoardView clubSlug={clubSlug} clubTimezone={clubTimezone} token={identity.token} me={identity.licencie} canManage={identity.tables.canManage} onLogout={forget} />;
 }

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { TableAssignmentsForMatchDto } from "@/lib/api/tables";
 import { ClipboardList } from "lucide-react";
 import { EmptyState } from "@/components/ui/States";
 import { Toast } from "@/components/ui/Toast";
 import { TableMatchCard } from "./TableMatchCard";
+import { clubTablesClient } from "./tables-client";
 
 /**
  * Wrapper client de la vue "par journée" (§64 de la demande — une journée
@@ -19,6 +20,7 @@ import { TableMatchCard } from "./TableMatchCard";
 export function TablesBoard({ clubId, matches }: { clubId: string; matches: TableAssignmentsForMatchDto[] }) {
   const router = useRouter();
   const [toast, setToast] = useState<string | null>(null);
+  const client = useMemo(() => clubTablesClient(clubId), [clubId]);
 
   useEffect(() => {
     if (!toast) return;
@@ -40,7 +42,7 @@ export function TablesBoard({ clubId, matches }: { clubId: string; matches: Tabl
       {toast ? <Toast message={toast} /> : null}
       <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
         {matches.map((match) => (
-          <TableMatchCard key={match.match.id} clubId={clubId} match={match} onChanged={handleChanged} />
+          <TableMatchCard key={match.match.id} client={client} match={match} onChanged={handleChanged} />
         ))}
       </div>
     </div>
