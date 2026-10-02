@@ -1,24 +1,12 @@
+import Image from "next/image";
 import { cn } from "@/components/ui/cn";
+import mark from "./ball-manager-mark.png";
 
 /**
- * Marque de la plateforme : tracé abstrait de terrain (cercle central +
- * raquette) — géométrique, sans emoji ni ballon illustratif.
+ * Marque de la plateforme Ball Manager (logo « BM » ballon orange sur tuile
+ * noire, fourni par le club, 2026-10-02) — mêmes visuels que le favicon
+ * (src/app/favicon.ico, icon.png, apple-icon.png).
  */
 export function BrandMark({ className }: { className?: string }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "inline-flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-foreground text-background shadow-[inset_0_1px_0_rgb(255_255_255/0.18),var(--shadow-1)]",
-        className,
-      )}
-    >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="size-[62%]">
-        <circle cx="12" cy="12" r="3.2" />
-        <path d="M3.5 12h17" />
-        <path d="M3.5 6.5a5.5 5.5 0 0 1 0 11" />
-        <path d="M20.5 6.5a5.5 5.5 0 0 0 0 11" />
-      </svg>
-    </span>
-  );
+  return <Image src={mark} alt="" aria-hidden width={32} height={32} loading="eager" className={cn("inline-block size-8 shrink-0 rounded-[10px]", className)} />;
 }

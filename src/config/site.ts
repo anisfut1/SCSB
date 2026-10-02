@@ -4,7 +4,7 @@
  */
 
 /** Nom de la plateforme elle-même (hors contexte club, ex: /platform, chooser). Jamais un nom de club en dur — voir docs/MULTI_TENANCY.md §17. */
-export const PLATFORM_NAME = "Basket Club Manager";
+export const PLATFORM_NAME = "Ball Manager";
 
 /**
  * Chemins accessibles sans session. Tout le reste de l'application est

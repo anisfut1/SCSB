@@ -7,6 +7,8 @@ import { cn } from "@/components/ui/cn";
 import { NAV_ICONS } from "./icons";
 import { isActive, type NavItem, type NavSection } from "./nav";
 import { UserMenu } from "./UserMenu";
+import { BrandMark } from "@/components/brand/BrandMark";
+import { PLATFORM_NAME } from "@/config/site";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import type { ShellUser, ShellWorkspace } from "./types";
 
@@ -77,7 +79,12 @@ export function Sidebar({
 }) {
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-[var(--sidebar-width)] flex-col border-r border-border bg-[color-mix(in_oklab,var(--surface)_70%,var(--background))] lg:flex">
-      <div className="px-3 pb-2 pt-3">
+      {/* Marque Ball Manager (2026-10-02) — au-dessus du club courant. */}
+      <Link href="/" className="mx-3 mt-3 flex min-h-10 items-center gap-2.5 rounded-[10px] px-2 transition-colors duration-150 hover:bg-surface-muted">
+        <BrandMark className="size-7 rounded-[8px]" />
+        <span className="text-[15px] font-semibold tracking-tight text-foreground">{PLATFORM_NAME}</span>
+      </Link>
+      <div className="px-3 pb-2 pt-1">
         <WorkspaceSwitcher current={current} workspaces={workspaces} platformLabel={platformLabel} />
       </div>
       <nav aria-label="Navigation principale" className="scrollbar-none flex-1 overflow-y-auto px-3 pb-4 pt-2">

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { PLATFORM_NAME } from "@/config/site";
 import { Geist, Geist_Mono, Instrument_Serif, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
@@ -26,7 +27,8 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Basket Club Manager",
+  // Icônes : conventions de fichiers Next (src/app/favicon.ico, icon.png, apple-icon.png).
+  title: PLATFORM_NAME,
   description: "Plateforme de gestion sportive multi-clubs (calendrier, feuilles de match, statistiques)",
 };
 
