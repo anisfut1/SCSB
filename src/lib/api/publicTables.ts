@@ -1,6 +1,7 @@
 import { apiFetch } from "./client";
 import type { components } from "./generated/schema";
-import type { DerogationListItemDto } from "./derogations";
+import type { DerogationListItemDto, RespondToDerogationDto, RespondToDerogationResultDto } from "./derogations";
+import type { CreateDerogationDto, CreateDerogationResultDto } from "./matches";
 import type { RefereeStatusResultDto, TableSuggestionsDto } from "./tables";
 
 /**
@@ -119,4 +120,26 @@ export async function setPublicRefereeStatus(clubSlug: string, token: string, ma
 /** DELETE .../matches/:matchId/table-assignments/:role?token= — sa propre affectation ; n'importe laquelle pour un coach / admin du club (403 côté serveur sinon). */
 export async function deletePublicTableAssignment(clubSlug: string, token: string, matchId: string, role: TableAssignmentRole): Promise<void> {
   await apiFetch<{ removed: true }>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/matches/${matchId}/table-assignments/${role}?token=${encodeURIComponent(token)}`, { method: "DELETE" });
+}
+
+/**
+ * POST .../derogations/:derogationId/respond?token= — ÉCRIT sur FBI
+ * (accepter / refuser). Admin du club ou coordinateur (retour du club,
+ * 2026-10-02) ; même délai généreux que la version espace club.
+ */
+export async function respondPublicDerogation(clubSlug: string, token: string, derogationId: string, body: RespondToDerogationDto): Promise<RespondToDerogationResultDto> {
+  return apiFetch<RespondToDerogationResultDto>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/derogations/${encodeURIComponent(derogationId)}/respond?token=${encodeURIComponent(token)}`, {
+    method: "POST",
+    body,
+    timeoutMs: 120_000,
+  });
+}
+
+/** POST .../matches/:matchId/derogation/create?token= — ÉCRIT sur FBI : nouvelle dérogation officielle. Admin du club ou coordinateur. */
+export async function createPublicDerogation(clubSlug: string, token: string, matchId: string, body: CreateDerogationDto): Promise<CreateDerogationResultDto> {
+  return apiFetch<CreateDerogationResultDto>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/matches/${matchId}/derogation/create?token=${encodeURIComponent(token)}`, {
+    method: "POST",
+    body,
+    timeoutMs: 120_000,
+  });
 }

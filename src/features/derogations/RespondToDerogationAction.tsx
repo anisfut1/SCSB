@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api/client";
 import { Button } from "@/components/ui/Button";
 import { Field, FormMessage, Textarea } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
+import type { RespondToDerogationDto, RespondToDerogationResultDto } from "@/lib/api/derogations";
 
 type Step = { kind: "idle" } | { kind: "confirm-accept" } | { kind: "confirm-refuse"; motif: string };
 type Status = { kind: "success" | "error" | "warning"; text: string } | null;
@@ -22,7 +23,16 @@ type Status = { kind: "success" | "error" | "warning"; text: string } | null;
  * Partagé entre la liste des dérogations et la fiche d'un match — les
  * deux exposent le même `derogation.id`.
  */
-export function RespondToDerogationAction({ clubId, derogationId }: { clubId: string; derogationId: string }) {
+export function RespondToDerogationAction({
+  clubId,
+  derogationId,
+  submit: submitOverride,
+}: {
+  clubId?: string;
+  derogationId: string;
+  /** Même envoi FBI depuis l'espace public (coordinateur / admin, retour du club 2026-10-02). */
+  submit?: (body: RespondToDerogationDto) => Promise<RespondToDerogationResultDto>;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [step, setStep] = useState<Step>({ kind: "idle" });
@@ -32,7 +42,8 @@ export function RespondToDerogationAction({ clubId, derogationId }: { clubId: st
     startTransition(async () => {
       setStatus(null);
       try {
-        const result = await browserApi.derogations.respond(clubId, derogationId, { decision, motifRefus });
+        const body = { decision, motifRefus };
+        const result = submitOverride ? await submitOverride(body) : await browserApi.derogations.respond(clubId ?? "", derogationId, body);
         if (result.outcome === "success") {
           setStatus({ kind: "success", text: decision === "accepted" ? "Dérogation acceptée sur FBI." : "Dérogation refusée sur FBI." });
           setStep({ kind: "idle" });

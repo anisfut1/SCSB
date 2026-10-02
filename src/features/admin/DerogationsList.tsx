@@ -9,7 +9,7 @@ import { DataList } from "@/components/ui/DataList";
 import { EmptyState } from "@/components/ui/States";
 import { Notice } from "@/components/ui/Notice";
 import { cn } from "@/components/ui/cn";
-import type { DerogationListItemDto } from "@/lib/api/derogations";
+import type { DerogationListItemDto, RespondToDerogationDto, RespondToDerogationResultDto } from "@/lib/api/derogations";
 import { RespondToDerogationAction } from "@/features/derogations/RespondToDerogationAction";
 
 // `timeZone: "Europe/Paris"` explicite partout ci-dessous — jamais le
@@ -68,6 +68,7 @@ export function DerogationsList({
   derogations,
   matchBasePath,
   readOnly = false,
+  respond,
 }: {
   /** Requis pour répondre à une dérogation — absent en lecture seule. */
   clubId?: string;
@@ -80,6 +81,8 @@ export function DerogationsList({
    * — une écriture FBI exige une vraie session club_admin.
    */
   readOnly?: boolean;
+  /** Espace public, coordinateur / admin (2026-10-02) : accepter / refuser via le lien personnel. */
+  respond?: (derogationId: string, body: RespondToDerogationDto) => Promise<RespondToDerogationResultDto>;
 }) {
   const [selectedEtat, setSelectedEtat] = useState<string | null>(null);
 
@@ -170,7 +173,11 @@ export function DerogationsList({
                       </Notice>
                     ) : null}
 
-                    {derogation.actionRequired && !readOnly && clubId ? <RespondToDerogationAction clubId={clubId} derogationId={derogation.id} /> : null}
+                    {derogation.actionRequired && !readOnly && respond ? (
+                      <RespondToDerogationAction derogationId={derogation.id} submit={(body) => respond(derogation.id, body)} />
+                    ) : derogation.actionRequired && !readOnly && clubId ? (
+                      <RespondToDerogationAction clubId={clubId} derogationId={derogation.id} />
+                    ) : null}
 
                     <DataList
                       columns={3}

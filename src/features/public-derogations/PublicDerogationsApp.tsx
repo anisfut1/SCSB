@@ -15,7 +15,7 @@ import type { DerogationContextDto, DerogationRequestSummaryDto } from "@/lib/ap
 import { DerogationsList } from "@/features/admin/DerogationsList";
 import { PublicLoginPanel } from "@/features/public/PublicLoginApp";
 import { usePublicIdentity, type PublicIdentity } from "@/features/public/PublicIdentityProvider";
-import { listPublicDerogations } from "@/lib/api/publicTables";
+import { listPublicDerogations, respondPublicDerogation } from "@/lib/api/publicTables";
 import type { DerogationListItemDto } from "@/lib/api/derogations";
 import { ApiError } from "@/lib/api/client";
 
@@ -26,7 +26,10 @@ import { ApiError } from "@/lib/api/client";
  *  - aucun lien reconnu → identification (lien personnel par email) ;
  *  - lien reconnu mais licencié sans rôle → accès réservé ;
  *  - coach / coordinateur (rôles posés depuis /joueurs) → demandes internes ;
- *  - administrateur du club → demandes internes + statut officiel FBI (lecture seule).
+ *  - administrateur du club ou coordinateur → demandes internes + dérogations
+ *    officielles FBI (liste, accepter / refuser ; création depuis la fiche
+ *    match) — retour du club, 2026-10-02 : « le coordinateur doit avoir les
+ *    mêmes droits qu'un admin général sur les dérogations ».
  * Le serveur revérifie le rôle à chaque lecture (403 sinon) : l'indicateur
  * `isClubAdmin` ne sert ici qu'à choisir l'écran.
  */
@@ -55,9 +58,14 @@ export function PublicDerogationsApp({ clubSlug, clubName }: { clubSlug: string;
   return (
     <div className="flex flex-col gap-10">
       <PublicRequestsHome clubSlug={clubSlug} clubName={clubName} identity={identity} onForget={forget} />
-      {identity.isClubAdmin ? <AdminDerogations clubSlug={clubSlug} identity={identity} /> : null}
+      {canManageOfficialDerogations(identity) ? <AdminDerogations clubSlug={clubSlug} identity={identity} /> : null}
     </div>
   );
+}
+
+/** Dérogations officielles FBI : admin du club ou coordinateur (`derogationRequests.canManage`). Le serveur revérifie. */
+export function canManageOfficialDerogations(identity: PublicIdentity): boolean {
+  return identity.isClubAdmin || identity.derogationRequests.canManage;
 }
 
 export function hasDerogationAccess(identity: PublicIdentity): boolean {
@@ -186,13 +194,17 @@ function AdminDerogations({ clubSlug, identity }: { clubSlug: string; identity: 
 
   return (
     <section aria-labelledby="fbi-title" className="flex flex-col gap-4">
-      <SectionHeader id="fbi-title" title="Statut officiel (FBI)" description="Dérogations FBI connues pour le club, en consultation. Pour accepter ou refuser une demande FBI, connecte-toi à l'espace club." />
+      <SectionHeader
+        id="fbi-title"
+        title="Dérogations officielles (FBI)"
+        description="Dérogations FBI connues pour le club : accepte ou refuse celles qui attendent une réponse. Pour en créer une, ouvre le match concerné (onglet Matchs) → « Créer une dérogation »."
+      />
       {error ? (
         <ErrorState title="Impossible de charger les dérogations" description={error.message} />
       ) : derogations === null ? (
         <ListSkeleton rows={4} />
       ) : (
-        <DerogationsList derogations={derogations} matchBasePath={`/public/${clubSlug}/matchs`} readOnly />
+        <DerogationsList derogations={derogations} matchBasePath={`/public/${clubSlug}/matchs`} respond={(derogationId, body) => respondPublicDerogation(clubSlug, identity.token, derogationId, body)} />
       )}
     </section>
   );

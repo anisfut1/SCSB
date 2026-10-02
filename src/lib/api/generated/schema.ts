@@ -2571,7 +2571,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Dérogations connues du club (lecture seule) */
+                /** @description Dérogations connues du club */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2591,7 +2591,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorEnvelope"];
                     };
                 };
-                /** @description Licencié non administrateur du club (CLUB_ADMIN_REQUIRED) */
+                /** @description Ni administrateur ni coordinateur du club (CLUB_ADMIN_REQUIRED) */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -2613,6 +2613,168 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/clubs/{clubSlug}/derogations/{derogationId}/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query: {
+                    token: string;
+                };
+                header?: never;
+                path: {
+                    /** @description Slug du club (flux public sans compte) */
+                    clubSlug: string;
+                    derogationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["RespondToDerogationDto"];
+                };
+            };
+            responses: {
+                /** @description Résultat de l'envoi à FBI */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RespondToDerogationResultDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Jeton invalide ou révoqué */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Ni administrateur ni coordinateur du club (CLUB_ADMIN_REQUIRED) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/clubs/{clubSlug}/matches/{matchId}/derogation/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query: {
+                    token: string;
+                };
+                header?: never;
+                path: {
+                    /** @description Slug du club (flux public sans compte) */
+                    clubSlug: string;
+                    matchId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CreateDerogationDto"];
+                };
+            };
+            responses: {
+                /** @description Résultat de l'envoi à FBI */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CreateDerogationResultDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Jeton invalide ou révoqué */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Ni administrateur ni coordinateur du club (CLUB_ADMIN_REQUIRED) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -7402,6 +7564,20 @@ export interface components {
         };
         /** @enum {string} */
         PublicLinkTarget: "accueil" | "matchs" | "tables" | "derogations";
+        CreateDerogationResultDto: {
+            /** @enum {string} */
+            outcome: "success" | "error" | "unknown";
+            message: string | null;
+        };
+        CreateDerogationDto: {
+            motif: string;
+            modifierDate: boolean;
+            dateDerogation?: string | null;
+            modifierHoraire: boolean;
+            horaire?: string | null;
+            inverserRencontre: boolean;
+            inverserEquipe: boolean;
+        };
         PublicMeDto: {
             licencie: components["schemas"]["TableLicencieRefDto"];
             isClubAdmin: boolean;
@@ -7464,20 +7640,6 @@ export interface components {
             difference: number | null;
             outOfRanking: boolean;
             isClub: boolean;
-        };
-        CreateDerogationResultDto: {
-            /** @enum {string} */
-            outcome: "success" | "error" | "unknown";
-            message: string | null;
-        };
-        CreateDerogationDto: {
-            motif: string;
-            modifierDate: boolean;
-            dateDerogation?: string | null;
-            modifierHoraire: boolean;
-            horaire?: string | null;
-            inverserRencontre: boolean;
-            inverserEquipe: boolean;
         };
         SyncRunDto: {
             /** Format: uuid */
