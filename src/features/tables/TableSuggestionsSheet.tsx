@@ -34,7 +34,7 @@ function matchesSearch(query: string, name: string, teams: { name: string }[]): 
   return haystack.includes(query.trim().toLowerCase());
 }
 
-function CandidateRow({ candidate, onChoose, choosing }: { candidate: TableSuggestionCandidateDto; onChoose: () => void; choosing: boolean }) {
+export function CandidateRow({ candidate, onChoose, choosing }: { candidate: TableSuggestionCandidateDto; onChoose: () => void; choosing: boolean }) {
   const name = `${candidate.licencie.firstName} ${candidate.licencie.lastName}`;
   const recommended = candidate.eligibility === "RECOMMENDED";
   return (
@@ -81,7 +81,7 @@ function CandidateRow({ candidate, onChoose, choosing }: { candidate: TableSugge
   );
 }
 
-function UnavailableRow({ candidate }: { candidate: TableUnavailableCandidateDto }) {
+export function UnavailableRow({ candidate }: { candidate: TableUnavailableCandidateDto }) {
   const name = `${candidate.licencie.firstName} ${candidate.licencie.lastName}`;
   const Icon = UNAVAILABLE_ICON[candidate.reasonCode];
   return (
@@ -104,7 +104,7 @@ function UnavailableRow({ candidate }: { candidate: TableUnavailableCandidateDto
   );
 }
 
-function SectionTitle({ children, count }: { children: React.ReactNode; count: number }) {
+export function SectionTitle({ children, count }: { children: React.ReactNode; count: number }) {
   return (
     <h3 className="type-eyebrow flex items-center gap-2">
       {children}
