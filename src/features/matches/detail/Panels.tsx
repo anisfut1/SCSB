@@ -165,7 +165,14 @@ function StatsTable({ team, rows, playerBasePath }: { team: ScoreboardTeam; rows
 export function StatsPanel({ match, home, away, playerBasePath }: { match: MatchDetailsDto; home: ScoreboardTeam; away: ScoreboardTeam; playerBasePath?: string }) {
   const { stats } = match;
   if (stats.length === 0) {
-    return <EmptyState icon={<ClipboardList />} title="Statistiques pas encore disponibles" description="Elles apparaîtront après l'import de la feuille e-Marque du match." />;
+    // Lecture retenue par les contrôles (total des points ≠ score officiel...) : jamais publiée en l'état.
+    if (match.emarque.status === "needs_review" || match.emarque.status === "error") {
+      return <EmptyState icon={<ClipboardList />} title="Statistiques en cours de vérification" description="La feuille e-Marque a été lue mais n'a pas passé les contrôles de cohérence : elles seront publiées une fois vérifiées." />;
+    }
+    if (match.emarque.status === "not_available") {
+      return <EmptyState icon={<ClipboardList />} title="Pas de feuille e-Marque" description="Aucune feuille e-Marque n'a été publiée sur FBI pour ce match." />;
+    }
+    return <EmptyState icon={<ClipboardList />} title="Statistiques pas encore disponibles" description="Elles apparaîtront automatiquement dès que la feuille e-Marque du match sera publiée sur FBI et lue." />;
   }
   const bySide = { home: stats.filter((row) => row.teamSide === "home"), away: stats.filter((row) => row.teamSide === "away") };
   return (

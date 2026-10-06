@@ -17,6 +17,7 @@ export type NavIcon =
   | "teams"
   | "sync"
   | "issues"
+  | "stats"
   | "derogations"
   | "fbi"
   | "venues"
@@ -63,6 +64,7 @@ export function buildClubNav(slug: string, roles: readonly ClubRole[]): NavSecti
         { href: `${base}/admin/integrations`, label: "Intégrations", icon: "integrations", prefix: true },
         { href: `${base}/admin/teams`, label: "Équipes", icon: "teams" },
         { href: `${base}/admin/sync`, label: "Synchronisation", icon: "sync" },
+        { href: `${base}/admin/stats`, label: "Suivi des stats", icon: "stats" },
         { href: `${base}/admin/issues`, label: "Anomalies", icon: "issues" },
         { href: `${base}/admin/gymnases`, label: "Gymnases", icon: "venues" },
         // Statut OFFICIEL lu sur FBI (lecture seule) — distinct des demandes internes ci-dessus.

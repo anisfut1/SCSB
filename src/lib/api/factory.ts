@@ -4,6 +4,7 @@ import * as me from "./me";
 import * as matches from "./matches";
 import * as integrations from "./integrations";
 import * as issues from "./issues";
+import * as emarqueTracking from "./emarqueTracking";
 import * as jobs from "./jobs";
 import * as licencies from "./licencies";
 import * as platform from "./platform";
@@ -78,6 +79,10 @@ export function createApi(fetcher: ApiFetcher) {
     issues: {
       list: (clubId: string) => issues.listIssues(fetcher, clubId),
       resolve: (clubId: string, matchId: string) => issues.resolveIssue(fetcher, clubId, matchId),
+    },
+    emarqueTracking: {
+      list: (clubId: string) => emarqueTracking.listEmarqueTracking(fetcher, clubId),
+      relaunch: (clubId: string, matchId: string) => emarqueTracking.relaunchEmarqueTracking(fetcher, clubId, matchId),
     },
     jobs: {
       get: (jobId: string) => jobs.getJob(fetcher, jobId),

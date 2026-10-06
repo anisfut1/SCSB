@@ -43,6 +43,7 @@ export const EMARQUE_STATUS: Record<string, { label: string; tone: BadgeTone }> 
   imported: { label: "Importé", tone: "success" },
   error: { label: "Erreur de traitement", tone: "danger" },
   needs_review: { label: "En cours de vérification", tone: "warning" },
+  not_available: { label: "Pas de feuille e-Marque", tone: "neutral" },
 };
 
 export const DOCUMENT_TYPE_LABELS: Record<string, string> = {

@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  BarChart3,
   Building2,
   CalendarDays,
   CalendarClock,
@@ -28,6 +29,7 @@ export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   teams: Shirt,
   sync: RefreshCw,
   issues: AlertTriangle,
+  stats: BarChart3,
   derogations: CalendarClock,
   fbi: FileSearch,
   venues: MapPin,
