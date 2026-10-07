@@ -159,7 +159,7 @@ _Généré le 2026-10-07 à partir de `generated/schema.ts` (100 opérations / 8
 | E-6 | Types écrits à la main pour corriger le schéma (`opponentLogoUrl`, nullable imbriqué) | `matches.ts:12-13`, `publicTables.ts:27` | Le schéma perd des champs : le nouveau back doit générer un OpenAPI exact (zod-openapi) et le front régénérer. |
 
 ## B. Nouveaux endpoints nécessaires (dérivés de `02-inventaire-traitements.md`)
-_Principe (ADR-005) : tous **additifs sous `/v1`**, même enveloppe d'erreur, même schéma d'auth → le front n'a qu'une base d'URL ; le routage entre `club-manager-api` et le nouveau back se fait au reverse proxy, par chemin. Les noms de champs ci-dessous sont des **propositions**._
+_Principe (ADR-005) : tous **additifs sous `/v1`**, même enveloppe d'erreur, même schéma d'auth → le front n'a qu'une base d'URL ; le routage entre `club-manager-api` et le nouveau back se fait **dans le client front, par module** (ADR-005 révisé, option (a), Q-016 ouverte) — il n'y a plus de reverse proxy commun. Les noms de champs ci-dessous sont des **propositions**._
 
 ### B.1 — LOT-02 (en tête de Phase 4, R-013) : recherche de licenciés publique, sans énumération
 `GET /v1/public/clubs/{clubSlug}/licencies/search?q=<texte>&limit=<n>`

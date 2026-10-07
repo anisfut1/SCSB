@@ -38,6 +38,6 @@ Vulnérabilités dev restantes (consignées, hors lot) : `@next/eslint-plugin-ne
 Run `37612678201` : `verify` ✅ (9 étapes) et `gitleaks` ✅. Détails et limites : `10-risques.md`. Aucun correctif nécessaire. Branche poussée : `refactor/migration-back` uniquement (jamais `main`, pas de `--force`).
 
 ## LOT-04 et LOT-06 (2026-10-07)
-- Baseline avant les lots : 129 tests ; après LOT-04 : **129** (club-settings.test.ts passe de 6 à 9) ; après LOT-06 : **151 tests, 22 fichiers** ; typecheck, lint (0 avertissement), build (flag off **et** flag on) ✅.
+- Baseline avant les lots : **124 tests** ; après LOT-04 : **129** (`club-settings.test.ts` passe de 4 à 9) ; après LOT-06 : **151 tests, 22 fichiers** ; typecheck, lint (0 avertissement), build (flag off **et** flag on) ✅.
 - LOT-04 : caractérisation écrite d'abord sur l'ancien code (6 tests verts), puis adaptée à `api.clubs.update` ; vérification `grep -rn "\.from(" src` = aucun résultat.
 - LOT-06 : jeu synthétique 390 matchs ; parité d'affichage 7 scénarios × 2 sémantiques de `to` ; comptes figés relevés sur le code d'origine (un premier jeu de valeurs saisi à la main était faux : corrigé en lisant le résultat réel de l'ancien code).

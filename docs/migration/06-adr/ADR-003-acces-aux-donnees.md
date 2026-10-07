@@ -1,6 +1,7 @@
 # ADR-003 — Accès aux données du nouveau back
 - **Date** : 2026-10-07
-- **Statut** : Proposée (dépend de Q-012 : « Supabase conservé pour l'auth et les données ? »)
+- **Statut** : Proposée — accès par SQL typé (Kysely) maintenu ; **localisation de la base = Q-015 (décision du propriétaire)**, voir « Révision Railway » ci-dessous.
+- **Révision** : 2026-10-07 (nouveau back sur Railway, Q-012).
 
 ## Contexte
 - Les données métier vivent aujourd'hui dans PostgreSQL via Supabase, avec RLS ; les migrations sont **possédées par `club-manager-api`** (`ARCHITECTURE.md` §1, `docs/MIGRATION_TO_API.md:60-70`). Supabase Auth reste l'émetteur des JWT (front : `proxy.ts`, `auth.server.ts`).
@@ -17,10 +18,39 @@
 
 ## Décision (proposée)
 **Option A (Kysely + `pg`)**, avec : (1) un **rôle Postgres dédié au back, non `service_role` de Supabase**, droits minimaux (`SELECT` sur les tables lues, `INSERT/UPDATE` sur ses seules tables) ; (2) le schéma des tables **propres au nouveau back** dans un schéma séparé (ex. `api2`), jamais de modification des tables appartenant à `club-manager-api` en scénario coexistence ; (3) types générés par `kysely-codegen` en CI ; (4) autorisation centralisée : une fonction `requireClubRole(clubId, roles)` appelée par chaque route, avec tests « 403 par rôle » ; (5) en **scénario remplacement** (ADR-005 S2), le back reprend aussi les migrations (Supabase CLI ou `node-pg-migrate`).
-Connexion : port **direct 5432** (jobs/advisory locks, ADR-004), pooler transactionnel seulement pour les requêtes API sans état si nécessaire.
+Connexion : **voir la révision Railway** (la connexion directe 5432 supposée en Phase 3 n'est plus acquise depuis Railway).
 
 ## Conséquences
 - (+) Aucune dépendance de schéma imposée ; agrégations en une requête ; testable avec une vraie base de test.
 - (−) **Responsabilité de sécurité déplacée** de la RLS vers le code : une route oubliée = fuite. Mitigation : middleware d'auth obligatoire par défaut (liste blanche des routes publiques), test automatisé qui énumère les routes et vérifie l'exigence d'auth.
 - (−) Le mot de passe du rôle Postgres est un nouveau secret côté VPS (voir `05-architecture-cible.md` §10).
 - À surveiller : latence VPS↔Supabase (région ; **non mesurée**), nombre de connexions (limite de l'offre Supabase, à confirmer).
+
+## Révision Railway (2026-10-07) — préparation de Q-015
+**Faits vérifiés (docs Supabase, 2026-10-07)** : la connexion **directe** d'une base Supabase est en **IPv6** (IPv4 seulement avec l'add-on payant) ; **Supavisor session mode (port 5432)** et **transaction mode (port 6543)** ont des adresses **IPv4**. Pour un hôte sans IPv6, Supabase recommande le mode session. **Non documenté par Railway** : l'IPv6 sortant, les IP sortantes fixes, la région par défaut → **par prudence, on suppose l'IPv4** (pooler Supavisor).
+Les modes de pooling transactionnel sont **incompatibles avec les verrous consultatifs de session** et d'autres fonctions de session (comportement général de PgBouncer-like, source : documentation PgBouncer/Netdata) ; la documentation de `pg-boss` (v12.37, Node ≥ 22.12, PostgreSQL ≥ 13) **ne dit rien** sur les poolers → compatibilité **à tester**, pas à supposer.
+
+### Option (a) — Postgres Supabase conservé, accessible depuis Railway
+| Point | Évaluation |
+|---|---|
+| Données et schéma | **Inchangés** ; l'existant continue d'écrire dans la même base (indispensable en coexistence S3, ADR-005) ; Supabase Auth, Storage (documents e-Marque) et RLS restent en place |
+| Connexion | **Supavisor session mode (5432, IPv4)** pour l'API **et** le worker (verrous/`LISTEN`/jobs) ; mode transaction (6543) possible **uniquement** pour des requêtes courtes sans état de session, sous réserve de test ; connexion directe seulement si l'IPv6 sortant de Railway est confirmé ou add-on IPv4 acheté |
+| Latence | Dépend du couple (région Railway, région du projet Supabase) : **à co-localiser ; non mesuré**. Chaque requête API → 1 aller-retour BDD (la requête agrégée du tableau de bord, `05` §4.1, en tient compte) |
+| Sécurité | Base **exposée sur Internet** (TLS exigé) ; pas de réseau privé Railway↔Supabase ; mitigations : **rôle dédié à privilèges minimaux** (jamais `service_role`), `sslmode=verify-full`, mot de passe fort et rotation, restriction d'IP **impossible** sans IP sortante fixe (non documentée) → le rôle dédié est le garde-fou principal |
+| Connexions | Limites de pool selon l'offre Supabase (**à confirmer**) ; budget : API (pool ≤ 10) + worker (≤ 5), estimé |
+| Migration | **Aucune** |
+| Risque | Dépendance réseau publique ; saturation du pooler partagé avec `club-manager-api` |
+### Option (b) — Postgres sur Railway
+| Point | Évaluation |
+|---|---|
+| Données | **Migration obligatoire** des tables que le nouveau back lit ; mais l'existant (**S3 : il écrit encore dans Supabase**) → la copie devrait être **répliquée en continu** (réplication logique/ETL) ou la bascule faite en **une fois** à la fin de la trajectoire |
+| Auth | Supabase Auth **conservée** (JWT) ; la base Railway n'a ni `auth.users` ni les politiques RLS dépendant de `auth.uid()` : les clés étrangères/vues qui s'y réfèrent sont à réécrire |
+| Latence/sécurité | **Réseau privé** Railway pour api/worker→base (latence minimale, base non exposée) |
+| `pg-boss` | Connexion directe sans pooler : **cas nominal**, aucun risque de compatibilité |
+| Coût/ops | Sauvegardes, mises à jour, montée de version et supervision de la base **à notre charge** (offre Railway : à confirmer) ; perte des sauvegardes/PITR Supabase pour ces données |
+| Risque | **Deux sources de vérité** pendant la coexistence ; cohérence éventuelle ; effort de migration non chiffré (volumétrie estimée faible) |
+### Option (c) — hybride : données métier chez Supabase, **file de jobs seule** sur un petit Postgres Railway
+`pg-boss` utilise sa propre base (réseau privé, connexion directe, aucun doute de pooler) ; les données métier restent chez Supabase (a). **Contrepartie** : l'enfilage d'un job n'est plus **transactionnel** avec une écriture métier (acceptable : le job suit une autorisation, l'`Idempotency-Key` évite les doublons ; une écriture métier n'est de toute façon faite que par l'existant, ADR-005).
+### Recommandation (Q-015)
+**(a) maintenant**, avec **(c) comme repli** si le test de `pg-boss` derrière Supavisor échoue (ou si la charge sur le pooler gêne `club-manager-api`). **(b) reportée à la fin de S3** (après retrait de l'existant) et seulement si un besoin concret l'exige. Motifs : S3 impose **une seule base partagée** pendant la coexistence ; (b) crée deux sources de vérité ; (a) ne demande aucune migration.
+**À mesurer avant gel** (consignées dans `11-init-repo-back.md`) : région des deux projets, latence aller-retour, test `pg-boss` sur session pooler, limites de connexions.

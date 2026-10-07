@@ -80,3 +80,5 @@ curl -sS "${AUTH[@]}" "$API/v1/clubs/$CLUB" | jq -r '.timezone'
 # curl -sS -X PATCH "${AUTH[@]}" -H "Content-Type: application/json" -d "{\"timezone\":\"$OLD\"}" "$API/v1/clubs/$CLUB"
 ```
 **À me renvoyer** (sans jeton ni donnée personnelle) : la sortie de T1, quel diff a répondu « == » en T2, les 2 nombres de T3, l'égalité de T4, les 0 de T5, `pagination` de T6, et le code HTTP + le fuseau de T8.
+| Q-018 | **« Annuaire public authentifié » (consigne du 2026-10-07)** : quelle authentification, exactement ? Exiger un compte/jeton avant la recherche casserait l'identification des bénévoles sans compte. Options 1 (recherche anonyme bornée, conception actuelle), 2 (+ code d'accès du club), 3 (authentification forte, incompatible) dans `11-init-repo-back.md` §7. **Recommandation : 1, éventuellement 2.** | ⏳ Décision attendue (🛑) |
+| Q-019 | Points Railway **non vérifiés** à lever en staging : journalisation de la query string (V1), IPv6 sortant, TLS du domaine propre, variables scellées, région/latence vers Supabase, tarifs (ADR-007, `11` §3). | ⏳ À vérifier (checklist V1–V6) |

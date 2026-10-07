@@ -36,4 +36,4 @@
 - (+) R-011 refermé sur les actions sensibles ; R-014 refermé par le transport en en-tête ; énumération publique impossible par conception (B.1).
 - (−) Dépend de Q-008 ; une incertitude (clés symétriques) change le coût (introspection partout).
 - (−) Cache de rôles = fenêtre de ≤ 30 s où un rôle retiré s'applique encore ; acceptable pour des rôles de club, **à valider** par le propriétaire.
-- À surveiller : latence de `/auth/v1/user` depuis le VPS (non mesurée) ; rotation des clés JWKS ; journaux sans jeton ni donnée personnelle.
+- À surveiller : latence de `/auth/v1/user` depuis Railway (non mesurée) ; rotation des clés JWKS ; journaux sans jeton ni donnée personnelle.
