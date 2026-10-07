@@ -16,3 +16,5 @@
 ## 2026-10-07 (suite 2)
 - [D-1] Validation serveur du fuseau (`isValidTimezone`) dans `club-settings.ts`, 6 tests — commit `cb085e1` — lien doc : `02` TRT-011
 - [LOT-01] Auth : résolution unique par requête (`getServerAuth` + `cache()`), `getClaims()` dans proxy et rendu ; 9 → ≤ 2 appels ; tests `auth-calls.test.ts`, `proxy.test.ts` — fichiers : `auth.server.ts`, `session.ts`, `platform.ts`, `proxy.ts` — lien doc : `06-adr/ADR-001-auth-une-resolution-par-requete.md`, `08-metriques.md`
+- [LOT-11] `.github/workflows/ci.yml` (verify + audit prod + gitleaks) validé actionlint ; gitleaks v8.30.1 local : 103 commits, aucune fuite — fichiers : `.github/workflows/ci.yml` — lien doc : `10-risques.md`, `07-tests-et-qualite.md`
+- [Plan] LOT-14 (CSP / jeton public, P2) ajouté, non implémenté ; D-3 laissée ouverte (TRT-001 : aucune mesure) ; Q-008 non vérifiable (URL projet absente) — fichiers : `03`, `09`, `10`

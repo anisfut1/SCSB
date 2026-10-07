@@ -5,7 +5,7 @@ _Phase 2, 2026-10-07. Ordre : **sécurité d'abord**, puis meilleur ratio gain/e
 | Lot | Intitulé | TRT | Prio | Back requis | Statut |
 |-----|----------|-----|------|-------------|--------|
 | LOT-00 | Vulnérabilités de prod | — | P1 | non | ✅ |
-| LOT-01 | Auth : jeton mémoïsé + `getClaims()` | TRT-002 | P1 | non | ⬜ prêt |
+| LOT-01 | Auth : jeton mémoïsé + `getClaims()` | TRT-002 | P1 | non | ✅ `a4c2580` |
 | LOT-02 | Roster public : recherche serveur | TRT-001 | P1 | oui | ⛔ Q-001 |
 | LOT-03 | Gymnases dynamiques (multi-tenant) | TRT-003 | P1 | à confirmer | ⛔ Q-001 |
 | LOT-04 | Réglages club via API + validation fuseau | TRT-011 | P2 | oui | ⛔ Q-001 |
@@ -15,9 +15,10 @@ _Phase 2, 2026-10-07. Ordre : **sécurité d'abord**, puis meilleur ratio gain/e
 | LOT-08 | Résultats groupés côté serveur | TRT-009 | P2 | oui | ⛔ (dépend LOT-05) |
 | LOT-09 | Import licenciés : parsing serveur | TRT-010 | P2 | oui | ⛔ Q-001 |
 | LOT-10 | Opérations longues en jobs asynchrones | TRT-004 | P1→P2 | oui | ⛔ Q-001 (gros, à découper) |
-| LOT-11 | CI minimale (typecheck, lint, tests, build) | — | P2 | non | ⬜ prêt (Q-007 ouverte) |
+| LOT-11 | CI minimale (typecheck, lint, tests, build) + gitleaks | — | P2 | non | ✅ (commit ci-après ; premier run réel à observer après push) |
 | LOT-12 | Petites listes & résumés (opportuniste) | TRT-012 à 015 | P3 | oui | ⛔ |
 | LOT-13 | Nettoyage : `worker/`, `next.config.ts`, commentaires | — | P3 | non | ⬜ Phase 5 (Q-005 ✅) |
+| LOT-14 | En-têtes de sécurité (CSP…) + durcissement jeton public (R-008) | — | P2 | non (révocation du jeton : à confirmer) | ⬜ à planifier (non implémenté) |
 
 **Ordre recommandé** : LOT-01 → LOT-11 (front seul, immédiats) ; puis, dès accès au back : LOT-02 → LOT-03 → LOT-04 → LOT-05 → (LOT-06 ∥ LOT-07 ∥ LOT-08) → LOT-09 → LOT-10 → LOT-12 ; LOT-13 en Phase 5.
 **Pourquoi LOT-07 (gros gain) après LOT-05** : il réutilise la borne de saison et la règle de journée côté serveur ; le faire avant dupliquerait la règle une 3ᵉ fois.
@@ -105,3 +106,9 @@ Flags : variable `NEXT_PUBLIC_*` **interdite** pour un flag sensible ; utiliser 
 - **Réalisé (2026-10-07)** : `next` 16.3.5 → 16.3.6 (exception autorisée à la règle 1), `eslint-config-next` aligné, `npm audit fix` sans `--force`. Résultats : `07-tests-et-qualite.md`.
 - **Rollback** : `git revert <commit LOT-00>` puis `npm ci` (le lockfile revient à 16.3.5/sharp 0.35.4/source-map-js 1.2.1). Aucun changement de code applicatif à défaire.
 - **Statut** : ✅ Terminé
+
+## LOT-14 — En-têtes de sécurité et jeton public (R-008) — P2, **non implémenté**
+- **Périmètre** : `next.config.ts` (`headers()` : CSP, `X-Content-Type-Options`, `Referrer-Policy`, `frame-ancestors`/`X-Frame-Options`, `Permissions-Policy`) ; `src/lib/publicToken.ts:13-41` (localStorage).
+- **Points d'attention** : Next 16 + styles inline/Tailwind exigent une CSP à nonce (à valider dans `node_modules/next/dist/docs/` avant d'écrire du code, AGENTS.md) ; autoriser `connect-src` vers l'URL Supabase et `club-manager-api` ; déployer d'abord en `Content-Security-Policy-Report-Only`.
+- **Jeton public** : durée de vie, rotation et révocation côté back (Q-001) ; envisager un cookie `HttpOnly` plutôt que `localStorage` (change l'architecture du lien personnel : décision à part).
+- **Tests** : test d'en-têtes sur la config ; parcours manuel connexion/espace public. **Done** : CSP en mode report-only sans violation sur les parcours principaux, puis enforcement. **Rollback** : retirer `headers()`.

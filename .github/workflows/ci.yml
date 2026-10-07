@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  schedule:
+    # Hebdomadaire : de nouvelles vulnérabilités sortent sans qu'aucun commit n'ait lieu.
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GITLEAKS_VERSION: "8.30.1"
+
+jobs:
+  verify:
+    name: Typecheck, lint, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - name: Build
+        # Valeurs factices : le build ne contacte ni Supabase ni club-manager-api (aucun secret en CI).
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key
+          NEXT_PUBLIC_CLUB_MANAGER_API_URL: https://api.ci.example.com
+        run: npm run build
+      - name: Audit des dépendances de production
+        # Échoue sur une vulnérabilité haute ou critique de PRODUCTION (LOT-00).
+        # Les vulnérabilités de dev sont suivies à part (docs/migration/07-tests-et-qualite.md).
+        run: npm audit --omit=dev --audit-level=high
+
+  gitleaks:
+    name: Secrets (gitleaks, historique complet)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Tout l'historique et toutes les branches : `--all` ci-dessous parcourt toutes les refs.
+          fetch-depth: 0
+      - name: Installer gitleaks (version épinglée, somme de contrôle vérifiée)
+        run: |
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o "$archive" "$base/$archive"
+          curl -sSfL -o checksums.txt "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          grep " $archive\$" checksums.txt | sha256sum --check -
+          tar -xzf "$archive" gitleaks
+      - name: Scanner l'historique
+        # --redact : la valeur d'un secret n'apparaît jamais dans les logs.
+        run: ./gitleaks git . --log-opts="--all" --redact=100 --no-banner --verbose

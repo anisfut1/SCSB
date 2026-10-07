@@ -27,3 +27,9 @@ Note : `worker/` a ses propres dépendances/tests, non exécutés en Phase 0.
 Baseline rejouée après `rm -rf node_modules && npm ci` : typecheck ✅, lint ✅, vitest ✅ 18 fichiers / 109 tests, build ✅ (variables factices).
 Vulnérabilités dev restantes (consignées, hors lot) : `@next/eslint-plugin-next`, `eslint-config-next`, `braces`, `fast-glob`, `micromatch`. Le « correctif » proposé par `npm audit` est une rétrogradation majeure de Next (14.2.35) : non appliqué.
 `npm audit fix` (sans `--force`) n'a modifié que des versions mineures/correctives (diff du lockfile vérifié : seuls next, @next/*, eslint-config-next, sharp et ses binaires, source-map-js).
+
+## Mesures conservatoires et LOT-01 / LOT-11 (2026-10-07)
+- Baseline après D-1 : 19 fichiers / **115 tests** ; après LOT-01 : 21 fichiers / **124 tests**, typecheck/lint/build ✅.
+- Tests ajoutés : `src/lib/timezone.test.ts` (+2, `isValidTimezone`), `src/server/actions/club-settings.test.ts` (4), `src/lib/api/auth-calls.test.ts` (5 : caractérisation 8 → 1 appel, jeton transmis, pas de cache inter-requêtes, JWT refusé, sans session), `src/proxy.test.ts` (4).
+- CI : `.github/workflows/ci.yml` validé par **actionlint** (0 erreur) ; la logique de vérification de somme de contrôle de gitleaks testée localement ; **premier run réel non effectué** (nécessite un push). Les jobs : `verify` (npm ci, typecheck, lint, test, build, `npm audit --omit=dev --audit-level=high`) et `gitleaks` (historique complet).
+- Actions épinglées par tag majeur (`checkout@v7`, `setup-node@v7`) ; gitleaks épinglé `8.30.1`. Épingler par SHA = durcissement possible (chaîne d'approvisionnement), non fait.

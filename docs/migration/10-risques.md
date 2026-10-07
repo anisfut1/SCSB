@@ -15,8 +15,15 @@
 - **Fichiers sensibles jamais ajoutés** : seuls des `.env*.example` apparaissent dans l'historique (`.env.example`, `spikes/fbi-auth/.env.fbi.example`, `worker/.env.example`) ; aucun `.env` réel.
 - **Limites** : regex, pas d'analyse d'entropie ; branches distantes non récupérées ; ne couvre pas l'historique de `club-manager-api`. Un passage gitleaks reste recommandé si un accès est possible (en CI : voir lot « CI minimale »).
 - Historique non modifié.
-| R-008 | Jeton personnel public stocké en `localStorage` (`lib/publicToken.ts:19`) : volable par XSS ; le lien donne l'identité « tel licencié » (affectation de tables, demandes) | Faible | Moyen | Vérifier CSP côté Next (aucun en-tête de sécurité dans `next.config.ts`) ; durée de vie / révocation du jeton côté back (à confirmer) |
+| R-008 | (lot P2 : LOT-14) Jeton personnel public stocké en `localStorage` (`lib/publicToken.ts:19`) : volable par XSS ; le lien donne l'identité « tel licencié » (affectation de tables, demandes) | Faible | Moyen | Vérifier CSP côté Next (aucun en-tête de sécurité dans `next.config.ts`) ; durée de vie / révocation du jeton côté back (à confirmer) |
 | R-009 | Annuaire public énumérable (TRT-001) : noms de mineurs exposés sans auth | Moyenne | Élevé | LOT-02 (P1) ; en attendant, rate-limit côté back si possible |
 | R-010 | `timezone` de club non validée (`club-settings.ts:36`) → `RangeError` Intl sur les pages Tables/Dérogations du club | Faible | Moyen | LOT-04 ; vérifier une contrainte en base |
 | R-011 | `getClaims()` : un compte révoqué reste accepté jusqu'à expiration du JWT dans le proxy | Faible | Moyen | Le back revalide à chaque appel ; durée de vie JWT à vérifier (Q-008) |
 | R-012 | Lots « back requis » (9/13) bloqués tant que Q-001 n'est pas levée | Haute | Élevé | Démarrer par LOT-01 et LOT-11 (front seul) ; lever Q-001 |
+| R-013 | **TRT-001 / R-009 : aucune mesure conservatoire appliquée** — en attente de D-3. Statut : risque **ouvert, non accepté** (aucune signature) | Moyenne | Élevé | D-3 (A ou B) ; LOT-02 pour la correction de fond |
+
+## Audit gitleaks (2026-10-07) — complète l'audit par regex
+- Outil : gitleaks **v8.30.1** (image `ghcr.io/gitleaks/gitleaks:v8.30.1`), `git --log-opts="--all" --redact=100`, dépôt monté en lecture seule.
+- Résultat : **103 commits scannés, 3,17 Mo — « no leaks found »**. Cohérent avec l'audit regex (100 commits). Aucune valeur affichée.
+- Couverture : toutes les refs présentes **localement** (dont `origin/claude/fervent-brahmagupta-pu78c4`). Les branches distantes non récupérées ne sont pas vues ; le job CI (`fetch-depth: 0`) les couvrira.
+- Hors périmètre : historique de `club-manager-api`, secrets non commités (`.env.local`).
