@@ -28,8 +28,16 @@ function derogationTime(derogation: DerogationListItemDto): number | null {
   return parseFbiDate(derogation.dateDepot) ?? parseFbiDate(derogation.dateDerogation);
 }
 
+/** Dérogation acceptée dont l'horaire demandé est l'horaire officiel actuel du match. */
+export function isRetainedSchedule(d: DerogationListItemDto): boolean {
+  return etatTone(d.etat) === "success" && requestMatchesOfficial(d, parisSlot(d.matchDatetime));
+}
+
 function compareDerogations(a: DerogationListItemDto, b: DerogationListItemDto): number {
   if (a.actionRequired !== b.actionRequired) return a.actionRequired ? -1 : 1;
+  const ra = isRetainedSchedule(a);
+  const rb = isRetainedSchedule(b);
+  if (ra !== rb) return ra ? -1 : 1;
   const ta = derogationTime(a);
   const tb = derogationTime(b);
   if (ta !== null && tb !== null) return tb - ta;
@@ -73,14 +81,56 @@ export function groupDerogationsByMatch(derogations: DerogationListItemDto[]): D
   });
 }
 
-/** Résumé des états d'un match ("1 acceptée · 2 refusées") : libellés FBI tels quels, comptés. */
-export function summarizeEtats(derogations: DerogationListItemDto[]): Array<{ etat: string; count: number }> {
-  const counts = new Map<string, number>();
-  for (const derogation of derogations) {
-    const etat = derogation.etat ?? "État inconnu";
-    counts.set(etat, (counts.get(etat) ?? 0) + 1);
-  }
-  return Array.from(counts.entries()).map(([etat, count]) => ({ etat, count }));
+/** Date "jj/mm/aaaa" et heure "HH:MM" d'un horodatage, en heure française. */
+export function parisSlot(iso: string | null | undefined): { date: string; time: string } | null {
+  if (!iso) return null;
+  const value = new Date(iso);
+  if (Number.isNaN(value.getTime())) return null;
+  return {
+    date: value.toLocaleDateString("fr-FR", { timeZone: "Europe/Paris", day: "2-digit", month: "2-digit", year: "numeric" }),
+    time: value.toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" }),
+  };
+}
+
+/** Le détail FBI (page de la dérogation) a-t-il été récupéré ? Sinon seules les colonnes du tableau sont connues. */
+export function hasDerogationDetail(d: DerogationListItemDto): boolean {
+  return Boolean(d.demandeur || d.motif || d.dateRencontreDemandee || d.heureDemandee || d.adversaire || d.dateReponse || d.acceptation || d.motifRefus);
+}
+
+/**
+ * La date/heure DEMANDÉE correspond-elle à l'horaire officiel actuel du
+ * match ? Comparaison stricte des seuls champs renseignés sur FBI (une date
+ * demandée absente n'est jamais supposée) ; `false` si rien n'est demandé.
+ */
+export function requestMatchesOfficial(d: DerogationListItemDto, official: { date: string; time: string } | null): boolean {
+  if (!official) return false;
+  const date = d.dateRencontreDemandee?.trim() || null;
+  const time = d.heureDemandee?.trim() || null;
+  if (!date && !time) return false;
+  return (!date || date === official.date) && (!time || time === official.time);
+}
+
+export type DerogationVerdict =
+  | { kind: "action_required" }
+  | { kind: "pending" }
+  | { kind: "accepted_current" }
+  | { kind: "all_refused" }
+  | { kind: "settled" };
+
+/**
+ * Conclusion d'un match en une phrase (retour du club, 2026-10-07 : "le
+ * match a été joué à 17h30 mais dans les dérogs rien me le fait
+ * comprendre"). Uniquement à partir des états FBI et de l'horaire officiel,
+ * jamais d'ordre chronologique supposé entre dérogations non datées.
+ */
+export function derogationVerdict(group: DerogationMatchGroup): DerogationVerdict {
+  if (group.actionRequired) return { kind: "action_required" };
+  const tones = group.derogations.map((d) => etatTone(d.etat));
+  if (tones.includes("warning")) return { kind: "pending" };
+  const official = parisSlot(group.match.matchDatetime);
+  if (group.derogations.some((d) => etatTone(d.etat) === "success" && requestMatchesOfficial(d, official))) return { kind: "accepted_current" };
+  if (tones.length > 0 && tones.every((t) => t === "danger")) return { kind: "all_refused" };
+  return { kind: "settled" };
 }
 
 /** Couleur d'un état FBI — uniquement sur les mots présents dans le libellé, neutre sinon. */

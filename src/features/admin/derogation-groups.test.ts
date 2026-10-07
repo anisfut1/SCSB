@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DerogationListItemDto } from "@/lib/api/derogations";
-import { etatTone, groupDerogationsByMatch, parseFbiDate, summarizeEtats } from "./derogation-groups";
+import { derogationVerdict, etatTone, groupDerogationsByMatch, hasDerogationDetail, parisSlot, parseFbiDate, requestMatchesOfficial } from "./derogation-groups";
 
 function derogation(overrides: Partial<DerogationListItemDto>): DerogationListItemDto {
   return {
@@ -65,14 +65,7 @@ describe("groupDerogationsByMatch", () => {
   });
 });
 
-describe("summarizeEtats / etatTone / parseFbiDate", () => {
-  it("compte les états tels que lus sur FBI", () => {
-    expect(summarizeEtats([derogation({ etat: "Refusée" }), derogation({ etat: "Refusée" }), derogation({ etat: "Acceptée par l'organisme dirigeant" })])).toEqual([
-      { etat: "Refusée", count: 2 },
-      { etat: "Acceptée par l'organisme dirigeant", count: 1 },
-    ]);
-  });
-
+describe("etatTone / parseFbiDate", () => {
   it("colore uniquement selon les mots présents dans le libellé", () => {
     expect(etatTone("Refusée")).toBe("danger");
     expect(etatTone("Acceptée par l'organisme dirigeant")).toBe("success");
@@ -85,5 +78,39 @@ describe("summarizeEtats / etatTone / parseFbiDate", () => {
     expect(parseFbiDate("17/10/2026")).toBe(Date.UTC(2026, 9, 17));
     expect(parseFbiDate("—")).toBeNull();
     expect(parseFbiDate(null)).toBeNull();
+  });
+});
+
+describe("horaire officiel et conclusion (retour du club, 2026-10-07 : rencontre 2, U18 F vs Agde, jouée à 17h30)", () => {
+  // Données réelles FBI (fbi_derogation_checks) : une demande 16:30 acceptée, une autre acceptée sans détail récupéré.
+  const agde = [
+    derogation({ id: "a", matchId: "m-2", etat: "Acceptée par l'organisme dirigeant", dateRencontre: "26/09/2026", heure: "16:30", heureDemandee: "16:30", demandeur: "Domicile", motif: "Organisation journée. Merci", matchDatetime: "2026-09-26T15:30:00Z" }),
+    derogation({ id: "b", matchId: "m-2", etat: "Acceptée par l'organisme dirigeant", dateRencontre: "26/09/2026", heure: "17:30", matchDatetime: "2026-09-26T15:30:00Z" }),
+  ];
+
+  it("lit l'horaire officiel en heure française", () => {
+    expect(parisSlot("2026-09-26T15:30:00Z")).toEqual({ date: "26/09/2026", time: "17:30" });
+  });
+
+  it("une demande pour 16:30 ne correspond pas à l'horaire officiel de 17:30 ; une demande sans horaire ne correspond jamais", () => {
+    const official = parisSlot("2026-09-26T15:30:00Z");
+    expect(requestMatchesOfficial(agde[0]!, official)).toBe(false);
+    expect(requestMatchesOfficial(agde[1]!, official)).toBe(false);
+    expect(requestMatchesOfficial(derogation({ dateRencontreDemandee: "26/09/2026", heureDemandee: "17:30" }), official)).toBe(true);
+  });
+
+  it("signale le détail non récupéré", () => {
+    expect(hasDerogationDetail(agde[0]!)).toBe(true);
+    expect(hasDerogationDetail(agde[1]!)).toBe(false);
+  });
+
+  it("conclut sans rien supposer : action requise > en cours > acceptée à l'horaire actuel > tout refusé > réglé", () => {
+    expect(derogationVerdict(groupDerogationsByMatch(agde)[0]!).kind).toBe("settled");
+    expect(derogationVerdict(groupDerogationsByMatch([derogation({ etat: "Refusée" }), derogation({ id: "z", etat: "Refusée" })])[0]!).kind).toBe("all_refused");
+    expect(derogationVerdict(groupDerogationsByMatch([derogation({ etat: "En Cours" })])[0]!).kind).toBe("pending");
+    expect(derogationVerdict(groupDerogationsByMatch([derogation({ etat: "En Cours", actionRequired: true })])[0]!).kind).toBe("action_required");
+    expect(
+      derogationVerdict(groupDerogationsByMatch([derogation({ etat: "Acceptée par l'organisme dirigeant", heureDemandee: "17:30", matchDatetime: "2026-09-26T15:30:00Z" }), derogation({ id: "r", etat: "Refusée" })])[0]!).kind,
+    ).toBe("accepted_current");
   });
 });
