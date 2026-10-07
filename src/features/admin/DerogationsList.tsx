@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BellRing, CalendarClock } from "lucide-react";
+import { BellRing, CalendarClock, ChevronDown } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
 import { DataList } from "@/components/ui/DataList";
@@ -11,6 +11,7 @@ import { Notice } from "@/components/ui/Notice";
 import { cn } from "@/components/ui/cn";
 import type { DerogationListItemDto, RespondToDerogationDto, RespondToDerogationResultDto } from "@/lib/api/derogations";
 import { RespondToDerogationAction } from "@/features/derogations/RespondToDerogationAction";
+import { etatTone, groupDerogationsByMatch, summarizeEtats, type DerogationMatchGroup } from "./derogation-groups";
 
 // `timeZone: "Europe/Paris"` explicite partout ci-dessous — jamais le
 // fuseau ambiant du runtime (UTC côté rendu serveur Vercel, potentiellement
@@ -86,17 +87,22 @@ export function DerogationsList({
 }) {
   const [selectedEtat, setSelectedEtat] = useState<string | null>(null);
 
+  // Une carte par match, historique complet à l'intérieur (retour du club, 2026-10-07).
+  const groups = useMemo(() => groupDerogationsByMatch(derogations), [derogations]);
+
+  // Filtre par état : compte les MATCHS ayant au moins une dérogation dans cet état.
   const etatCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const derogation of derogations) {
-      if (!derogation.etat) continue;
-      counts.set(derogation.etat, (counts.get(derogation.etat) ?? 0) + 1);
+    for (const group of groups) {
+      for (const etat of new Set(group.derogations.map((d) => d.etat).filter((e): e is string => Boolean(e)))) {
+        counts.set(etat, (counts.get(etat) ?? 0) + 1);
+      }
     }
     // Tri alphabétique — pas d'ordre de priorité FBI connu/confirmé, jamais deviné.
     return Array.from(counts.entries()).sort(([a], [b]) => a.localeCompare(b, "fr"));
-  }, [derogations]);
+  }, [groups]);
 
-  const filtered = selectedEtat === null ? derogations : derogations.filter((d) => d.etat === selectedEtat);
+  const filtered = selectedEtat === null ? groups : groups.filter((group) => group.derogations.some((d) => d.etat === selectedEtat));
 
   if (derogations.length === 0) {
     return (
@@ -115,8 +121,8 @@ export function DerogationsList({
   return (
     <div className="flex flex-col gap-5">
       <div role="group" aria-label="Filtrer par état" className="scrollbar-none -mx-4 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
-        <FilterButton active={selectedEtat === null} onClick={() => setSelectedEtat(null)} count={derogations.length}>
-          Toutes
+        <FilterButton active={selectedEtat === null} onClick={() => setSelectedEtat(null)} count={groups.length}>
+          Tous les matchs
         </FilterButton>
         {etatCounts.map(([etat, count]) => (
           <FilterButton key={etat} active={selectedEtat === etat} onClick={() => setSelectedEtat(etat)} count={count}>
@@ -126,95 +132,162 @@ export function DerogationsList({
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState title="Aucune dérogation pour cet état" description="Choisis un autre filtre ci-dessus." compact />
+        <EmptyState title="Aucun match pour cet état" description="Choisis un autre filtre ci-dessus." compact />
       ) : (
         <ul className="flex flex-col gap-4">
-          {filtered.map((derogation) => {
-            const demandeurTeam = resolveDemandeurTeam(derogation);
-            return (
-              <li key={derogation.id}>
-                <Card data-glow={derogation.actionRequired || undefined}>
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="text-reflow flex-1">
-                      <p className="type-eyebrow">{derogation.etat ?? "État inconnu"}</p>
-                      <h2 className="type-card mt-1 text-foreground">
-                        <Link href={`${matchBasePath}/${derogation.matchId}`} className="underline-offset-4 hover:text-accent-text hover:underline">
-                          Rencontre {derogation.numero ?? "?"}
-                          {/*
-                           * `teamName` (ex. "Seniors 2") plutôt que `categoryLabel`
-                           * (ex. "Seniors") — demande du club, 2026-09-26 : "faut
-                           * préciser quelle équipe, seniors ya 4 equipes SM1 SM2
-                           * SM3 SF, pareil sur dautres catégories". Repli sur
-                           * `categoryLabel` si l'équipe du club n'a pas pu être
-                           * résolue (match non retrouvé côté FFBB).
-                           */}
-                          {derogation.teamName ?? derogation.categoryLabel ? ` (${derogation.teamName ?? derogation.categoryLabel})` : ""} — vs {derogation.opponentName ?? "?"}
-                        </Link>
-                      </h2>
-                      <p className="type-meta mt-1">Match FFBB : {formatDateTime(derogation.matchDatetime)}</p>
-                    </div>
-                    {/*
-                     * "sur la derog si action besoin de ma part, faut un badge
-                     * action requise" (demande du club, 2026-09-27) — vrai
-                     * uniquement quand c'est au CLUB de répondre.
-                     */}
-                    {derogation.actionRequired ? (
-                      <StatusBadge tone="warning" icon={<BellRing />}>
-                        Action requise
-                      </StatusBadge>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-5 flex flex-col gap-5">
-                    {derogation.scheduleConflict ? (
-                      <Notice tone="danger" title="Conflit de créneau (un créneau de match dure 2h)">
-                        Un match {derogation.scheduleConflict.teamName ? `de l'équipe ${derogation.scheduleConflict.teamName} ` : ""}est déjà prévu sur le créneau {formatSlotRange(derogation.scheduleConflict.matchDatetime)} — Rencontre{" "}
-                        {derogation.scheduleConflict.numero ?? "?"} vs {derogation.scheduleConflict.opponentName ?? "?"}.
-                      </Notice>
-                    ) : null}
-
-                    {derogation.actionRequired && !readOnly && respond ? (
-                      <RespondToDerogationAction derogationId={derogation.id} submit={(body) => respond(derogation.id, body)} />
-                    ) : derogation.actionRequired && !readOnly && clubId ? (
-                      <RespondToDerogationAction clubId={clubId} derogationId={derogation.id} />
-                    ) : null}
-
-                    <DataList
-                      columns={3}
-                      items={[
-                        { label: "État", value: derogation.etat ?? "—" },
-                        // Une même rencontre peut avoir PLUSIEURS dérogations distinctes (docs/FBI.md côté club-manager-api) — la date de dépôt les distingue.
-                        { label: "Date de dépôt", value: derogation.dateDepot ?? "—" },
-                        { label: "Demandeur", value: `${derogation.demandeur ?? "—"}${demandeurTeam ? ` (${demandeurTeam})` : ""}` },
-                        { label: "Rencontre initiale", value: `${derogation.dateRencontre ?? "—"} ${derogation.heure ?? ""}`.trim() },
-                        { label: "Rencontre demandée", value: `${derogation.dateRencontreDemandee ?? "—"} ${derogation.heureDemandee ?? ""}`.trim() },
-                        { label: "Date de dérogation", value: derogation.dateDerogation ?? "—" },
-                        { label: "Motif de la demande", value: derogation.motif ?? "—", span: 2 },
-                        { label: "Dernière vérification", value: formatDateTime(derogation.checkedAt) },
-                      ]}
-                    />
-
-                    {derogation.adversaire || derogation.dateReponse || derogation.acceptation || derogation.motifRefus ? (
-                      <div className="surface-panel flex flex-col gap-3 p-4">
-                        <p className="type-eyebrow">Réponse de l&apos;adversaire</p>
-                        <DataList
-                          items={[
-                            { label: "Adversaire", value: derogation.adversaire ?? "—" },
-                            { label: "Date de réponse", value: derogation.dateReponse ?? "—" },
-                            { label: "Acceptation", value: derogation.acceptation ?? "—" },
-                            { label: "Motif de refus", value: derogation.motifRefus ?? "—" },
-                          ]}
-                        />
-                      </div>
-                    ) : null}
-                  </div>
-                </Card>
-              </li>
-            );
-          })}
+          {filtered.map((group) => (
+            <li key={group.key}>
+              <MatchDerogationsCard group={group} matchBasePath={matchBasePath} clubId={clubId} readOnly={readOnly} respond={respond} />
+            </li>
+          ))}
         </ul>
       )}
     </div>
+  );
+}
+
+function MatchDerogationsCard({
+  group,
+  matchBasePath,
+  clubId,
+  readOnly,
+  respond,
+}: {
+  group: DerogationMatchGroup;
+  matchBasePath: string;
+  clubId?: string;
+  readOnly: boolean;
+  respond?: (derogationId: string, body: RespondToDerogationDto) => Promise<RespondToDerogationResultDto>;
+}) {
+  const { match, derogations } = group;
+  const single = derogations.length === 1;
+  return (
+    <Card data-glow={group.actionRequired || undefined}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="text-reflow flex-1">
+          <p className="type-eyebrow">{single ? "1 dérogation" : `${derogations.length} dérogations`}</p>
+          <h2 className="type-card mt-1 text-foreground">
+            <Link href={`${matchBasePath}/${match.matchId}`} className="underline-offset-4 hover:text-accent-text hover:underline">
+              Rencontre {match.numero ?? "?"}
+              {/*
+               * `teamName` (ex. "Seniors 2") plutôt que `categoryLabel`
+               * (ex. "Seniors") — demande du club, 2026-09-26 : "faut
+               * préciser quelle équipe, seniors ya 4 equipes SM1 SM2
+               * SM3 SF, pareil sur dautres catégories". Repli sur
+               * `categoryLabel` si l'équipe du club n'a pas pu être
+               * résolue (match non retrouvé côté FFBB).
+               */}
+              {match.teamName ?? match.categoryLabel ? ` (${match.teamName ?? match.categoryLabel})` : ""} — vs {match.opponentName ?? "?"}
+            </Link>
+          </h2>
+          <p className="type-meta mt-1">Match FFBB : {formatDateTime(match.matchDatetime)}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {summarizeEtats(derogations).map(({ etat, count }) => (
+              <StatusBadge key={etat} tone={etatTone(etat)} size="sm">
+                {count > 1 ? `${count} × ${etat}` : etat}
+              </StatusBadge>
+            ))}
+          </div>
+        </div>
+        {/*
+         * "sur la derog si action besoin de ma part, faut un badge
+         * action requise" (demande du club, 2026-09-27) — vrai
+         * uniquement quand c'est au CLUB de répondre.
+         */}
+        {group.actionRequired ? (
+          <StatusBadge tone="warning" icon={<BellRing />}>
+            Action requise
+          </StatusBadge>
+        ) : null}
+      </div>
+
+      <ol className="mt-5 flex flex-col gap-3" aria-label="Historique des dérogations de ce match">
+        {derogations.map((derogation, index) => (
+          <li key={derogation.id ?? index}>
+            <DerogationEntry derogation={derogation} defaultOpen={single || derogation.actionRequired} clubId={clubId} readOnly={readOnly} respond={respond} />
+          </li>
+        ))}
+      </ol>
+    </Card>
+  );
+}
+
+function DerogationEntry({
+  derogation,
+  defaultOpen,
+  clubId,
+  readOnly,
+  respond,
+}: {
+  derogation: DerogationListItemDto;
+  defaultOpen: boolean;
+  clubId?: string;
+  readOnly: boolean;
+  respond?: (derogationId: string, body: RespondToDerogationDto) => Promise<RespondToDerogationResultDto>;
+}) {
+  const demandeurTeam = resolveDemandeurTeam(derogation);
+  const requested = `${derogation.dateRencontreDemandee ?? ""} ${derogation.heureDemandee ?? ""}`.trim();
+  return (
+    <details open={defaultOpen} className="group surface-panel overflow-hidden [&_summary::-webkit-details-marker]:hidden">
+      <summary className="flex min-h-12 cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3">
+        <StatusBadge tone={etatTone(derogation.etat)} size="sm">
+          {derogation.etat ?? "État inconnu"}
+        </StatusBadge>
+        <span className="type-meta flex-1">
+          {requested ? `Demandée pour le ${requested}` : "Nouvelle date non renseignée"}
+          {derogation.dateDepot ? ` · déposée le ${derogation.dateDepot}` : ""}
+        </span>
+        {derogation.actionRequired ? (
+          <StatusBadge tone="warning" size="sm" icon={<BellRing />}>
+            Action requise
+          </StatusBadge>
+        ) : null}
+        <ChevronDown aria-hidden className="size-4 shrink-0 text-subtle transition-transform duration-150 group-open:rotate-180" />
+      </summary>
+
+      <div className="flex flex-col gap-5 border-t border-border px-4 py-4">
+        {derogation.scheduleConflict ? (
+          <Notice tone="danger" title="Conflit de créneau (un créneau de match dure 2h)">
+            Un match {derogation.scheduleConflict.teamName ? `de l'équipe ${derogation.scheduleConflict.teamName} ` : ""}est déjà prévu sur le créneau {formatSlotRange(derogation.scheduleConflict.matchDatetime)} — Rencontre{" "}
+            {derogation.scheduleConflict.numero ?? "?"} vs {derogation.scheduleConflict.opponentName ?? "?"}.
+          </Notice>
+        ) : null}
+
+        {derogation.actionRequired && !readOnly && respond && derogation.id ? (
+          <RespondToDerogationAction derogationId={derogation.id} submit={(body) => respond(derogation.id!, body)} />
+        ) : derogation.actionRequired && !readOnly && clubId && derogation.id ? (
+          <RespondToDerogationAction clubId={clubId} derogationId={derogation.id} />
+        ) : null}
+
+        <DataList
+          columns={3}
+          items={[
+            { label: "État", value: derogation.etat ?? "—" },
+            { label: "Date de dépôt", value: derogation.dateDepot ?? "—" },
+            { label: "Demandeur", value: `${derogation.demandeur ?? "—"}${demandeurTeam ? ` (${demandeurTeam})` : ""}` },
+            { label: "Rencontre initiale", value: `${derogation.dateRencontre ?? "—"} ${derogation.heure ?? ""}`.trim() },
+            { label: "Rencontre demandée", value: requested || "—" },
+            { label: "Date de dérogation", value: derogation.dateDerogation ?? "—" },
+            { label: "Motif de la demande", value: derogation.motif ?? "—", span: 2 },
+            { label: "Dernière vérification", value: formatDateTime(derogation.checkedAt) },
+          ]}
+        />
+
+        {derogation.adversaire || derogation.dateReponse || derogation.acceptation || derogation.motifRefus ? (
+          <div className="flex flex-col gap-3 border-t border-border pt-4">
+            <p className="type-eyebrow">Réponse de l&apos;adversaire</p>
+            <DataList
+              items={[
+                { label: "Adversaire", value: derogation.adversaire ?? "—" },
+                { label: "Date de réponse", value: derogation.dateReponse ?? "—" },
+                { label: "Acceptation", value: derogation.acceptation ?? "—" },
+                { label: "Motif de refus", value: derogation.motifRefus ?? "—" },
+              ]}
+            />
+          </div>
+        ) : null}
+      </div>
+    </details>
   );
 }
 
