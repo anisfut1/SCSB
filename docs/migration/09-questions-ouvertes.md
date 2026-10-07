@@ -16,7 +16,12 @@
 | Q-010 | Volumétrie : placeholder non renseigné → « garde tes estimations » appliqué ; toute estimation reste marquée « estimé » dans `08`. | ✅ Résolue (par défaut) |
 
 | D-3 | **TRT-001 : option B, risque accepté** par Rida le 2026-10-07 (voir R-013, `10-risques.md`). Révision obligatoire : au plus tard à la livraison du LOT-02 et, en tout cas, au prochain point 🛑 de Phase 4. LOT-02 en tête des lots de Phase 4. | ✅ Résolue 2026-10-07 |
-| Q-011 | Le nouveau back **remplace-t-il** `club-manager-api` ou **coexiste-t-il** (nouveaux endpoints seulement) ? Les deux scénarios sont préparés dans ADR-005. | ⏳ À poser au 🛑 fin de Phase 3 |
-| Q-012 | Contraintes de stack côté équipe : langages maîtrisés, BDD imposée, Supabase conservé pour l'auth et les données ? | ⏳ À poser au 🛑 fin de Phase 3 |
-| Q-013 | VPS : Docker disponible ? quel reverse proxy ? méthode de déploiement actuelle du front ? | ⏳ À poser au 🛑 fin de Phase 3 |
+| Q-011 | **S3 : coexistence puis remplacement progressif** (décision 2026-10-07). ADR-005 « Acceptée » pour S3 ; le mécanisme de routage est révisé (plus de reverse proxy VPS commun, voir Q-012, Q-016). | ✅ Résolue |
+| Q-012 | **Le nouveau back sera hébergé sur Railway**, pas sur le VPS (décision 2026-10-07). ADR-007, ADR-003 et ADR-004 révisés ; ADR-002 (TypeScript + Hono) reste « Proposée ». Localisation de la base : **Q-015** (décision du propriétaire). | ✅ Résolue (hébergement) |
+| Q-013 | Configuration du VPS : **déduite du dépôt**, voir `01-cartographie-repo.md` §8. Résultat : le dépôt ne confirme aucun VPS (aucun artefact), il documente Vercel. | ✅ Résolue (par déduction, non concluante) → Q-017 |
 | Q-014 | Sémantique exacte de `period=weekend` côté back existant (fuseau, samedi-dimanche ?) et validation du `timezone` par `PATCH /v1/clubs/{id}` : à vérifier par un appel d'essai avant LOT-04/LOT-06 (aucune lecture du code du back). | ⏳ |
+
+| Repo back | **Le propriétaire crée le repository lui-même** et fournira l'URL. L'agent ne crée rien d'ici là (décision 2026-10-07). | ✅ Décision |
+| Q-015 | Base de données du nouveau back : Postgres **Supabase conservé** ou Postgres **Railway** ? Comparaison et recommandation dans ADR-003 (révisé). | ⏳ Décision attendue (🛑) |
+| Q-016 | Mécanisme de routage S3 : **(a)** routage par module dans le client front (base URL par domaine + feature flag par module) ou **(b)** le nouveau back proxifie `club-manager-api` pour les routes non portées ? Comparaison et recommandation dans ADR-005 (révisé). | ⏳ Décision attendue (🛑) |
+| Q-017 | Où le front est-il **réellement** déployé aujourd'hui ? Vercel (tout le dépôt le dit) ou VPS (Q-007) ? Conditionne le CORS, la CSP (LOT-14) et le routage (Q-016). | ⏳ À confirmer |

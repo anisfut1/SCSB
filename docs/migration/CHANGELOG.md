@@ -28,3 +28,6 @@
 - [Phase 3] `05-architecture-cible.md` : stack, modules, auth, jobs, fuseau, VPS, arborescence du nouveau repo ; 5 diagrammes Mermaid validés par le parseur officiel (1 erreur de syntaxe trouvée et corrigée)
 - [Phase 3] ADR-002 (langage), 003 (données), 004 (jobs), 005 (coexistence, 2 scénarios), 006 (auth/jeton), 007 (VPS) — statut Proposée
 - [Plan] LOT-04 et LOT-06 débloqués côté front (endpoints existants) ; R-014 (jeton en query string) ouvert ; Q-014 ajoutée
+
+## 2026-10-07 (suite 5 — révision Railway)
+- [Décisions] Q-011 = S3 (coexistence puis remplacement progressif) ; Q-012 = nouveau back sur **Railway** ; Q-013 résolue par déduction du dépôt (aucun VPS versionné, Vercel documenté) ; repo back créé par le propriétaire ; Q-015, Q-016, Q-017 ouvertes — fichiers : `09`, `01` §8 — lien doc : `01-cartographie-repo.md#8`

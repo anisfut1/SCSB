@@ -120,3 +120,22 @@ Une seule lecture de `process.env.NEXT_PUBLIC_*` par variable, centralisée dans
 2. Le gros reste potentiel est dans les **transformations d'UI sur des listes** (§4) et dans les **appels en cascade côté serveur Next** (pages composant plusieurs `api.*`) → à inventorier en Phase 2.
 3. Dette morte : `worker/`, `next.config.ts`, `vitest.setup.ts`, commentaires obsolètes → candidats à un lot « nettoyage ».
 4. Pas de CI versionné, pas de test de composant.
+
+## 8. Déploiement actuel du front (Q-013) — déduit **uniquement** des indices du dépôt
+_Méthode : `git ls-files` (Dockerfile, docker-compose, ecosystem/pm2, nginx, Caddy, systemd, deploy*, vercel/railway/fly/render) et `git grep` (README, ARCHITECTURE, docs/, package.json, next.config.ts). Recherche faite le 2026-10-07 sur la branche `refactor/migration-back`._
+
+**Conclusion : le dépôt ne permet pas de confirmer un déploiement sur VPS. Il documente Vercel, de façon cohérente et répétée.** Aucune configuration de VPS n'est versionnée.
+
+| Indice | Preuve | Ce que cela indique |
+|---|---|---|
+| Hébergement déclaré : Vercel, projet séparé de `club-manager-api` | `README.md:15` (« SCSB (Next.js/Vercel) »), `README.md:51` (« Déploiement visé : Vercel — projet séparé »), `README.md:217-218` (variables « du projet sur Vercel (production) », « Connecter CE repository à un projet Vercel séparé »), `ARCHITECTURE.md:78` (« Hébergement \| Vercel \| Deux projets séparés ») | Cible documentée = Vercel |
+| Dossier `.vercel` ignoré | `.gitignore:38-39` | Outil Vercel utilisé en local (au minimum prévu) |
+| Commentaires de code supposant le runtime Vercel | `src/lib/timezone.ts:34` (« UTC sur Vercel »), `src/features/matches/match-display.tsx:11`, `src/features/admin/DerogationsList.tsx:16`, `src/lib/logger.ts:4` (« logs Vercel »), `src/lib/api/client.ts:25` (« jusqu'à ce que Vercel tue la Function ») | Le code a été écrit et débogué sur Vercel (production constatée) |
+| Scripts : `next build` / `next start` | `package.json:7-8` | Compatible avec un Node auto-hébergé, mais n'indique rien en soi |
+| Pas de mode `standalone` | `next.config.ts` ne contient pas `output` (seulement `serverExternalPackages` et `outputFileTracingIncludes`, `:7,16`) | Aucune préparation d'image Docker minimale pour le front |
+| **Aucun** artefact de VPS | absents de `git ls-files` : `docker-compose*`, `ecosystem.config.*`, `nginx*`, `Caddyfile`, `*.service`, `deploy*`, `Procfile`, `vercel.json`, `railway.json` | Aucune trace de déploiement VPS ni d'un `vercel.json` (les crons ont migré vers `club-manager-api`, `docs/MIGRATION_TO_API.md:68`) |
+| Seul fichier Docker : celui du worker FBI | `worker/Dockerfile:1-24` (image Playwright, port 8080, healthcheck `/health`) | Prévu pour Railway (`docs/FBI_WORKER.md:76`, `worker/.env.example:2`) mais **jamais déployé** : `docs/FBI_WORKER.md:250-253`, et le document est déclaré obsolète (`docs/FBI_WORKER.md:3-13`) |
+| Railway déjà envisagé pour un worker | `docs/FBI_WORKER.md:4,10,34,76`, `ARCHITECTURE.md:496-509` (décision finale : pas de worker, crons Vercel) | Railway n'est pas nouveau dans le projet ; il n'a jamais servi |
+| CI | `.github/workflows/ci.yml` (vérifications seulement, ajouté par LOT-11) | Aucun déploiement automatisé |
+
+**Écart avec la déclaration du propriétaire** (Q-007 : « le front est déployé sur un VPS ») : le dépôt n'en contient aucune preuve. Soit le déploiement VPS est récent et non versionné, soit hors dépôt. **→ Q-017** (à confirmer par le propriétaire). Conséquences si le front est bien sur VPS : la configuration (proxy, processus, variables) vit hors dépôt et n'a pas été auditée ici.
