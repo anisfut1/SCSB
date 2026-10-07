@@ -49,3 +49,6 @@ Run `37618494863` (https://github.com/anisfut1/SCSB/actions/runs/37618494863), c
 - R-015 : `publicMatches.test.ts` (8 tests) ; la caractérisation d'origine (1 appel, 200 reçus sur 390) était verte sur l'ancien code avant le correctif.
 - LOT-14/CSP : `security-headers.test.ts` (13) dont deux tests sur le `headers()` **réel** de `next.config.ts` (CSP uniquement en Report-Only, jamais d'en-tête `Content-Security-Policy` bloquant). Vérification de bout en bout : `next build` + `next start` local + `curl -I` sur `/login` et `/public/demo/matchs` (en-têtes présents). Non testé : comportement d'un vrai navigateur (relevé des violations = décision 1, `12` §3).
 - Baseline : 159 tests avant LOT-14 ; **172 tests (24 fichiers) après**, typecheck, lint et build propres.
+
+## CI après R-015 et LOT-14/CSP (2026-10-07)
+Run `37681560073` (https://github.com/anisfut1/SCSB/actions/runs/37681560073), commit `f830e38` : `Typecheck, lint, tests, build` ✅ (172 tests) et `Secrets (gitleaks, historique complet)` ✅. Le push qui consigne ce run déclenche un run docs seulement, non relevé.

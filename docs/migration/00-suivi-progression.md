@@ -42,7 +42,7 @@
 | R-014 jeton en query string | **non traité** ; confirmé côté Vercel (« Search Params » journalisés) ; mitigations en `ADR-005/007` | — |
 
 ## CI
-Runs : `37612678201` ✅, `37618494863` ✅ ; run du dernier push : voir `07-tests-et-qualite.md`.
+Runs : `37612678201` ✅, `37618494863` ✅, `37681560073` ✅ (commit `f830e38`, 172 tests).
 
 ## Décisions prises (2026-10-07)
 Q-015 (Supabase conservé pendant S3, réévaluation obligatoire en fin de S3), Q-016 (routage client par module, ADR-005 Acceptée), Q-017 (**front sur Vercel**, VPS supprimé de la documentation), Q-018 (recherche anonyme bornée).
