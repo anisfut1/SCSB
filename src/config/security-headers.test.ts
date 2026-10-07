@@ -54,33 +54,42 @@ describe("buildCspReportOnly", () => {
 });
 
 describe("securityHeaders", () => {
-  it("la CSP est en Report-Only et AUCUN en-tête Content-Security-Policy bloquant n'est posé", () => {
-    const keys = securityHeaders(options).map((h) => h.key.toLowerCase());
+  it("la politique complète est en Report-Only ; le seul en-tête CSP appliqué ne contient que frame-ancestors 'none'", () => {
+    const headers = securityHeaders(options);
+    const enforced = headers.filter((h) => h.key.toLowerCase() === "content-security-policy");
 
-    expect(keys).toContain("content-security-policy-report-only");
-    expect(keys).not.toContain("content-security-policy");
+    expect(headers.map((h) => h.key.toLowerCase())).toContain("content-security-policy-report-only");
+    expect(enforced).toEqual([{ key: "Content-Security-Policy", value: "frame-ancestors 'none'" }]);
   });
 
-  it("pose les en-têtes complémentaires attendus, sans X-Frame-Options ni HSTS (décisions en attente)", () => {
+  it("pose X-Frame-Options: DENY (appliqué), cohérent avec frame-ancestors 'none'", () => {
+    const map = Object.fromEntries(securityHeaders(options).map((h) => [h.key, h.value]));
+
+    expect(map["X-Frame-Options"]).toBe("DENY");
+    expect(map["Content-Security-Policy"]).toContain("frame-ancestors 'none'");
+  });
+
+  it("pose les en-têtes complémentaires attendus, sans HSTS (laissé à Vercel)", () => {
     const map = Object.fromEntries(securityHeaders(options).map((h) => [h.key, h.value]));
 
     expect(map["X-Content-Type-Options"]).toBe("nosniff");
     expect(map["Referrer-Policy"]).toBe("strict-origin-when-cross-origin");
     expect(map["Permissions-Policy"]).toContain("camera=()");
-    expect(map).not.toHaveProperty("X-Frame-Options");
     expect(map).not.toHaveProperty("Strict-Transport-Security");
   });
 });
 
 describe("next.config.ts : headers() réellement exposés par Next", () => {
-  it("applique les en-têtes à toutes les routes, CSP uniquement en Report-Only", async () => {
+  it("applique les en-têtes à toutes les routes ; la CSP appliquée se limite à frame-ancestors", async () => {
     const rules = await nextConfig.headers!();
 
     expect(rules).toHaveLength(1);
     expect(rules[0]!.source).toBe("/(.*)");
     const keys = rules[0]!.headers.map((h) => h.key.toLowerCase());
     expect(keys).toContain("content-security-policy-report-only");
-    expect(keys).not.toContain("content-security-policy");
+    expect(keys).toContain("x-frame-options");
+    const enforced = rules[0]!.headers.filter((h) => h.key.toLowerCase() === "content-security-policy");
+    expect(enforced.map((h) => h.value)).toEqual(["frame-ancestors 'none'"]);
   });
 
   it("les origines de connect-src viennent des variables NEXT_PUBLIC_* (valeurs factices de vitest.setup.ts)", async () => {

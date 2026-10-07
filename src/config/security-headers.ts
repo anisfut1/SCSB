@@ -69,16 +69,28 @@ export function buildCspReportOnly(options: SecurityHeadersOptions = {}): string
 }
 
 /**
- * En-têtes posés sur toutes les réponses. Seule la CSP est en `Report-Only`.
+ * Anti-clickjacking APPLIQUÉ (Q-021 décision 2, 2026-10-07). Une directive
+ * `frame-ancestors` placée dans un en-tête `Report-Only` n'est pas garantie
+ * d'être évaluée : elle est donc posée dans un en-tête `Content-Security-Policy`
+ * séparé qui ne contient QUE cette directive (il ne bloque rien d'autre ; le
+ * reste de la politique reste en Report-Only). `X-Frame-Options` couvre les
+ * navigateurs qui ignoreraient la CSP.
+ */
+export const FRAME_ANCESTORS_ENFORCED = "frame-ancestors 'none'";
+
+/**
+ * En-têtes posés sur toutes les réponses. La CSP complète est en `Report-Only` ;
+ * seul `frame-ancestors 'none'` est appliqué (voir ci-dessus).
  * Volontairement ABSENTS (décisions du propriétaire, docs/migration/12-csp-report-only.md) :
- * `X-Frame-Options` (l'application pourrait être intégrée ailleurs : non vérifié),
- * `Strict-Transport-Security` (géré par la plateforme d'hébergement), COOP/COEP,
+ * `Strict-Transport-Security` (laissé à Vercel, Q-021 décision 3), COOP/COEP,
  * et tout `report-uri`/`report-to` (aucun collecteur ; un rapport contiendrait
  * l'URL du document, donc un éventuel `?token=` — R-014).
  */
 export function securityHeaders(options: SecurityHeadersOptions = {}): HeaderEntry[] {
   return [
     { key: "Content-Security-Policy-Report-Only", value: buildCspReportOnly(options) },
+    { key: "Content-Security-Policy", value: FRAME_ANCESTORS_ENFORCED },
+    { key: "X-Frame-Options", value: "DENY" },
     { key: "X-Content-Type-Options", value: "nosniff" },
     // Explicite : limite l'URL envoyée en `Referer` entre origines (R-014). C'est déjà le défaut des navigateurs récents.
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
