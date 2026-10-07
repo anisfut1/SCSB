@@ -20,10 +20,18 @@
 | R-010 | `timezone` de club non validée (`club-settings.ts:36`) → `RangeError` Intl sur les pages Tables/Dérogations du club | Faible | Moyen | LOT-04 ; vérifier une contrainte en base |
 | R-011 | `getClaims()` : un compte révoqué reste accepté jusqu'à expiration du JWT dans le proxy | Faible | Moyen | Le back revalide à chaque appel ; durée de vie JWT à vérifier (Q-008) |
 | R-012 | Lots « back requis » (9/13) bloqués tant que Q-001 n'est pas levée | Haute | Élevé | Démarrer par LOT-01 et LOT-11 (front seul) ; lever Q-001 |
-| R-013 | **TRT-001 / R-009 : aucune mesure conservatoire appliquée** — en attente de D-3. Statut : risque **ouvert, non accepté** (aucune signature) | Moyenne | Élevé | D-3 (A ou B) ; LOT-02 pour la correction de fond |
+| R-013 | **TRT-001 / R-009 — annuaire public nominatif (mineurs inclus) sans authentification** | Moyenne | Élevé | **RISQUE ACCEPTÉ** — voir « Acceptation de risque R-013 » ci-dessous. Correction de fond : LOT-02 |
 
 ## Audit gitleaks (2026-10-07) — complète l'audit par regex
 - Outil : gitleaks **v8.30.1** (image `ghcr.io/gitleaks/gitleaks:v8.30.1`), `git --log-opts="--all" --redact=100`, dépôt monté en lecture seule.
 - Résultat : **103 commits scannés, 3,17 Mo — « no leaks found »**. Cohérent avec l'audit regex (100 commits). Aucune valeur affichée.
 - Couverture : toutes les refs présentes **localement** (dont `origin/claude/fervent-brahmagupta-pu78c4`). Les branches distantes non récupérées ne sont pas vues ; le job CI (`fetch-depth: 0`) les couvrira.
 - Hors périmètre : historique de `club-manager-api`, secrets non commités (`.env.local`).
+
+## Acceptation de risque R-013 (TRT-001)
+- **Énoncé** : « Risque accepté par Rida le 2026-10-07 : l'annuaire public reste ouvert jusqu'à la livraison du LOT-02, sans mesure conservatoire. »
+- **Périmètre** : `GET /v1/public/clubs/:slug/licencies` (liste `id`, prénom, nom, `claimed`), consommé par `src/features/public/IdentifyView.tsx:66-87` et `src/lib/api/publicTables.ts:51`.
+- **Date de révision obligatoire** : **au plus tard à la livraison du LOT-02, et en tout cas au prochain point 🛑 de Phase 4**, selon l'événement qui survient en premier. À cette échéance l'acceptation expire ; elle doit être renouvelée explicitement ou le risque traité.
+- **Conséquence au plan** : LOT-02 passe **en tête** des lots de Phase 4 (`03-plan-migration.md`).
+- **Ce que l'acceptation ne couvre pas** : tout nouvel endpoint public créé par le nouveau back doit être conçu sans énumération (recherche serveur, longueur minimale, limitation de débit) — exigence reprise dans `05-architecture-cible.md`.
+- Mention RGPD : données nominatives de mineurs ; l'acceptation est une décision du propriétaire, pas une conformité.

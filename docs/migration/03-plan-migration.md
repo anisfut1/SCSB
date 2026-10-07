@@ -6,21 +6,21 @@ _Phase 2, 2026-10-07. Ordre : **sécurité d'abord**, puis meilleur ratio gain/e
 |-----|----------|-----|------|-------------|--------|
 | LOT-00 | Vulnérabilités de prod | — | P1 | non | ✅ |
 | LOT-01 | Auth : jeton mémoïsé + `getClaims()` | TRT-002 | P1 | non | ✅ `a4c2580` |
-| LOT-02 | Roster public : recherche serveur | TRT-001 | P1 | oui | ⛔ Q-001 |
-| LOT-03 | Gymnases dynamiques (multi-tenant) | TRT-003 | P1 | à confirmer | ⛔ Q-001 |
-| LOT-04 | Réglages club via API + validation fuseau | TRT-011 | P2 | oui | ⛔ Q-001 |
-| LOT-05 | Saison & journée côté serveur | TRT-007, TRT-008 | P2 | oui | ⛔ Q-001 |
+| LOT-02 | Roster public : recherche serveur — **1ᵉʳ lot de la Phase 4** (R-013, révision obligatoire) | TRT-001 | P1 | oui (nouveau back) | ⛔ nouveau back |
+| LOT-03 | Gymnases dynamiques (multi-tenant) | TRT-003 | P1 | à confirmer | ⛔ nouveau back |
+| LOT-04 | Réglages club via API + validation fuseau | TRT-011 | P2 | oui | ⛔ nouveau back |
+| LOT-05 | Saison & journée côté serveur | TRT-007, TRT-008 | P2 | oui | ⛔ nouveau back |
 | LOT-06 | Matchs : filtres + pagination serveur | TRT-006 | P2 | oui | ⛔ (dépend LOT-05) |
 | LOT-07 | Endpoint tableau de bord (BFF) | TRT-005 | P1 | oui | ⛔ (dépend LOT-01, LOT-05) |
 | LOT-08 | Résultats groupés côté serveur | TRT-009 | P2 | oui | ⛔ (dépend LOT-05) |
-| LOT-09 | Import licenciés : parsing serveur | TRT-010 | P2 | oui | ⛔ Q-001 |
-| LOT-10 | Opérations longues en jobs asynchrones | TRT-004 | P1→P2 | oui | ⛔ Q-001 (gros, à découper) |
+| LOT-09 | Import licenciés : parsing serveur | TRT-010 | P2 | oui | ⛔ nouveau back |
+| LOT-10 | Opérations longues en jobs asynchrones | TRT-004 | P1→P2 | oui | ⛔ nouveau back (gros, à découper) |
 | LOT-11 | CI minimale (typecheck, lint, tests, build) + gitleaks | — | P2 | non | ✅ (commit ci-après ; premier run réel à observer après push) |
 | LOT-12 | Petites listes & résumés (opportuniste) | TRT-012 à 015 | P3 | oui | ⛔ |
 | LOT-13 | Nettoyage : `worker/`, `next.config.ts`, commentaires | — | P3 | non | ⬜ Phase 5 (Q-005 ✅) |
 | LOT-14 | En-têtes de sécurité (CSP…) + durcissement jeton public (R-008) | — | P2 | non (révocation du jeton : à confirmer) | ⬜ à planifier (non implémenté) |
 
-**Ordre recommandé** : LOT-01 → LOT-11 (front seul, immédiats) ; puis, dès accès au back : LOT-02 → LOT-03 → LOT-04 → LOT-05 → (LOT-06 ∥ LOT-07 ∥ LOT-08) → LOT-09 → LOT-10 → LOT-12 ; LOT-13 en Phase 5.
+**Ordre recommandé** : LOT-01 → LOT-11 (livrés) ; puis, dès que le nouveau back existe : **LOT-02 en tête (R-013)** → LOT-03 → LOT-04 → LOT-05 → (LOT-06 ∥ LOT-07 ∥ LOT-08) → LOT-09 → LOT-10 → LOT-12 ; LOT-13 en Phase 5.
 **Pourquoi LOT-07 (gros gain) après LOT-05** : il réutilise la borne de saison et la règle de journée côté serveur ; le faire avant dupliquerait la règle une 3ᵉ fois.
 **Pourquoi LOT-10 tardif** : le plus risqué (comportements d'intégration FFBB/FBI non testables sans le back) ; il se découpe en sous-lots par endpoint (sync FFBB, process-jobs, parse-documents, check-all-derogations, dérogation respond/check, import).
 

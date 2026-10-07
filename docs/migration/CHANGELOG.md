@@ -18,3 +18,6 @@
 - [LOT-01] Auth : résolution unique par requête (`getServerAuth` + `cache()`), `getClaims()` dans proxy et rendu ; 9 → ≤ 2 appels ; tests `auth-calls.test.ts`, `proxy.test.ts` — fichiers : `auth.server.ts`, `session.ts`, `platform.ts`, `proxy.ts` — lien doc : `06-adr/ADR-001-auth-une-resolution-par-requete.md`, `08-metriques.md`
 - [LOT-11] `.github/workflows/ci.yml` (verify + audit prod + gitleaks) validé actionlint ; gitleaks v8.30.1 local : 103 commits, aucune fuite — fichiers : `.github/workflows/ci.yml` — lien doc : `10-risques.md`, `07-tests-et-qualite.md`
 - [Plan] LOT-14 (CSP / jeton public, P2) ajouté, non implémenté ; D-3 laissée ouverte (TRT-001 : aucune mesure) ; Q-008 non vérifiable (URL projet absente) — fichiers : `03`, `09`, `10`
+
+## 2026-10-07 (suite 3)
+- [Décisions] D-3 = option B (R-013 accepté, révision au plus tard à la livraison du LOT-02 / prochain 🛑 de Phase 4) ; Q-001 résolue autrement (nouveau back) ; Q-002 rouverte ; Q-007 = VPS ; LOT-02 en tête de Phase 4 ; Q-011 à Q-013 ouvertes — fichiers : `09`, `10`, `03`, `00` — lien doc : `10-risques.md`
