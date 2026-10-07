@@ -8,7 +8,7 @@ _Phase 2, 2026-10-07. Ordre : **sécurité d'abord**, puis meilleur ratio gain/e
 | LOT-01 | Auth : jeton mémoïsé + `getClaims()` | TRT-002 | P1 | non | ✅ `a4c2580` |
 | LOT-02 | Roster public : recherche serveur — **1ᵉʳ lot de la Phase 4** (R-013, révision obligatoire) | TRT-001 | P1 | oui (nouveau back) | ⛔ nouveau back |
 | LOT-03 | Gymnases dynamiques (multi-tenant) | TRT-003 | P1 | à confirmer | ⛔ nouveau back |
-| LOT-04 | Réglages club via `PATCH /v1/clubs/{id}` existant (+ vérifier validation du fuseau) | TRT-011 | P2 | **non** (endpoint existant, E-2) | ⬜ **prêt (front seul)** |
+| LOT-04 | Réglages club via `PATCH /v1/clubs/{id}` existant (+ vérifier validation du fuseau) | TRT-011 | P2 | **non** (endpoint existant, E-2) | ✅ livré (voir `git log`) |
 | LOT-05 | Saison & journée côté serveur | TRT-007, TRT-008 | P2 | oui | ⛔ nouveau back |
 | LOT-06 | Matchs : utiliser les filtres serveur existants (E-3) ; `weekends` nouveau | TRT-006 | P2 | partiel (`/matches/weekends`) | ⬜ **prêt en grande partie (front)** — sémantique `period=weekend` à confirmer |
 | LOT-07 | Endpoint tableau de bord (BFF) | TRT-005 | P1 | oui | ⛔ (dépend LOT-01, LOT-05) |
@@ -118,3 +118,11 @@ Flags : variable `NEXT_PUBLIC_*` **interdite** pour un flag sensible ; utiliser 
 - Contrats détaillés par lot : `04-contrats-api.md` §B (B.1 = LOT-02, B.2 = LOT-03, B.3 = LOT-05/06, B.4 = LOT-04, B.5 = LOT-07, B.6 = LOT-08, B.7 = LOT-09, B.8 = LOT-10, B.9 = LOT-14/R-014, B.10 = LOT-12).
 - Choix structurants : ADR-002 à ADR-007 (statut **Proposée**, en attente de Q-011/Q-012/Q-013).
 - LOT-14 (CSP, jeton public) inclut le transport du jeton par en-tête (E-4, B.9) : exige le nouveau back **et** une modification du front.
+
+## LOT-04 — livré (2026-10-07)
+- `src/server/actions/club-settings.ts` appelle `api.clubs.update` (`PATCH /v1/clubs/{id}`) ; plus aucun import Supabase ni `.from(` dans le fichier ; `grep -rn "\.from(" src` : aucun résultat (Supabase ne reste que pour l'authentification : `server/actions/auth.ts`, `lib/api/auth.*`).
+- **Validation du fuseau conservée côté front** (D-1) tant que Q-014 n'est pas confirmée (le `PATCH` rejette-t-il un fuseau invalide ?).
+- Gestion d'erreurs : 400/422 → message du back ; 403 → message dédié ; service injoignable → message dédié ; redirection `/login` (401) jamais avalée (`unstable_rethrow`).
+- Tests : `src/server/actions/club-settings.test.ts` (9) — caractérisation écrite d'abord sur l'ancien code (6 verts), puis adaptée à l'API.
+- **Rollback** : `git revert <commit LOT-04>` (l'ancienne écriture RLS reste valide côté base).
+- **Reste** : `src/types/database.ts` (typage du client Supabase) n'est plus nécessaire qu'à `lib/supabase/*` : à réévaluer en Phase 5.

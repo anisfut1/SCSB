@@ -20,7 +20,7 @@
 | LOT-01 | TRT-002 Auth : jeton mémoïsé + getClaims | auth.server.ts, session.ts, proxy.ts | — (front seul) | P1 | ✅ | ✅ 5 tests (`auth-calls`) + 4 (`proxy`) | `a4c2580` |
 | LOT-02 | TRT-001 Roster public → recherche serveur | IdentifyView.tsx, publicTables.ts | `GET /v1/public/clubs/:slug/licencies?q=` (à confirmer) | P1 | ⛔ nouveau back | ⬜ | |
 | LOT-03 | TRT-003 Gymnases dynamiques | HomeMatchesAgenda.tsx | `GET /v1/clubs/:id/venues` (existant) (à confirmer) | P1 | ⛔ nouveau back | ⬜ | |
-| LOT-04 | TRT-011 Réglages club via API | club-settings.ts | `PATCH /v1/clubs/{id}` **existant** (04 E-2) | P2 | ⬜ prêt (front seul) | ⬜ | |
+| LOT-04 | TRT-011 Réglages club via API | club-settings.ts | `PATCH /v1/clubs/{id}` **existant** (04 E-2) | P2 | ✅ | ✅ 9 tests | voir `git log` |
 | LOT-05 | TRT-007, 008 Saison & journée serveur | season.ts, timezone.ts, match-filters.ts | `season=current`, `weekendKey` (à confirmer) | P2 | ⛔ nouveau back, D-2 | ⬜ | |
 | LOT-06 | TRT-006 Matchs filtres serveur | match-filters.ts, MatchesView.tsx | `GET …/matches?period=&teamId=&homeAway=` **existant** (04 E-3) + `/matches/weekends` nouveau | P2 | ⬜ prêt en grande partie (front) | ⬜ | |
 | LOT-07 | TRT-005 Tableau de bord BFF | dashboard/page.tsx | `GET /v1/clubs/:id/dashboard` (à confirmer) | P1 | ⛔ LOT-01, 05 | ⬜ | |

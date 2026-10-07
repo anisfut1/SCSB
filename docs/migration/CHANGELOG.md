@@ -31,3 +31,4 @@
 
 ## 2026-10-07 (suite 5 — révision Railway)
 - [Décisions] Q-011 = S3 (coexistence puis remplacement progressif) ; Q-012 = nouveau back sur **Railway** ; Q-013 résolue par déduction du dépôt (aucun VPS versionné, Vercel documenté) ; repo back créé par le propriétaire ; Q-015, Q-016, Q-017 ouvertes — fichiers : `09`, `01` §8 — lien doc : `01-cartographie-repo.md#8`
+- [LOT-04] `club-settings.ts` → `api.clubs.update` ; plus d'accès BDD direct dans `src/` ; 9 tests ; baseline verte (129 tests) — fichiers : `src/server/actions/club-settings.ts(.test)` — lien doc : `03-plan-migration.md`
