@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { securityHeaders } from "./src/config/security-headers";
 
 const nextConfig: NextConfig = {
   // @napi-rs/canvas expédie un binding natif (.node) que le bundler de Next.js
@@ -15,6 +16,21 @@ const nextConfig: NextConfig = {
   // src/server/emarque/extractors/pdf-raster-ocr-extractor.ts.
   outputFileTracingIncludes: {
     "/api/internal/discover-emarque": ["./src/server/emarque/ocr-data/**/*"],
+  },
+
+  // LOT-14 : en-têtes de sécurité ; la CSP est en Report-Only UNIQUEMENT
+  // (src/config/security-headers.ts, docs/migration/12-csp-report-only.md).
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: securityHeaders({
+          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+          apiUrl: process.env.NEXT_PUBLIC_CLUB_MANAGER_API_URL,
+          isDev: process.env.NODE_ENV === "development",
+        }),
+      },
+    ];
   },
 };
 

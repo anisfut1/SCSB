@@ -33,6 +33,23 @@ export interface ListMatchesParams {
   /** Filtre `match_datetime >= from` (ISO 8601) — voir §14/gap 7 de la demande. */
   from?: string;
   to?: string;
+  /** Filtre côté API par équipe (`teamId`, schema.ts:575) — LOT-06. */
+  teamId?: string;
+  /** Filtre côté API domicile/extérieur (`homeAway`, schema.ts:576) — LOT-06. */
+  homeAway?: "home" | "away";
+  /** Filtre côté API par statut (`status`, schema.ts:577). Aucune UI ne l'utilise encore. */
+  status?: "scheduled" | "played" | "postponed" | "cancelled" | "forfeit";
+}
+
+/** Paramètres de filtre communs aux listes de matchs (club et public) ; la pagination est ajoutée par l'appelant. */
+export function matchesFilterSearchParams(params: ListMatchesParams): URLSearchParams {
+  const search = new URLSearchParams();
+  if (params.from) search.set("from", params.from);
+  if (params.to) search.set("to", params.to);
+  if (params.teamId) search.set("teamId", params.teamId);
+  if (params.homeAway) search.set("homeAway", params.homeAway);
+  if (params.status) search.set("status", params.status);
+  return search;
 }
 
 /**
@@ -56,9 +73,7 @@ export async function listMatches(fetcher: ApiFetcher, clubId: string, params: L
   let offset = 0;
 
   for (;;) {
-    const search = new URLSearchParams();
-    if (params.from) search.set("from", params.from);
-    if (params.to) search.set("to", params.to);
+    const search = matchesFilterSearchParams(params);
     search.set("limit", String(PAGE_SIZE));
     search.set("offset", String(offset));
 

@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getPublicMe } from "@/lib/api/publicTables";
-import { clearStoredPublicToken, getStoredPublicToken, setStoredPublicToken } from "@/lib/publicToken";
+import { clearStoredPublicToken, consumePublicTokenFromUrl, getStoredPublicToken, resetConsumedPublicToken, setStoredPublicToken } from "@/lib/publicToken";
 import { KNOWN_COOKIE } from "./known-cookie";
 
 export interface PublicIdentity {
@@ -17,23 +17,6 @@ export interface PublicIdentity {
 
 /** `undefined` = résolution en cours, `null` = aucun lien reconnu, sinon identité résolue. */
 export type PublicIdentityState = PublicIdentity | null | undefined;
-
-function tokenFromUrl(): string | null {
-  if (typeof window === "undefined") return null;
-  return new URL(window.location.href).searchParams.get("token");
-}
-
-/**
- * Retire `?token=` de la barre d'adresse une fois le lien mémorisé dans ce
- * navigateur : évite qu'une capture d'écran ou un lien recopié depuis la
- * barre d'adresse partage involontairement le lien personnel.
- */
-function stripTokenFromUrl(): void {
-  const url = new URL(window.location.href);
-  if (!url.searchParams.has("token")) return;
-  url.searchParams.delete("token");
-  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
-}
 
 /**
  * Marqueur « déjà reconnu sur ce navigateur » (jamais le jeton) lu côté
@@ -67,7 +50,7 @@ const PublicIdentityContext = createContext<PublicIdentityContextValue | null>(n
 /**
  * Identité de l'espace public sans compte, partagée par tous les onglets
  * (Matchs, Tables, Dérogations) et résolue UNE fois par le layout public :
- * lien de l'email (`?token=`) ou lien déjà mémorisé dans ce navigateur,
+ * lien de l'email (`#token=`, ou `?token=` des liens déjà envoyés ; retiré de l'URL dès sa lecture) ou lien déjà mémorisé dans ce navigateur,
  * toujours revalidé par `GET /v1/public/clubs/:slug/me` — jamais une
  * identité supposée côté client.
  */
@@ -76,7 +59,7 @@ export function PublicIdentityProvider({ clubSlug, club, children }: { clubSlug:
 
   useEffect(() => {
     let cancelled = false;
-    const candidate = tokenFromUrl() ?? getStoredPublicToken(clubSlug);
+    const candidate = consumePublicTokenFromUrl() ?? getStoredPublicToken(clubSlug);
     if (!candidate) {
       // Résolu en microtâche : jamais de setState synchrone dans un effet.
       void Promise.resolve().then(() => {
@@ -92,14 +75,13 @@ export function PublicIdentityProvider({ clubSlug, club, children }: { clubSlug:
         if (cancelled) return;
         setStoredPublicToken(clubSlug, candidate);
         setKnownCookie(clubSlug, true);
-        stripTokenFromUrl();
         setIdentity({ token: candidate, licencie: result.licencie, isClubAdmin: result.isClubAdmin, derogationRequests: result.derogationRequests, tables: result.tables });
       })
       .catch(() => {
         if (cancelled) return;
         clearStoredPublicToken(clubSlug);
+        resetConsumedPublicToken();
         setKnownCookie(clubSlug, false);
-        stripTokenFromUrl();
         setIdentity(null);
       });
 
@@ -110,6 +92,7 @@ export function PublicIdentityProvider({ clubSlug, club, children }: { clubSlug:
 
   const forget = useCallback(() => {
     clearStoredPublicToken(clubSlug);
+    resetConsumedPublicToken();
     setKnownCookie(clubSlug, false);
     setIdentity(null);
   }, [clubSlug]);

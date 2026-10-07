@@ -6,6 +6,8 @@ import { currentSeasonStart } from "@/lib/season";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { MatchesView } from "@/features/matches/MatchesView";
 import { parseMatchFilters } from "@/features/matches/match-filters";
+import { loadMatchesForView } from "@/features/matches/load-matches";
+import { matchesServerFiltersEnabled } from "@/config/flags";
 
 /**
  * Vue PUBLIQUE en lecture seule des matchs (retour du club, 2026-09-29 :
@@ -34,7 +36,14 @@ export default async function PublicMatchsPage({
   }
 
   const filters = parseMatchFilters(await searchParams);
-  const [teams, matches] = await Promise.all([listPublicTeams(clubSlug), listPublicMatches(clubSlug, { from: currentSeasonStart().toISOString() })]);
+  const { teams, matches } = await loadMatchesForView({
+    serverFilters: matchesServerFiltersEnabled(),
+    filters,
+    seasonStart: currentSeasonStart(),
+    now: new Date(),
+    fetchTeams: () => listPublicTeams(clubSlug),
+    fetchMatches: (params) => listPublicMatches(clubSlug, params),
+  });
 
   return (
     <PageContainer width="wide">

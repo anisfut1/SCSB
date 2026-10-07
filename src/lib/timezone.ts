@@ -90,3 +90,12 @@ export function formatWeekendLabel(saturdayDateStr: string): string {
   const range = sat.month === sun.month ? `${sat.day} au ${sun.day} ${sun.month}` : `${sat.day} ${sat.month} au ${sun.day} ${sun.month}`;
   return `Week-end du ${range}`;
 }
+
+/**
+ * Vrai si `value` est un identifiant de fuseau IANA reconnu par le runtime
+ * (« Europe/Paris »). Un fuseau inconnu ferait lever un `RangeError` à
+ * chaque `Intl.DateTimeFormat` des pages Tables/Dérogations du club.
+ */
+export function isValidTimezone(value: string): boolean {
+  return Intl.supportedValuesOf("timeZone").includes(value);
+}

@@ -34,9 +34,11 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims() : vérifie l'expiration et la signature du JWT (localement
+  // avec des clés asymétriques ; sinon retombe sur getUser()) et rafraîchit
+  // la session si besoin. Voir ADR-001.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims ?? null;
 
   const isPublicPath = PUBLIC_PATHS.some((path) => request.nextUrl.pathname.startsWith(path));
 
