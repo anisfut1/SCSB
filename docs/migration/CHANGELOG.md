@@ -56,3 +56,5 @@ Runs `37681742496`/`37681736846` (`a038c9e`, docs) ✅ ; `37684885660`/`37684879
 
 ## 2026-10-07 (Q-024, Q-025)
 - [Décisions] Revendication : expiration 14 jours, validateur `club_admin` seul, règle générale « tout rôle à droits d'écriture exclu » ; tests de contrat du LOT-02 mis à jour (expiration J+14 à l'instant près, coordinateur, test paramétré sur les droits) ; décisions prises seul validées — fichiers : `09`, `11` §7.9, `04` B.1 bis, `06-adr/ADR-006`, `12` §7
+- [Q-009] jsdom + Testing Library (dev), tests du jeton en vrai DOM, `window` factice retiré ; 223 → 227 tests ; suite ≈ 0,7 s → ≈ 0,9 s
+- [CI] Un seul run par commit (`pull_request` retiré, cause : `ci.yml:4-5` + PR n°1) — commit `b857079`, run `37685831364` ✅ (typecheck, lint, 227 tests, build, audit, gitleaks historique complet)

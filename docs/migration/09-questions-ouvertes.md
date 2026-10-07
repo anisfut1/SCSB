@@ -12,7 +12,7 @@
 | Q-008 | Clés JWT asymétriques ? **Non vérifiable par moi** : l'URL du projet Supabase n'est dans aucun fichier du dépôt (pas de `.env.local`). Option retenue valable dans les deux cas (ADR-001). **À faire par le propriétaire** : `curl https://<projet>.supabase.co/auth/v1/.well-known/jwks.json` (clés non vides = asymétrique) + durée de vie du JWT. | ⏳ Ouverte (non bloquante) |
 | D-1 | Réglages du club : migrer vers l'API (LOT-04, dépend de Q-001). **Mesure conservatoire faite le 2026-10-07** : validation serveur du fuseau (`isValidTimezone`, `club-settings.ts`), commit `cb085e1`. | ✅ Résolue (mesure) / ⏳ migration |
 | D-2 | Utiliser `club.timezone`, repli `Europe/Paris` ; helper unique pour les 28 occurrences ; correction dans LOT-05 (pas maintenant). | ✅ Résolue 2026-10-07 |
-| Q-009 | Vitest + jsdom + Testing Library en devDependencies : **accepté** 2026-10-07. Non installé à ce stade (aucun composant à tester avant LOT-02). | ✅ Résolue |
+| Q-009 | Vitest + jsdom + Testing Library en devDependencies : **accepté** 2026-10-07. **Installé le 2026-10-07** (jsdom, Testing Library ; environnement déclaré par fichier). | ✅ Résolue |
 | Q-010 | Volumétrie : placeholder non renseigné → « garde tes estimations » appliqué ; toute estimation reste marquée « estimé » dans `08`. | ✅ Résolue (par défaut) |
 
 | D-3 | **TRT-001 : option B, risque accepté** par Rida le 2026-10-07 (voir R-013, `10-risques.md`). Révision obligatoire : au plus tard à la livraison du LOT-02 et, en tout cas, au prochain point 🛑 de Phase 4. LOT-02 en tête des lots de Phase 4. | ✅ Résolue 2026-10-07 |

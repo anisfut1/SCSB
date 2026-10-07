@@ -44,13 +44,16 @@
 | X-Frame-Options / frame-ancestors | ✅ appliqués (Q-021) | `f2841a7` |
 
 ## CI
-Runs : `37612678201` ✅, `37618494863` ✅, `37681560073` ✅ (commit `f830e38`, 172 tests). `37681742496` + `37681736846` ✅ (commit `a038c9e`, docs) ; `37684885660` + `37684879305` ✅ (commit `e1d79ff`, 223 tests).
+Runs : `37612678201` ✅, `37618494863` ✅, `37681560073` ✅ (commit `f830e38`, 172 tests). `37681742496` + `37681736846` ✅ (commit `a038c9e`, docs) ; `37684885660` + `37684879305` ✅ (`e1d79ff`) ; `37685082654` + `37685088305` ✅ (`0515c6b`, 2 runs) ; **`37685831364` ✅ (`b857079`, 227 tests, 1 seul run)**.
 
 ## Décisions prises (2026-10-07)
 Q-015 (Supabase conservé pendant S3, réévaluation obligatoire en fin de S3), Q-016 (routage client par module, ADR-005 Acceptée), Q-017 (**front sur Vercel**, VPS supprimé de la documentation), Q-018 (recherche anonyme bornée), **Q-020** (règles LOT-02 validées), **Q-021** (CSP : toutes recommandations), **Q-022** (R-018 en P1 dans le LOT-02), **Q-023** (R-014 : fragment + en-tête).
 
+## Livré le 2026-10-07 (séquence Q-024/Q-025)
+Décisions (`982ed7e`), jsdom + tests du jeton en vrai DOM, `window` factice retiré (commit `test: jsdom…`), CI dédoublonnée (`b857079`). Baseline : **227 tests, 27 fichiers**.
+
 ## Prochaines actions
-- [ ] **Valider au 🛑** : expiration d'une demande de revendication (proposé 14 j) et validateur (proposé `club_admin` seul) ; rôles exclus (coach, admin **et coordinateur ?**) — `11` §7.9.2 ; dépendances du parcours public à `?token=` (voir réponse)
+- [ ] **Propriétaire, action 1 (urgente)** : vérifier R-018 sur l'existant (`11` §7.9.7)
 - [ ] **Propriétaire** — liste ordonnée des actions en attente : voir la réponse de la session (priorité 1 à 8)
 - [ ] Ensuite : LOT-02 dans le nouveau repo (tests de contrat d'abord, `11` §7.5 et §7.9.6)
 
