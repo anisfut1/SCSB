@@ -1,8 +1,13 @@
 name: CI
 
 on:
+  # UN seul déclencheur par commit. `push` (toutes les branches) couvre les branches de travail ET
+  # la tête d'une PR (même SHA, le statut s'attache à la PR) ; l'ancien `pull_request` lançait un
+  # second run identique pour chaque commit d'une branche ayant une PR ouverte, dans un groupe de
+  # `concurrency` différent (refs/pull/N/merge ≠ refs/heads/…), donc sans annulation mutuelle.
+  # Contrepartie : le résultat de la fusion avec la base n'est plus testé avant merge ; il l'est
+  # par le `push` qui suit la fusion sur la branche de base.
   push:
-  pull_request:
   schedule:
     # Hebdomadaire : de nouvelles vulnérabilités sortent sans qu'aucun commit n'ait lieu.
     - cron: "17 5 * * 1"
