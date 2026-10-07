@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireClubAdminContext } from "@/lib/tenancy/club-context";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/logger";
+import { isValidTimezone } from "@/lib/timezone";
 
 export interface ClubSettingsActionResult {
   success: boolean;
@@ -27,6 +28,12 @@ export async function updateClubSettingsAction(clubSlug: string, _prevState: Clu
 
   if (!name) {
     return { success: false, message: "Le nom du club est requis." };
+  }
+
+  // Validation côté serveur (jamais confiance au champ texte libre du
+  // formulaire) : un fuseau inconnu casserait les pages Tables/Dérogations.
+  if (timezone && !isValidTimezone(timezone)) {
+    return { success: false, message: "Fuseau horaire invalide (ex : Europe/Paris)." };
   }
 
   const supabase = await createServerSupabaseClient();
