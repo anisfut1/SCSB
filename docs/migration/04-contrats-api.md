@@ -161,15 +161,68 @@ _Généré le 2026-10-07 à partir de `generated/schema.ts` (100 opérations / 8
 ## B. Nouveaux endpoints nécessaires (dérivés de `02-inventaire-traitements.md`)
 _Principe (ADR-005) : tous **additifs sous `/v1`**, même enveloppe d'erreur, même schéma d'auth → le front n'a qu'une base d'URL ; le routage entre `club-manager-api` et le nouveau back se fait **dans le client front, par module** (ADR-005 révisé, option (a), Q-016 ouverte) — il n'y a plus de reverse proxy commun. Les noms de champs ci-dessous sont des **propositions**._
 
-### B.1 — LOT-02 (en tête de Phase 4, R-013) : recherche de licenciés publique, sans énumération
-`GET /v1/public/clubs/{clubSlug}/licencies/search?q=<texte>&limit=<n>`
-- **Auth** : aucune. **Limitation de débit obligatoire** : par IP et par club (valeurs initiales **estimées** : 30 req/min/IP, 300 req/min/club ; à calibrer).
-- **Entrées** : `q` 2 à 64 caractères après normalisation (trim, minuscules, sans accents) ; `limit` entier 1 à 8, défaut 8.
-- **Sortie 200** : `{ "licencies": [ { "id": "uuid", "firstName": "…", "lastName": "…", "claimed": true } ] }` — **au plus `limit` éléments**, jamais de total, jamais d'autre champ. Aucun résultat → `200` + `[]` (pas de 404 : ne pas révéler l'existence d'un club ou d'un nom).
-- **Erreurs** : `400 QUERY_TOO_SHORT` (`q` < 2), `400 VALIDATION_ERROR`, `404 NOT_FOUND` (club inconnu — délai constant), `429 RATE_LIMITED` (+ `Retry-After`).
-- **Exemple** : `GET …/licencies/search?q=du%20pont` → `{"licencies":[{"id":"…","firstName":"A.","lastName":"Dupont","claimed":false}]}` _(exemple fictif, aucune donnée réelle)_.
-- **Ancien endpoint** `GET …/licencies` (annuaire complet) : conservé le temps de la bascule puis **fermé** (`410 GONE`) ; le flag front `FF_PUBLIC_SEARCH` choisit l'un ou l'autre (`03-plan-migration.md`, LOT-02). `POST …/licencies/{id}/request-link` inchangé (`publicTables.ts:64`).
-- **Tests back** : q trop court → 400 ; 9ᵉ résultat jamais renvoyé ; 31ᵉ requête/min → 429 ; réponse identique en forme pour 0 ou n résultats.
+### B.1 — LOT-02 (en tête de Phase 4, R-013) : recherche de licenciés publique **bornée** (Q-018 = option 1)
+`GET /v1/public/clubs/{clubSlug}/licencies/search?q=<prénom nom>` — **spécification v2 du 2026-10-07** (remplace la v1 « ≥ 2 caractères, 8 résultats, `claimed` »). Règles chiffrées justifiées dans `11-init-repo-back.md` §7 ; **à valider au 🛑 (Q-020)**.
+```yaml
+/v1/public/clubs/{clubSlug}/licencies/search:
+  get:
+    operationId: searchPublicLicencies
+    summary: Retrouver sa fiche licencié par prénom + nom (sans compte)
+    security: []                       # anonyme ; aucun jeton accepté ni requis
+    parameters:
+      - { name: clubSlug, in: path,  required: true, schema: { type: string, pattern: "^[a-z0-9-]{2,64}$" } }
+      - name: q
+        in: query
+        required: true
+        description: >
+          Deux mots au moins (prénom + nom, dans n'importe quel ordre), chacun d'au moins 2 lettres.
+          Chaque mot est comparé au DÉBUT du prénom ou du nom (insensible à la casse et aux accents ;
+          tirets et apostrophes traités comme des séparateurs). 4 mots maximum.
+        schema: { type: string, minLength: 5, maxLength: 64 }
+    responses:
+      "200":
+        description: Correspondances (au plus 5). Tableau vide si aucune — jamais de 404 pour « aucun résultat ».
+        headers:
+          Cache-Control: { schema: { type: string, example: "no-store" } }
+          RateLimit-Limit: { schema: { type: integer } }
+          RateLimit-Remaining: { schema: { type: integer } }
+          RateLimit-Reset: { schema: { type: integer, description: secondes } }
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [licencies]
+              additionalProperties: false
+              properties:
+                licencies:
+                  type: array
+                  maxItems: 5
+                  items:
+                    type: object
+                    required: [id, firstName, lastInitial]
+                    additionalProperties: false      # AUCUN autre champ : ni nom complet, ni date de naissance, ni catégorie, ni e-mail, ni "claimed"
+                    properties:
+                      id:          { type: string, format: uuid }
+                      firstName:   { type: string, maxLength: 64 }
+                      lastInitial: { type: string, minLength: 1, maxLength: 1, description: "initiale du nom, avec majuscule (ex. « D »)" }
+      "400": { $ref: "#/components/responses/ErrorEnvelope" }   # QUERY_TOO_SHORT | INVALID_QUERY | VALIDATION_ERROR
+      "404": { $ref: "#/components/responses/ErrorEnvelope" }   # NOT_FOUND (club inconnu)
+      "429":
+        description: Limite de débit atteinte
+        headers: { Retry-After: { schema: { type: integer, description: secondes } } }
+        content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }   # RATE_LIMITED
+```
+| Cas | Réponse |
+|---|---|
+| `q` = « camille du » (2 mots ≥ 2 lettres) | `200` `{"licencies":[{"id":"…","firstName":"Camille","lastInitial":"D"}]}` _(exemple fictif)_ |
+| `q` = « camille » (1 mot) ou un mot de 1 lettre | `400 QUERY_TOO_SHORT` — « Saisis ton prénom et ton nom. » |
+| caractères hors lettres/espace/`-`/`'`, ou > 4 mots | `400 INVALID_QUERY` |
+| aucun résultat | `200` `{"licencies":[]}` (même forme, même ordre de grandeur de délai) |
+| club inconnu | `404 NOT_FOUND` (les slugs de clubs sont publics : pas un secret) |
+| budget dépassé | `429 RATE_LIMITED` + `Retry-After` |
+| jeton fourni (`?token=`, `Authorization`) | ignoré pour cette route ; `?token=` → `400 TOKEN_IN_QUERY` (règle globale, ADR-007 §7) |
+**Changements de contrat par rapport à l'annuaire actuel** (`PublicLicencieDto`, `schema.ts:7702-7708`) : plus de `lastName` complet, **plus de `claimed`** (indiquait quels profils n'ont pas encore de lien — cf. R-018), `id` + `firstName` + `lastInitial` seulement. Impact front : l'écran de confirmation ne peut plus distinguer « déjà inscrit » (`IdentifyView.tsx:173-175,240-246`) → message neutre ; « Lien envoyé, {firstName} » (`:~131`) inchangé.
+**Ancien endpoint** `GET …/licencies` (annuaire complet) : à **fermer dans `club-manager-api`** (`410 GONE` ou `404`) — action du propriétaire, critère de done vérifiable en `11` §7.6 ; **tant qu'il répond `200`, R-013 n'est pas résolu**. `POST …/licencies/{id}/request-link` inchangé (`publicTables.ts:64`).
 
 ### B.2 — LOT-03 : gymnases dynamiques
 - Ajouter `venueId: uuid | null` (additif) aux `MatchListItemDto` / `MatchDetailsDto` (aujourd'hui seulement `venueLabel`, `schema.ts:7355,7381`).

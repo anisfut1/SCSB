@@ -135,3 +135,7 @@ Flags : variable `NEXT_PUBLIC_*` **interdite** pour un flag sensible ; utiliser 
 - **Tests** : `load-matches.test.ts` (22) — caractérisation (comptes figés sur l'ancien code : 15 / 1 / 315 / 158 / 75 / 5 / 11), parité × 2 sémantiques de `to`, requêtes, appels réseau, mesure simulée.
 - **Activer** : définir `FF_MATCHES_SERVER_FILTERS=1` sur le déploiement du front (variable **serveur**, jamais `NEXT_PUBLIC_*`), redéployer. **Rollback** : retirer la variable (ou `=0`) et redéployer ; `git revert` du commit en dernier recours.
 - **Critère pour retirer le flag** : Q-014 confirmée, mesure réelle (pas simulée) sur un déploiement de prévisualisation, absence d'écart d'affichage sur une semaine d'usage.
+
+## LOT-02 — spécification v2 (2026-10-07, Q-018 = option 1)
+Contrat et règles : `04` §B.1 (OpenAPI), `11` §7 (règles chiffrées, mineurs, journaux, tests, bascule, fermeture de l'ancien endpoint). **Résumé** : `q` = prénom + nom (≥ 2 mots de ≥ 2 lettres) ; 5 résultats max ; `id` + prénom + initiale seulement ; plus de `claimed` ; budgets 30/min et 300/h par IP, 600/h par club ; journaux sans donnée personnelle (14 jours). **Dépendances** : repo du back (propriétaire), validation des règles (Q-020), vérification V1, fermeture de l'ancien endpoint (propriétaire, critère vérifiable `11` §7.7). **Statut** : spécifié, **non démarré**.
+

@@ -75,25 +75,92 @@ Même base que `.github/workflows/ci.yml` du front (validé : run `37612678201`)
 
 ## 5. Plan de livraison — **LOT-02 en premier** (R-013, révision obligatoire à la livraison)
 Ordre strict, **tests d'abord** :
-1. **Contrat** : figer `GET /v1/public/clubs/{clubSlug}/licencies/search?q=&limit=` (`04` B.1) dans OpenAPI ; écrire les tests de contrat **avant** le code : `q` < 2 → `400 QUERY_TOO_SHORT` ; au plus 8 résultats ; aucun total ; `[]` et non 404 pour 0 résultat ; club inconnu → 404 à délai constant ; `429 RATE_LIMITED` + `Retry-After`.
-2. **Accès aux données** : rôle Postgres **lecture seule** sur la seule table des licenciés (et colonnes nécessaires : id, prénom, nom, état « lien déjà demandé ») ; normalisation (minuscules, sans accents) ; `LIMIT` ≤ 8 dans la requête ; aucune pagination exposée.
-3. **Anti-énumération** : limitation de débit par IP **et** par club (valeurs initiales **estimées** : 30 req/min/IP, 300 req/min/club, à calibrer en staging) ; compteurs en mémoire (un seul réplica ; à documenter si plusieurs) ; journaux sans `q` ni noms.
-4. **Staging** : déploiement, vérifications V1 à V3, test de charge léger, **revue sécurité** (matrice, tentative d'énumération par lettres : 26² requêtes doivent être bloquées par la limite de débit avant d'extraire le roster).
+1. **Contrat** : figer l'OpenAPI de `GET /v1/public/clubs/{clubSlug}/licencies/search?q=` (`04` B.1, v2) ; écrire **d'abord** les tests de contrat listés au §7.5, qui doivent tous échouer avant le code.
+2. **Accès aux données** : rôle Postgres **lecture seule** limité aux colonnes `id`, prénom, nom de la table des licenciés ; normalisation (minuscules, sans accents, séparateurs) ; correspondance par **préfixe de mot** ; `LIMIT 5` dans la requête ; aucune pagination exposée ; aucune colonne sensible lue (date de naissance, catégorie, e-mail).
+3. **Anti-énumération** : budgets du §7.2 (par IP, par club, résultats vides) ; clé de limitation = HMAC de l'IP à sel journalier, **en mémoire seulement** (un seul réplica ; sinon table de compteurs) ; journaux sans `q`, sans nom, sans IP (§7.4).
+4. **Staging** : déploiement, vérifications V1 à V3, test d'énumération du §7.5 exécuté contre l'instance, calibrage des budgets sur un jour d'usage réel, **revue sécurité** (matrice, tentative d'énumération, `Origin` non autorisé).
 5. **Front (PR dans SCSB, séparée)** : `resolveBase(path)` dans `src/lib/api/client.ts` + liste de modules actifs ; `IdentifyView.tsx` interroge le serveur avec anti-rebond (≈ 300 ms), supprime le chargement complet (`IdentifyView.tsx:66-87`) et le filtre local ; **tests de composant** avec jsdom + Testing Library (Q-009 accepté, devDependencies seulement) ; drapeau `FF_PUBLIC_SEARCH`, défaut = ancien comportement.
 6. **Bascule** : activer le drapeau en staging puis en production ; **fermer l'ancien endpoint** `GET …/licencies` (`410`) — **changement à faire côté `club-manager-api` par le propriétaire** (l'agent n'y a pas accès) ; sans cela **R-013 reste ouvert**.
 7. **Clôture** : mesure avant/après du payload (`08`), mise à jour de `04`/`CHANGELOG`/`10` (R-013 → fermé, ou renouvelé explicitement), commit atomique.
-**Critères de done** : un anonyme ne peut plus obtenir plus de 8 noms par requête ; l'extraction du roster par lettres est bloquée ; ancien endpoint fermé ; aucun nom dans les logs ; CI verte ; V1 consignée.
+**Critères de done** : un anonyme ne peut plus obtenir plus de 5 prénoms+initiales par requête ; le test d'énumération (§7.5) passe ; aucun nom ni IP dans les journaux ; CI verte ; V1 consignée ; **et, pour clore R-013 : ancien endpoint fermé (§7.6)**.
 **Rollback** : drapeau `FF_PUBLIC_SEARCH` à l'ancien comportement (redéploiement du front en option (a)) ; l'ancien endpoint n'est fermé qu'**après** une période d'observation (≥ 7 jours, estimé).
 **Jeton en en-tête (R-014)** : le LOT-02 est **anonyme** et ne manipule aucun jeton. Le transport du jeton personnel par en-tête (`04` B.9, ADR-006) concerne les routes qui suivent (`request-link`, accueil, tables, dérogations) : il est livré avec **LOT-14** ; en attendant, ces routes restent chez `club-manager-api`.
 
 ## 6. Ce que le front devra préparer (hors LOT-02, rappel)
 `resolveBase` testé (chaque préfixe porté a un test), `NEXT_PUBLIC_NEW_API_URL` + liste de modules (non secrets), CSP/`connect-src` vers le nouveau domaine (LOT-14), erreurs `429`/`400 QUERY_TOO_SHORT` gérées dans l'UI.
 
-## 7. Question ouverte sur la consigne « annuaire public authentifié » (Q-018)
-Le propriétaire demande un LOT-02 « annuaire public **authentifié** ». Or le parcours visé est l'**identification de personnes sans compte** (`IdentifyView.tsx` : taper son nom pour recevoir son lien par e-mail) : exiger un compte Supabase ou un jeton personnel **avant** de chercher casserait ce parcours (le jeton est justement ce que la personne n'a pas encore). Options à trancher :
-| Option | Principe | Effet |
+## 7. Spécification du LOT-02 — recherche anonyme bornée (Q-018 = option 1, décision du 2026-10-07)
+_Les valeurs chiffrées sont des **propositions justifiées par un modèle simple** (hypothèses explicites, marquées « estimé »). Aucune n'a été mesurée sur le roster réel. **À valider au 🛑 (Q-020)** puis à calibrer en staging._
+
+### 7.1 Règles de recherche et d'affichage
+| Règle | Valeur proposée | Justification |
 |---|---|---|
-| 1 (conception actuelle, `04` B.1) | Recherche **anonyme mais bornée** (≥ 2 caractères, ≤ 8 résultats, pas de total, limite de débit) | Ferme l'énumération ; parcours inchangé |
-| 2 | Option 1 **+ code d'accès du club** (secret partagé aux membres, envoyé en en-tête `X-Club-Access-Code`) | Un inconnu qui n'a pas le code ne peut rien chercher ; **nouvelle donnée à distribuer/rotater** ; le code circule comme un mot de passe partagé |
-| 3 | Authentification forte (compte Supabase ou jeton) | **Incompatible** avec l'usage sans compte (bénévoles) |
-**Recommandation : option 1 maintenant, option 2 si le propriétaire veut une barrière supplémentaire** (le contrat prévoit déjà un en-tête optionnel). À confirmer avant l'étape 1 du §5.
+| Forme de la requête `q` | **≥ 2 mots (prénom + nom), chacun ≥ 2 lettres** ; ≤ 4 mots ; ≤ 64 caractères ; lettres, espace, `-`, `'` seulement | Un visiteur légitime connaît son nom complet ; exiger les deux mots multiplie l'espace à deviner (voir 7.1 bis). Le jeton « 2 caractères » de la v1 laissait énumérer par préfixes à un mot |
+| Correspondance | **début de mot** (prénom OU nom, ordre libre), insensible casse/accents, `-` `'` = séparateurs ; jamais de `%`/`_` interprétés | Tolère « elodie dupont » = « Dupont Élodie » ; évite les motifs génériques |
+| Nombre maximal de résultats | **5**, fixe (pas de paramètre `limit`) | Assez pour départager les homonymes ; plafonne ce qu'une requête peut révéler ; moins de paramètres = moins de surface |
+| Format affiché | **prénom complet + initiale du nom** (`Camille D.`) | Reconnaissable par la personne, insuffisant pour identifier un tiers ; le nom complet n'est jamais renvoyé |
+| Champs exposés | `id` (UUID), `firstName`, `lastInitial` — **rien d'autre** | Voir 7.3 |
+| Homonymes | si deux lignes ont le même `firstName`+`lastInitial`, l'UI invite à **préciser le nom** (la requête peut contenir plus de lettres du nom) ; si l'ambiguïté persiste, repli « **contacte ton club** » (pas d'auto-service) | Pas de donnée supplémentaire pour désambiguïser (mineurs) |
+| `claimed` | **retiré** | Indiquait les profils sans lien déjà posé, c'est-à-dire ceux qu'on peut revendiquer (R-018) |
+
+**7.1 bis — pourquoi « 2 mots » (modèle, estimé).** Roster N ≈ 1 000 (estimé). Attaque par dictionnaire de D = 1 000 prénoms × 1 000 noms (≈ 10⁶ couples) : une requête touche avec une probabilité ≈ N / D² ≈ 0,1 %. Avec le budget club de **600 requêtes/h** : ≈ 0,6 découverte/h → **≈ 35 jours** pour 50 % du roster ; en supposant des noms 10 fois plus concentrés que le modèle (pessimiste), **≈ 3,5 jours**. À titre de comparaison, la règle « un mot de 3 lettres » (17 576 préfixes, 5 résultats chacun) se parcourt en **≈ 1,2 jour** au même budget et révèle l'essentiel du roster ; la v1 d'origine (annuaire complet) : **une requête**. _Hypothèses : noms indépendants, aucun contournement par rotation massive d'IP au-delà du budget club ; la répartition réelle des noms est inconnue._
+
+### 7.2 Limites de débit (par défaut ; **estimées, à calibrer**)
+| Budget | Valeur | Justification |
+|---|---|---|
+| Par IP | **30 requêtes/minute** et **300/heure** | Une recherche saisie avec anti-rebond de 300 ms = 3 à 6 requêtes ; ~30 bénévoles derrière la même box/Wi-Fi d'un gymnase (NAT) × ~8 recherches = ~240/h : doit passer |
+| Par IP, **résultats vides** | **30/heure** | Un bénévole se trompe rarement plus de quelques fois ; une attaque par dictionnaire produit surtout des vides |
+| Par club | **600/heure** et **3 000/jour** | Journée de match avec ~100 personnes qui s'identifient (estimé) ≈ 500/h ; alerte à 50 % du budget |
+| `request-link` (existant, hors LOT-02, **recommandé**) | 5/heure par licencié, 20/heure par IP | Évite l'envoi massif d'e-mails et le harcèlement d'une personne |
+Réponse au dépassement : `429 RATE_LIMITED` + `Retry-After` (secondes) + en-têtes `RateLimit-*`. **Contrepartie assumée (R-019)** : un attaquant peut épuiser le budget club et bloquer l'auto-identification pendant la fenêtre ; repli « contacte ton club », alerte à 50 %.
+
+### 7.3 Mineurs et données personnelles
+- **Aucune donnée supplémentaire** n'est exposée pour qui que ce soit, **le serveur ne distingue pas les mineurs** (pas de traitement spécial qui pourrait se tromper) : date de naissance, catégorie, équipe, photo, e-mail, numéro de licence ne figurent jamais dans la réponse.
+- Identifiants opaques (UUID v4) ; aucun ordre ou compteur global ; pas de total ; `Cache-Control: no-store`.
+- Base légale/information (RGPD) : à documenter par le club (traitement de données de mineurs) ; contrat de sous-traitance avec Railway : **action du propriétaire**.
+
+### 7.4 Journaux et conservation
+| Où | Contenu | Durée proposée |
+|---|---|---|
+| Journaux applicatifs du back | `requestId`, route (gabarit), statut, durée, `resultCount` (0 à 5), décision de limitation ; **jamais `q`, nom, e-mail ni IP** | **14 jours** (estimé : suffisant pour un incident récent, minimal) |
+| Compteurs agrégés d'alerte (par club, par heure) | nombres uniquement | 90 jours |
+| Clé de limitation | HMAC(IP, sel journalier), **en mémoire**, jamais écrite sur disque ni journalisée | durée de la fenêtre (≤ 1 jour) |
+| Journaux HTTP de la plateforme (IP source, chemin) | **hors de notre contrôle** : Railway, rétention selon l'offre (3 j Free … 90 j Enterprise, docs consultées) ; la valeur de `q` est en query string → **non garantie absente** (V1, ADR-007 §7) | à vérifier ; **conséquence : `q` contient un nom, donc de la donnée personnelle**. Option si V1 échoue : transporter `q` dans un corps `POST /search` (non journalisé) — **décision à prendre après V1** |
+
+### 7.5 Tests de contrat à écrire **en premier** dans le nouveau dépôt (tous rouges avant le code)
+1. `q` d'un seul mot, ou mot d'une lettre → `400 QUERY_TOO_SHORT` ; caractères interdits / > 4 mots / > 64 car. → `400 INVALID_QUERY`.
+2. Jamais plus de **5** résultats, même pour « ab cd » sur un roster de 1 000 homonymes synthétiques.
+3. **Forme stricte** de la réponse : exactement `{ licencies: [{ id, firstName, lastInitial }] }` ; aucun champ supplémentaire (`additionalProperties: false`) ; **absence** de `lastName`, `claimed`, `birthDate`, `email`, `category` ; `lastInitial` = 1 lettre.
+4. Aucun résultat → `200 []` (jamais 404) ; forme identique ; club inconnu → 404.
+5. Normalisation : « Élodie » = « elodie » ; « Jean-Pierre » = « jean pierre » ; `%`, `_`, `\` et guillemets traités littéralement (pas d'injection ni de joker).
+6. **Énumération impossible (test central)** : sur un roster synthétique de 1 000 personnes, simuler (a) un parcours exhaustif de tous les couples de préfixes de 2 lettres, (b) une attaque par dictionnaire, (c) une rotation de 50 IP ; vérifier qu'**après le budget d'une heure** (300 requêtes/IP ; 600/club) la fraction du roster révélée est **≤ 2 % (une IP)** et **≤ 5 % (club entier)**, et que la 301ᵉ requête d'une IP reçoit `429`. _Seuils indicatifs : à fixer par le propriétaire._
+7. Limites : 31ᵉ requête/minute/IP → `429` + `Retry-After` ; 31ᵉ recherche vide/heure/IP → `429` ; budget club épuisé → `429` pour toutes les IP ; compteurs indépendants entre clubs ; requêtes concurrentes comptées exactement.
+8. **Journalisation** : un espion sur le logger prouve que ni `q`, ni un nom, ni une IP ne sont écrits (cas 200, 400, 429).
+9. CORS : `Origin` du front autorisé → en-têtes CORS ; autre origine → refusée ; pas de `Access-Control-Allow-Credentials`.
+10. `?token=` sur la route → `400 TOKEN_IN_QUERY` ; `Authorization` ignoré (route publique).
+11. Parité d'autorisation : la route est dans la **liste blanche des routes publiques** (test de sécurité global, ADR-006).
+12. Anti-timing : écart de médiane entre « 0 résultat » et « 5 résultats » < 20 ms en test (indicatif).
+
+### 7.6 Bascule du front (Q-016 = option (a)) et rollback
+1. PR front séparée : `resolveBase(path)` dans `src/lib/api/client.ts` (unique point d'aiguillage), `NEXT_PUBLIC_NEW_API_URL` + `NEXT_PUBLIC_NEW_API_MODULES` (liste, ex. `public-search`) ; `IdentifyView.tsx` interroge le serveur (anti-rebond ≈ 300 ms, `q` valide seulement), **supprime** `listPublicLicencies` (`IdentifyView.tsx:66-76`, `publicTables.ts:51-54`) et le filtre local (`:79-87`) ; gestion de `400/429` dans l'UI ; tests de composant (jsdom + Testing Library, Q-009).
+2. **Drapeau de module** `public-search` : défaut = **ancien comportement** ; activation en prévisualisation Vercel, puis production.
+3. **Rollback** : **promouvoir le déploiement Vercel précédent** (retour immédiat à l'ancien build) ou retirer `public-search` de la liste et redéployer. Aucun état à restaurer (lecture seule).
+4. Observation ≥ 7 jours (estimé) avant de fermer l'ancien endpoint.
+
+### 7.7 Fermeture de l'ancien endpoint dans `club-manager-api` — **action du propriétaire** (R-013)
+- **À faire** : faire répondre `410 GONE` (ou `404`) à `GET /v1/public/clubs/{clubSlug}/licencies`, **y compris** avec des paramètres (`?limit=1000`, `?q=`), sans authentification et avec un `Origin` du front. `POST …/licencies/{id}/request-link` doit continuer de fonctionner.
+- **Critère de done vérifiable (une requête d'essai qui DOIT échouer)** :
+```bash
+API="https://<url-club-manager-api>"; SLUG="<slug-du-club>"
+curl -s -o /tmp/old.json -w "%{http_code}\n" "$API/v1/public/clubs/$SLUG/licencies"                 # attendu : 410 (ou 404) — JAMAIS 200
+curl -s -o /dev/null -w "%{http_code}\n" "$API/v1/public/clubs/$SLUG/licencies?limit=1000&q=a"      # attendu : 410 (ou 404)
+curl -s -H "Origin: https://<domaine-du-front>" -o /dev/null -w "%{http_code}\n" "$API/v1/public/clubs/$SLUG/licencies"   # idem
+jq -e '.licencies' /tmp/old.json >/dev/null 2>&1 && echo "ÉCHEC : l'annuaire répond encore" || echo "OK : plus de liste"
+# non-régression : l'envoi du lien doit rester possible (avec un identifiant factice → 404 attendu, PAS 410) :
+curl -s -o /dev/null -w "%{http_code}\n" -X POST -H "Content-Type: application/json" -d '{}' "$API/v1/public/clubs/$SLUG/licencies/00000000-0000-4000-8000-000000000000/request-link"
+```
+- **R-013 reste OUVERT après la livraison du LOT-02 tant que ces commandes n'ont pas donné le résultat attendu** ; l'acceptation du risque (D-3) **expire à la livraison du LOT-02** et doit être explicitement renouvelée si l'ancien endpoint n'est pas fermé à ce moment.
+
+### 7.8 Point de sécurité préexistant révélé par cette spécification (R-018, **hors LOT-02**)
+Le flux « lien perdu / première inscription » demande une adresse e-mail quand aucune n'est connue (`IdentifyView.tsx:106-111` : `EMAIL_REQUIRED` → champ e-mail → `requestPersonalLink({ email })`, `publicTables.ts:57-62`) et la **rattache à la fiche**. D'après le code du front, **n'importe quel visiteur qui connaît un nom (même partiel) peut revendiquer une fiche sans adresse et recevoir le lien personnel d'un autre licencié** — y compris un coach ou un administrateur du club (`isClubAdmin`, droits d'écriture FBI via les routes publiques). La recherche bornée réduit la découverte des noms, **pas** cette revendication. **Non vérifié côté `club-manager-api`** (code non lu). Mesures à étudier (hors LOT-02) : première revendication soumise à validation par un admin du club, ou pré-chargement des adresses par le club, ou code de confirmation envoyé à l'adresse **déjà connue** uniquement.
+
