@@ -77,7 +77,7 @@ Même base que `.github/workflows/ci.yml` du front (validé : run `37612678201`)
 Ordre strict, **tests d'abord** :
 1. **Contrat** : figer l'OpenAPI de `GET /v1/public/clubs/{clubSlug}/licencies/search?q=` (`04` B.1, v2) ; écrire **d'abord** les tests de contrat listés au §7.5, qui doivent tous échouer avant le code.
 2. **Accès aux données** : rôle Postgres **lecture seule** limité aux colonnes `id`, prénom, nom de la table des licenciés ; normalisation (minuscules, sans accents, séparateurs) ; correspondance par **préfixe de mot** ; `LIMIT 5` dans la requête ; aucune pagination exposée ; aucune colonne sensible lue (date de naissance, catégorie, e-mail).
-3. **Anti-énumération** : budgets du §7.2 (par IP, par club, résultats vides) ; clé de limitation = HMAC de l'IP à sel journalier, **en mémoire seulement** (un seul réplica ; sinon table de compteurs) ; journaux sans `q`, sans nom, sans IP (§7.4).
+3. **Anti-énumération** : budgets du §7.2 (par IP, par club, résultats vides) ; clé de limitation = HMAC de l'IP à sel journalier, **seule l'empreinte est stockée**, dans `api2.rate_limits` (plusieurs instances ; ADR-003, révision ORM) ; journaux sans `q`, sans nom, sans IP (§7.4).
 4. **Staging** : déploiement, vérifications V1 à V3, test d'énumération du §7.5 exécuté contre l'instance, calibrage des budgets sur un jour d'usage réel, **revue sécurité** (matrice, tentative d'énumération, `Origin` non autorisé).
 5. **Front (PR dans SCSB, séparée)** : `resolveBase(path)` dans `src/lib/api/client.ts` + liste de modules actifs ; `IdentifyView.tsx` interroge le serveur avec anti-rebond (≈ 300 ms), supprime le chargement complet (`IdentifyView.tsx:66-87`) et le filtre local ; **tests de composant** avec jsdom + Testing Library (Q-009 accepté, devDependencies seulement) ; drapeau `FF_PUBLIC_SEARCH`, défaut = ancien comportement.
 6. **Bascule** : activer le drapeau en staging puis en production ; **fermer l'ancien endpoint** `GET …/licencies` (`410`) — **changement à faire côté `club-manager-api` par le propriétaire** (l'agent n'y a pas accès) ; sans cela **R-013 reste ouvert**.
@@ -124,7 +124,7 @@ Réponse au dépassement : `429 RATE_LIMITED` + `Retry-After` (secondes) + en-t�
 |---|---|---|
 | Journaux applicatifs du back | `requestId`, route (gabarit), statut, durée, `resultCount` (0 à 5), décision de limitation ; **jamais `q`, nom, e-mail ni IP** | **14 jours** (estimé : suffisant pour un incident récent, minimal) |
 | Compteurs agrégés d'alerte (par club, par heure) | nombres uniquement | 90 jours |
-| Clé de limitation | HMAC(IP, sel journalier), **en mémoire**, jamais écrite sur disque ni journalisée | durée de la fenêtre (≤ 1 jour) |
+| Clé de limitation | HMAC(IP, sel journalier dérivé d'un secret), stocké dans `api2.rate_limits` (**révision 2026-10-08**, plusieurs instances) ; l'IP en clair n'est jamais écrite ni journalisée | durée de la fenêtre (≤ 1 jour), purge à l'expiration |
 | Journaux HTTP de la plateforme (IP source, chemin) | **hors de notre contrôle** : Railway, rétention selon l'offre (3 j Free … 90 j Enterprise, docs consultées) ; la valeur de `q` est en query string → **non garantie absente** (V1, ADR-007 §7) | à vérifier ; **conséquence : `q` contient un nom, donc de la donnée personnelle**. Option si V1 échoue : transporter `q` dans un corps `POST /search` (non journalisé) — **décision à prendre après V1** |
 
 ### 7.5 Tests de contrat à écrire **en premier** dans le nouveau dépôt (tous rouges avant le code)
@@ -241,10 +241,10 @@ done
 | `fastapi` | exécution | framework HTTP + OpenAPI (ADR-002) ; apporte `pydantic` v2 et `starlette` |
 | `uvicorn[standard]` | exécution | serveur ASGI (uvloop, httptools) ; lancé avec `--no-access-log` (ADR-007) |
 | `pydantic-settings` | exécution | lecture typée de l'environnement, échec au démarrage |
-| `sqlalchemy[asyncio]` | exécution | accès SQL explicite (Core), pas d'ORM sur les tables d'autrui (ADR-003) |
+| `sqlalchemy[asyncio]` | exécution | **ORM SQLAlchemy 2** (`Mapped[...]`) ; tables d'autrui mappées en lecture seule, tables `api2` en lecture-écriture (ADR-003, révision ORM) |
 | `psycopg[binary,pool]` | exécution | pilote unique API + worker, pool asynchrone ; `binary` évite la compilation dans l'image (ADR-003) |
 | `alembic` | exécution (migrations) | schéma `api2` seulement (ADR-003) |
-| `procrastinate` (extra psycopg à confirmer) | exécution | file de jobs dans Postgres (ADR-004) ; ajouté **au premier job**, pas au LOT-02 si le worker reste vide |
+| `procrastinate` (pilote psycopg 3 confirmé par la doc ; **nom de l'extra non confirmé**) | exécution | file de jobs dans Postgres (ADR-004) ; ajouté **au premier job**, pas au LOT-02 si le worker reste vide |
 | `pyjwt[crypto]` | exécution | vérification JWT via `PyJWKClient` (ADR-006) |
 | `httpx` | exécution **et** tests | introspection `/auth/v1/user`, appels serveur-à-serveur, e-mails par API HTTP (fournisseur non choisi : aucun SDK), client de test ASGI |
 | `structlog` | exécution | journaux JSON, redaction (jamais de query string, nom, e-mail, IP) |
@@ -253,20 +253,17 @@ done
 | `ruff` | dev | lint + format |
 | `mypy` | dev | typage strict avec le plugin Pydantic |
 | `pip-audit` | dev | équivalent de `npm audit` en CI |
-**Volontairement absents** : Redis/arq/Celery (pas de besoin chiffré), asyncpg (un seul pilote), bibliothèque de limitation de débit (compteurs en mémoire, un seul réplica, `11` §7.2 ; à reconsidérer si on passe à plusieurs instances), `testcontainers` (service Postgres de CI plutôt qu'une dépendance Docker en test), `schemathesis`/`hypothesis` (non justifiés au LOT-02).
+**Volontairement absents** : Redis/arq/Celery (pas de besoin chiffré), asyncpg (un seul pilote), bibliothèque de limitation de débit (compteurs dans `api2.rate_limits`, atomiques, valables pour plusieurs instances : ADR-003, révision ORM), `testcontainers` (service Postgres de CI plutôt qu'une dépendance Docker en test), `schemathesis`/`hypothesis` (non justifiés au LOT-02).
 
-## 9. Tables et colonnes supposées par la recherche et la revendication (déduites du schéma OpenAPI du front — **à confirmer par le schéma réel que le propriétaire fournira**)
-Le schéma généré (`src/lib/api/generated/schema.ts`) décrit des **DTO**, pas des tables : les noms de tables et de colonnes SQL ci-dessous sont des **suppositions** (marquées ⚠), seuls les champs DTO sont sourcés.
-| Besoin | Objet supposé | Colonnes supposées | Source (DTO, `fichier:ligne`) |
-|---|---|---|---|
-| Résoudre le club par slug | ⚠ `clubs` | `id`, `slug`, `name`, `status` (`active`/`suspended`), `timezone` | `ClubDto` `schema.ts:7289-7303`, `PublicClubDto` `:7692-7698` |
-| Recherche de fiches (LOT-02) | ⚠ `licencies` | `id`, `club_id`, `first_name`, `last_name`, `active` ; **rien d'autre n'est lu** (ni `birth_date`, `email`, `category_label`) | `LicencieDto` `:7816-7838`, `PublicLicencieDto` `:7702-7707` |
-| Savoir si une adresse est connue (R-018) | ⚠ `licencies.email` | `email` (nullable) — lu pour décider, jamais renvoyé | `LicencieDto.email` `:7825` ; `EMAIL_REQUIRED` `:2646` |
-| Fiche « déjà revendiquée » | ⚠ un jeton ou lien existant par fiche | indicateur dérivé de l'existence d'un jeton | `PublicLicencieDto.claimed` `:7706` ; `ALREADY_CLAIMED` `:2663` |
-| Anti-renvoi (`LINK_RECENTLY_SENT`, 1 min) | ⚠ table des jetons/liens | `licencie_id`, `created_at`/`last_sent_at` | `schema.ts:2672` |
-| Droits d'écriture d'une fiche (exclusion de la revendication) | ⚠ colonnes de `licencies` | `public_admin`, `public_coach`, `public_coordinator`, `coached_team_ids` | `LicencieDto` `:7835-7838` |
-| Droits issus des rôles de club (`club_admin`, `coach`, …) | ⚠ table des rôles par membre | `membership_id`, `user_id`, `role` ∈ {`club_admin`,`correspondant_club`,`responsable_tables`,`coach`,`joueur`,`parent`}, `scope_team_id` ; lien membre → fiche | `ClubRole` `:7304`, `RoleGrantDto` `:8270-8274`, `ClubMemberDto` `:8252-8268` |
-| Droits effectifs en espace public | calcul à répliquer | `isClubAdmin`, `derogationRequests.canCreate/canManage`, `tables.canManage` | `PublicMeDto` `:7735-7744` |
-| Nouvelles tables du back (`api2`) | `claim_requests`, journal de décision, compteurs d'alerte | voir §7.9.4 | `11` §7.9 |
-**À fournir par le propriétaire** : le DDL réel de `clubs`, `licencies`, de la table des jetons personnels, de la table des rôles/membres et de leurs index (notamment un index sur `(club_id, lower(unaccent(last_name)), …)` pour la recherche par préfixe de mot : **absent du schéma front, à créer dans `api2` ou à demander**), et l'extension `unaccent` est-elle installée (**non vérifié**).
-
+## 9. Tables et colonnes — schéma trouvé dans le front (révision 2026-10-08, étape B)
+**Source réelle trouvée** : les 34 migrations Supabase du front, présentes dans l'historique git (dernière version au commit `5deeaa4`, 2026-09-21 ; supprimées par `a51b9ad`, 2026-09-22), plus le fichier de types écrit à la main `5deeaa4:src/types/database.ts` (pas de types générés par `supabase gen types`). **Limite** : ce schéma date d'avant la bascule vers `club-manager-api` ; la base réelle peut avoir évolué (jetons, colonnes). Détail par table : ADR-003, « Révision ORM ».
+| Besoin | Table réelle | Colonnes confirmées | Écart avec l'hypothèse précédente | Source (`5deeaa4:`) |
+|---|---|---|---|---|
+| Résoudre le club par slug | `public.clubs` | `id`, `name`, `ffbb_club_id`, `slug` (unique, format `^[a-z0-9]+(-[a-z0-9]+)*$`), `timezone`, `status` ∈ {`active`,`suspended`}, `short_name`, `logo_url`, `accent_color`, `created_at` | **Confirmé** | `supabase/migrations/20260921100000_clubs_rename_and_extend.sql:14-20,36-38` |
+| Recherche de fiches | `public.licencies` | `id`, `club_id`, `first_name`, `last_name`, `birth_date`, `license_number`, `email`, `phone`, `active`, `created_at`, `updated_at` ; index `licencies_club_id_idx` | **Confirmé** ; `category_label` **absent** (le DTO le calcule) | `supabase/migrations/20260921083010_licencies.sql:4-21` |
+| Adresse connue (R-018) | `licencies.email` | nullable | **Confirmé** | idem :11 |
+| Rôles d'une fiche | `club_memberships` (`licencie_id` → fiche, `user_id`, `status`) + `membership_roles` (`role` ∈ `club_role`, `scope_team_id`) | voir ADR-003 | **Écart** : les rôles ne sont pas sur `licencies` ; le lien fiche → rôles passe par `club_memberships.licencie_id` ; `club_role` = {`club_admin`,`correspondant_club`,`responsable_tables`,`coach`,`joueur`,`parent`} (**pas de rôle « coordinateur »**) | `supabase/migrations/20260921100020_club_memberships.sql:18-25,30-38,80-94` |
+| Droits d'écriture | calcul côté back | `public_admin/public_coach/public_coordinator` **ne sont pas des colonnes** | **Contredit** : DTO calculés ; le coordinateur de dérogations n'a pas de rôle dans ce schéma → **hypothèse** : règle par défaut « tout rôle sauf `joueur` et `parent` a des droits d'écriture » (refus par défaut) | idem |
+| Fiche « déjà revendiquée », anti-renvoi | table de jetons | — | **Rien trouvé** : aucune table de jetons dans l'historique ; nom et colonnes restent des **hypothèses** | — |
+| Nouvelles tables du back | `api2.claim_requests`, `api2.claim_decisions`, `api2.alert_counters`, `api2.rate_limits` | voir §7.9.4 et ADR-003 | conception | `11` §7.9 |
+**À fournir par le propriétaire** (inchangé en substance) : le DDL **actuel** de `clubs`, `licencies`, `club_memberships`, `membership_roles` et de la table des jetons personnels (nom et colonnes inconnus), pour comparer avec ci-dessus ; l'extension `unaccent` est-elle installée, et dans quel schéma (**non vérifié** : le code du back l'appelle sans préfixe) ; **index** de recherche : l'index `(club_id)` existe, aucun index sur le nom ; sur un roster d'environ 1 000 fiches par club, le filtre par `club_id` suffit (estimé) — tout index complémentaire appartient à `club-manager-api`, jamais à `api2`.
