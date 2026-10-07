@@ -157,3 +157,10 @@ En-têtes posés dans `next.config.ts` via `src/config/security-headers.ts` ; **
 
 ## Addendum 2026-10-08 — étape A back FastAPI
 Le LOT-02 sera implémenté en **Python/FastAPI** dans `ball-manager-back` (modules `core`, `auth`, `public_search`, `claims` : `05` §12, `11` §1). Ordre inchangé (tests de contrat d'abord, `11` §5, §7.5, §7.9.6). Prérequis avant initialisation : valider les choix de l'étape A (pilote psycopg 3, SQLAlchemy Core, Procrastinate, liste des paquets `11` §8), fournir le schéma réel (`11` §9), exécuter la vérification R-018 (`13`). Le dépôt back n'est **pas** initialisé à ce stade.
+
+## Invariant production et ordre de bascule (2026-10-08)
+**Le front est en production et continue d'évoluer.** Règles :
+1. Aucun service front n'est débranché tant que son remplaçant n'est pas **en service et vérifié côté back**.
+2. Tous les drapeaux (`NEXT_PUBLIC_NEW_API_MODULES`, etc.) sont **désactivés par défaut** ; l'activation est une décision du propriétaire, d'abord en prévisualisation Vercel.
+3. Rien n'est fusionné dans la branche par défaut (`claude/sete-basket-app-architecture-c3hlxx`) sans l'accord du propriétaire. Les correctifs de production (ex. sécurité des dépendances) passent par leur **propre branche issue de la branche par défaut**, jamais par l'intégration.
+4. Ordre de bascule d'un module : (a) back livré et testé (CI verte) → (b) déploiement staging et vérifications → (c) PR front derrière drapeau, défaut = ancien comportement → (d) activation prévisualisation → production → (e) observation ≥ 7 jours → (f) fermeture de l'ancien endpoint (action propriétaire) → (g) nettoyage du code front.
