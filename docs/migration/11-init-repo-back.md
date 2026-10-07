@@ -161,6 +161,76 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST -H "Content-Type: application/j
 ```
 - **R-013 reste OUVERT après la livraison du LOT-02 tant que ces commandes n'ont pas donné le résultat attendu** ; l'acceptation du risque (D-3) **expire à la livraison du LOT-02** et doit être explicitement renouvelée si l'ancien endpoint n'est pas fermé à ce moment.
 
-### 7.8 Point de sécurité préexistant révélé par cette spécification (R-018, **hors LOT-02**)
+### 7.8 Point de sécurité préexistant révélé par cette spécification (R-018) — **traité dans le LOT-02, voir §7.9**
 Le flux « lien perdu / première inscription » demande une adresse e-mail quand aucune n'est connue (`IdentifyView.tsx:106-111` : `EMAIL_REQUIRED` → champ e-mail → `requestPersonalLink({ email })`, `publicTables.ts:57-62`) et la **rattache à la fiche**. D'après le code du front, **n'importe quel visiteur qui connaît un nom (même partiel) peut revendiquer une fiche sans adresse et recevoir le lien personnel d'un autre licencié** — y compris un coach ou un administrateur du club (`isClubAdmin`, droits d'écriture FBI via les routes publiques). La recherche bornée réduit la découverte des noms, **pas** cette revendication. **Non vérifié côté `club-manager-api`** (code non lu). Mesures à étudier (hors LOT-02) : première revendication soumise à validation par un admin du club, ou pré-chargement des adresses par le club, ou code de confirmation envoyé à l'adresse **déjà connue** uniquement.
+
+### 7.9 R-018 intégré au LOT-02 — revendication de fiche soumise à validation (Q-022, décision du 2026-10-07)
+_Règles décidées : (1) la revendication d'une fiche **sans adresse connue** est soumise à la validation d'un **admin du club**, **sans envoi automatique du lien** ; (2) **aucune fiche portant un rôle coach ou admin n'est revendicable** par le parcours public. Les valeurs chiffrées ci-dessous sont des **propositions** (marquées « estimé »). **Deux paramètres sont à fixer au 🛑** : délai d'expiration, qui valide._
+
+**7.9.1 Flux**
+1. **Demande publique** : `POST …/licencies/{licencieId}/request-link` (existant, comportement modifié). Corps : `{ email?, returnTo }`. Le serveur décide seul :
+   | Situation de la fiche (lue côté serveur) | Effet interne | Réponse |
+   |---|---|---|
+   | adresse connue, rôle quelconque | lien envoyé **uniquement à l'adresse connue** (`email` du corps ignoré) | `202` uniforme |
+   | **pas d'adresse**, rôle ni coach ni admin | création d'une **demande de revendication** `pending` (adresse saisie conservée) ; **aucun lien généré, aucun e-mail au demandeur** | `202` uniforme |
+   | pas d'adresse, rôle **coach ou admin** | **rien** (ni demande, ni e-mail) ; compteur interne d'alerte | `202` uniforme |
+   | `licencieId` inconnu / d'un autre club | rien | `202` uniforme |
+2. **Réponse publique uniforme** : `202 {"status":"RECEIVED"}` — même corps, mêmes en-têtes, même ordre de grandeur de délai (traitement différé en arrière-plan : la réponse part avant l'envoi éventuel) dans **les quatre cas**. Elle ne révèle ni l'existence de la fiche, ni la présence d'une adresse, ni le rôle. **`maskedEmail` disparaît** (il révélait l'existence d'une adresse) ; `EMAIL_REQUIRED` disparaît aussi (il révélait « pas d'adresse connue »).
+3. **Message de repli (affiché par le front dans tous les cas)** : « Si ta fiche peut être activée, tu recevras un message. Sans nouvelle sous quelques jours, **contacte ton club**. » Le champ e-mail est **toujours proposé, facultatif** (« à renseigner si le club ne connaît pas ton adresse »).
+4. **File de validation (admin)** : la demande apparaît dans l'espace admin (compteur + liste : nom complet de la fiche, adresse saisie, date, échéance). L'admin **approuve** (le lien personnel est généré et envoyé **à l'adresse saisie**, une seule fois) ou **rejette** (rien n'est envoyé, rien n'est notifié au demandeur).
+5. **Notification des admins** : un e-mail **sans donnée personnelle** (« N demande(s) d'activation en attente », lien vers l'espace admin), au plus **1 par heure et par club** (estimé), puis rappel quotidien tant qu'il reste des demandes.
+6. **Expiration** : une demande non traitée passe à `expired` après **14 jours (proposition, estimé — 🛑)** ; l'adresse saisie est alors **effacée**. Les demandes décidées perdent leur adresse après **30 jours** ; le journal de décision (qui, quand, quelle fiche) est conservé 12 mois (estimé). Un travail planifié (cron du worker) applique ces purges.
+7. **Revérification à l'approbation** : le rôle de la fiche est relu **au moment de l'approbation** ; si la fiche est devenue coach/admin entre-temps → `422 ROLE_NOT_CLAIMABLE`, aucun e-mail.
+
+**7.9.2 Qui valide (proposition — 🛑)** : **`club_admin` seul**. Un coach ne valide pas : il détient déjà des droits d'écriture (tables, dérogations) et l'élargir à la création d'identités agrandit la surface. Alternative à décider : admin **ou** coach pour les fiches de joueurs de sa propre équipe (nécessite le rattachement coach-équipe).
+**Rôles exclus du parcours public (proposition — 🛑)** : `coach`, `club_admin` (décidé) **et `coordinateur` de dérogations**, qui détient lui aussi des droits d'écriture FBI via les routes publiques (`publicTables.ts:131,140`) — à confirmer.
+
+**7.9.3 Nouveaux endpoints** (détail : `04` B.1 bis)
+| Endpoint | Droits |
+|---|---|
+| `POST /v1/public/clubs/{slug}/licencies/{id}/request-link` (modifié) | anonyme ; limites §7.9.5 |
+| `GET /v1/clubs/{clubId}/claim-requests?status=pending` | JWT, `club_admin` du club |
+| `POST /v1/clubs/{clubId}/claim-requests/{requestId}/approve` | JWT, `club_admin` ; **revalidation forte (introspection, ADR-006)** car génère un lien |
+| `POST /v1/clubs/{clubId}/claim-requests/{requestId}/reject` | JWT, `club_admin` |
+
+**7.9.4 Données (esquisse)** : `claim_requests(id, club_id, licencie_id, requested_email, status, created_at, expires_at, decided_by, decided_at)` ; au plus **3 demandes `pending` par fiche** ; le jeton n'est jamais stocké dans cette table ni renvoyé par ces endpoints.
+
+**7.9.5 Limites de débit (estimées, à calibrer)** : `request-link` : 5/heure par fiche, 20/heure par IP, **10 demandes `pending` créées par heure et par club, plafond 50 en attente** (au-delà : `202` uniforme mais la demande est ignorée + alerte — protège la file contre le spam, cf. R-019).
+
+**7.9.6 Tests de contrat à écrire en premier (tous rouges avant le code)**
+1. **Aucun lien sans validation (test central)** : pour une fiche sans adresse (rôle ordinaire), `request-link` avec une adresse → `202` ; l'espion d'envoi d'e-mails n'a **reçu aucun message**, aucun jeton n'existe en base, une demande `pending` existe ; seule l'approbation par un admin déclenche **un** envoi, à l'adresse saisie.
+2. **Fiche coach ou admin non revendicable (test central)** : pour une fiche coach, admin (et coordinateur si retenu) **sans adresse** → `202` identique, **aucune demande créée, aucun e-mail**, y compris avec 50 tentatives et 50 IP.
+3. **Réponse uniforme** : corps, statut et en-têtes **identiques** (hors `requestId`) pour : adresse connue, revendiquable, coach/admin, id inconnu, id d'un autre club ; écart de médiane de délai < 20 ms (indicatif).
+4. Adresse connue : le lien part **à l'adresse connue**, jamais à celle du corps.
+5. Approbation par : coach, simple membre, anonyme, admin d'un autre club → `403`/`401`/`404` ; aucun e-mail.
+6. Revérification : fiche promue coach après la demande → `422 ROLE_NOT_CLAIMABLE`, aucun e-mail.
+7. Expiration : approbation d'une demande expirée → `409 EXPIRED` ; la purge efface `requested_email`.
+8. Rejeu : double `approve` → `409` ; un seul e-mail.
+9. Aucune réponse de ces endpoints ne contient de jeton ; le lien envoyé n'est jamais journalisé.
+10. Journaux : ni adresse, ni nom, ni IP (cas 202, 403, 422). E-mail de notification admin : aucune donnée personnelle.
+11. Limites de la §7.9.5 (dont plafond de 3 `pending` par fiche et de 50 par club) ; `?token=` → `400 TOKEN_IN_QUERY`.
+12. Parité d'autorisation : les 3 routes `/v1/clubs/…/claim-requests` exigent un JWT (test de la liste blanche, ADR-006).
+
+**7.9.7 Procédure de vérification de R-018 sur l'existant** _(à lancer par le propriétaire, sur un **club de test**, avec des fiches **synthétiques** ; aucune donnée réelle ; ne jamais coller de sortie contenant un jeton)_
+Préparation (dans l'application, club de test) : fiche **A** « Test Joueur » sans adresse, sans rôle ; fiche **B** « Test Coach » sans adresse, rôle coach ; fiche **C** « Test Admin » sans adresse, rôle admin. Une boîte e-mail de test que vous contrôlez (`vous+r018@…`).
+```bash
+API="https://<url-club-manager-api>"; SLUG="<slug-du-club-de-TEST>"; MAIL="<votre-adresse-de-test>"
+# 1) récupérer les identifiants des 3 fiches de test (ancien endpoint, club de test uniquement)
+curl -sS "$API/v1/public/clubs/$SLUG/licencies" | jq -r '.licencies[]|select(.lastName|test("^Test"))|"\(.id) \(.firstName) \(.lastName) claimed=\(.claimed)"'
+A="<id fiche A>"; B="<id fiche B>"; C="<id fiche C>"
+# 2) pour CHAQUE fiche : sans adresse -> le serveur la réclame-t-il ? (attendu aujourd'hui : 400 EMAIL_REQUIRED)
+for ID in $A $B $C; do
+  curl -sS -o /tmp/r018.json -w "$ID sans e-mail -> HTTP %{http_code}\n" -X POST -H "Content-Type: application/json" \
+    -d '{"returnTo":"home"}' "$API/v1/public/clubs/$SLUG/licencies/$ID/request-link"; jq -c '.error.code // .' /tmp/r018.json
+done
+# 3) avec VOTRE adresse de test : un lien part-il sans aucune validation ?
+for ID in $A $B $C; do
+  curl -sS -o /tmp/r018.json -w "$ID avec e-mail -> HTTP %{http_code}\n" -X POST -H "Content-Type: application/json" \
+    -d "{\"email\":\"$MAIL\",\"returnTo\":\"home\"}" "$API/v1/public/clubs/$SLUG/licencies/$ID/request-link"; jq -c 'del(.maskedEmail)' /tmp/r018.json
+done
+# 4) ouvrez la boîte de test : combien de messages « lien personnel » sont arrivés (0 à 3) ?
+```
+**Lecture des résultats** : un message reçu pour **A** = revendication sans validation **confirmée** (R-018 réel) ; un message pour **B** ou **C** = **aggravation** (lien coach/admin obtenu par un tiers : priorité maximale, rotation du jeton de ces fiches) ; aucun message et un `4xx` = R-018 **non reproduit** sur ce chemin (le noter, ne pas conclure sur les autres chemins).
+**Si un message est arrivé pour B ou C** : (a) ne pas cliquer sur le lien depuis un navigateur partagé ; (b) régénérer/révoquer le jeton de la fiche concernée dans l'application ; (c) supprimer l'adresse de test des fiches ; (d) me renvoyer **uniquement** : les codes HTTP des 6 appels, le nombre de messages reçus pour A, B, C. **Ne pas** me renvoyer le lien ni le jeton.
+**Nettoyage** : retirer l'adresse de test des fiches A, B, C ; supprimer les fiches de test si elles ne servent plus ; vider la boîte de test.
 

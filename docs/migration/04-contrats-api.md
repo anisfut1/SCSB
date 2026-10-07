@@ -224,6 +224,37 @@ _Principe (ADR-005) : tous **additifs sous `/v1`**, même enveloppe d'erreur, m�
 **Changements de contrat par rapport à l'annuaire actuel** (`PublicLicencieDto`, `schema.ts:7702-7708`) : plus de `lastName` complet, **plus de `claimed`** (indiquait quels profils n'ont pas encore de lien — cf. R-018), `id` + `firstName` + `lastInitial` seulement. Impact front : l'écran de confirmation ne peut plus distinguer « déjà inscrit » (`IdentifyView.tsx:173-175,240-246`) → message neutre ; « Lien envoyé, {firstName} » (`:133`) inchangé.
 **Ancien endpoint** `GET …/licencies` (annuaire complet) : à **fermer dans `club-manager-api`** (`410 GONE` ou `404`) — action du propriétaire, critère de done vérifiable en `11` §7.6 ; **tant qu'il répond `200`, R-013 n'est pas résolu**. `POST …/licencies/{id}/request-link` inchangé (`publicTables.ts:64`).
 
+### B.1 bis — LOT-02 / R-018 : revendication de fiche soumise à validation (Q-022, décision du 2026-10-07)
+Règles et flux : `11-init-repo-back.md` §7.9. **Propositions de contrat**, à figer par les tests de contrat (`11` §7.9.6).
+```yaml
+/v1/public/clubs/{clubSlug}/licencies/{licencieId}/request-link:      # MODIFIÉ
+  post:
+    operationId: requestPersonalLink
+    security: []
+    requestBody: { content: { application/json: { schema: { type: object, additionalProperties: false, required: [returnTo], properties: { email: { type: string, format: email, maxLength: 254, nullable: true }, returnTo: { $ref: "#/components/schemas/PublicLinkTarget" } } } } } }
+    responses:
+      "202":   # UNIQUE réponse de succès : identique que la fiche existe ou non, ait une adresse ou non, porte un rôle ou non
+        content: { application/json: { schema: { type: object, required: [status], additionalProperties: false, properties: { status: { type: string, enum: [RECEIVED] } } } } }
+      "400": { $ref: "#/components/responses/ErrorEnvelope" }   # VALIDATION_ERROR (adresse mal formée) — jamais EMAIL_REQUIRED
+      "429": { $ref: "#/components/responses/ErrorEnvelope" }   # RATE_LIMITED + Retry-After
+/v1/clubs/{clubId}/claim-requests:
+  get:  { operationId: listClaimRequests, security: [{ bearer: [] }], parameters: [{ name: status, in: query, schema: { enum: [pending, approved, rejected, expired], default: pending } }],
+          responses: { "200": { content: { application/json: { schema: { type: object, required: [requests], properties: { requests: { type: array, items: { $ref: "#/components/schemas/ClaimRequestDto" } } } } } } }, "401": {}, "403": {}, "404": {} } }
+/v1/clubs/{clubId}/claim-requests/{requestId}/approve:
+  post: { operationId: approveClaimRequest, security: [{ bearer: [] }], responses: { "200": { description: "lien envoyé à l'adresse saisie, une seule fois" }, "403": {}, "404": {}, "409": { description: "ALREADY_DECIDED | EXPIRED" }, "422": { description: "ROLE_NOT_CLAIMABLE" } } }
+/v1/clubs/{clubId}/claim-requests/{requestId}/reject:
+  post: { operationId: rejectClaimRequest, security: [{ bearer: [] }], responses: { "200": {}, "403": {}, "404": {}, "409": {} } }
+components.schemas.ClaimRequestDto:   # additionalProperties: false ; JAMAIS de jeton
+  { id: uuid, licencieId: uuid, firstName: string, lastName: string, requestedEmail: string, status: enum, createdAt: date-time, expiresAt: date-time }
+```
+| Endpoint | Droits |
+|---|---|
+| `POST …/request-link` | anonyme ; 5/h par fiche, 20/h par IP, 10 nouvelles demandes/h par club |
+| `GET …/claim-requests` | JWT, `club_admin` du club (les autres rôles et les autres clubs : `403`/`404`) |
+| `POST …/approve` | JWT, `club_admin` ; revalidation forte (introspection, ADR-006) ; relit le rôle de la fiche |
+| `POST …/reject` | JWT, `club_admin` |
+**Écarts de contrat** : `RequestPersonalLinkResultDto.maskedEmail` et le code `EMAIL_REQUIRED` disparaissent (ils révélaient l'état de la fiche) ; impact front : `IdentifyView.tsx:106-111,133` (champ e-mail toujours facultatif, message neutre de repli « contacte ton club ») — **PR front du LOT-02**. L'ancien comportement reste servi par `club-manager-api` tant que le module n'est pas basculé (ADR-005) : **R-018 reste ouvert jusqu'à la bascule**.
+
 ### B.2 — LOT-03 : gymnases dynamiques
 - Ajouter `venueId: uuid | null` (additif) aux `MatchListItemDto` / `MatchDetailsDto` (aujourd'hui seulement `venueLabel`, `schema.ts:7355,7381`).
 - `GET /v1/clubs/{clubId}/venues` existe (`members.ts:9`, DTO « admin ») ; ajouter une lecture **membre** et son équivalent public : `GET /v1/public/clubs/{clubSlug}/venues` → `{ "venues": [ { "id", "name", "isHomeVenue" } ] }`. **À confirmer** : le rôle exigé par la route actuelle ; si un `venueId` ne peut pas être porté par les matchs, rapprochement libellé↔gymnase côté back (`venuesLikelyMatch` mentionné `HomeMatchesAgenda.tsx:22-24`).
