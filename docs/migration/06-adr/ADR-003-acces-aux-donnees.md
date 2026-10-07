@@ -1,6 +1,6 @@
 # ADR-003 — Accès aux données du nouveau back
 - **Date** : 2026-10-07
-- **Statut** : Proposée — accès par SQL typé (Kysely) maintenu ; **localisation de la base = Q-015 (décision du propriétaire)**, voir « Révision Railway » ci-dessous.
+- **Statut** : **Acceptée pour la phase S3** : Supabase conservé (Q-015, décision du 2026-10-07) ; accès par SQL typé (Kysely) maintenu ; **réévaluation obligatoire en fin de S3** (voir ci-dessous).
 - **Révision** : 2026-10-07 (nouveau back sur Railway, Q-012).
 
 ## Contexte
@@ -23,8 +23,8 @@ Connexion : **voir la révision Railway** (la connexion directe 5432 supposée e
 ## Conséquences
 - (+) Aucune dépendance de schéma imposée ; agrégations en une requête ; testable avec une vraie base de test.
 - (−) **Responsabilité de sécurité déplacée** de la RLS vers le code : une route oubliée = fuite. Mitigation : middleware d'auth obligatoire par défaut (liste blanche des routes publiques), test automatisé qui énumère les routes et vérifie l'exigence d'auth.
-- (−) Le mot de passe du rôle Postgres est un nouveau secret côté VPS (voir `05-architecture-cible.md` §10).
-- À surveiller : latence VPS↔Supabase (région ; **non mesurée**), nombre de connexions (limite de l'offre Supabase, à confirmer).
+- (−) Le mot de passe du rôle Postgres est un nouveau secret côté Railway (voir `05-architecture-cible.md` §10).
+- À surveiller : latence Railway↔Supabase (région ; **non mesurée**), nombre de connexions (limite de l'offre Supabase, à confirmer).
 
 ## Révision Railway (2026-10-07) — préparation de Q-015
 **Faits vérifiés (docs Supabase, 2026-10-07)** : la connexion **directe** d'une base Supabase est en **IPv6** (IPv4 seulement avec l'add-on payant) ; **Supavisor session mode (port 5432)** et **transaction mode (port 6543)** ont des adresses **IPv4**. Pour un hôte sans IPv6, Supabase recommande le mode session. **Non documenté par Railway** : l'IPv6 sortant, les IP sortantes fixes, la région par défaut → **par prudence, on suppose l'IPv4** (pooler Supavisor).
@@ -54,3 +54,15 @@ Les modes de pooling transactionnel sont **incompatibles avec les verrous consul
 ### Recommandation (Q-015)
 **(a) maintenant**, avec **(c) comme repli** si le test de `pg-boss` derrière Supavisor échoue (ou si la charge sur le pooler gêne `club-manager-api`). **(b) reportée à la fin de S3** (après retrait de l'existant) et seulement si un besoin concret l'exige. Motifs : S3 impose **une seule base partagée** pendant la coexistence ; (b) crée deux sources de vérité ; (a) ne demande aucune migration.
 **À mesurer avant gel** (consignées dans `11-init-repo-back.md`) : région des deux projets, latence aller-retour, test `pg-boss` sur session pooler, limites de connexions.
+
+## Décision Q-015 (2026-10-07) et réévaluation obligatoire
+**Décision** : **Supabase est conservé pendant toute la phase S3.** Une base Railway créerait deux sources de vérité tant que `club-manager-api` écrit dans Supabase, et l'authentification Supabase est conservée de toute façon. L'option (c) (petite base Railway pour la file `pg-boss`) reste un **repli technique**, déclenché uniquement par un échec du test V2 (`11` §3).
+**Exigence de région** : le service Railway (`api` et `worker`, `staging` et `production`) doit être déployé dans la région **la plus proche possible** de celle du projet Supabase ; les deux régions sont consignées dans `ops/railway.md` et dans `11` ; **la région Supabase n'est pas connue de l'agent** (à fournir, rappel du 🛑).
+**Réévaluation obligatoire à la fin de S3** (au plus tard quand le dernier module d'écriture hérité est porté, ou à l'arrêt de `club-manager-api`, selon l'événement qui survient en premier), **fondée sur des mesures, pas sur des préférences** :
+| Mesure | Méthode | Seuil de décision (à fixer avec le propriétaire avant la mesure) |
+|---|---|---|
+| Latence p50/p95 Railway→pooler Supabase | 200 requêtes simples + les 3 requêtes agrégées les plus lourdes (dashboard, results, search), depuis `staging`, aux heures d'usage | p95 > seuil convenu sur les routes de lecture |
+| Coût mensuel réel | facture Railway (services + éventuelle base) et plan Supabase, relevés sur ≥ 1 mois complet | écart justifiant l'effort de migration |
+| Effort de migration | inventaire des tables lues/écrites par le nouveau back, dépendances à `auth.users` et aux politiques RLS, volumes, fenêtre de coupure, plan de retour | chiffré en jours et en risque |
+| Disponibilité/erreurs de connexion | taux d'erreurs BDD du back sur 30 jours | taux supérieur à l'existant |
+La bascule vers Postgres Railway n'est envisagée **que si** ces mesures la justifient ; sinon Supabase reste la base du back. La réévaluation donne lieu à un nouvel ADR.

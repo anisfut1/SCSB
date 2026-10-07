@@ -1,7 +1,7 @@
 # ADR-007 — Déploiement du nouveau back sur Railway
-- **Date** : 2026-10-07 (révision du même jour : remplace la version « VPS »)
+- **Date** : 2026-10-07 (révision du même jour : remplace la première version, fondée sur une hypothèse d'hébergement erronée)
 - **Statut** : Proposée — hébergement **décidé** par le propriétaire (Q-012 : Railway) ; les choix de build/exploitation ci-dessous sont à valider au 🛑.
-- **Historique** : la première version (Docker Compose + Caddy sur VPS, Phase 3) est **remplacée** : le nouveau back n'ira pas sur le VPS. Le front reste hors périmètre de cet ADR (son hébergement réel est à confirmer, Q-017).
+- **Historique** : la première version (Docker Compose + Caddy, Phase 3) reposait sur une réponse erronée (Q-007 : « VPS ») et est **remplacée**. **Le front est sur Vercel** (Q-017, confirmé le 2026-10-07) : aucun VPS dans le projet. Le front reste hors périmètre de cet ADR.
 
 ## Contexte
 - Décisions : Q-011 = S3 (coexistence puis remplacement progressif), Q-012 = nouveau back sur **Railway**, repository créé par le propriétaire (`11-init-repo-back.md`).
@@ -58,3 +58,8 @@
 - (−) Healthchecks seulement au déploiement : sans supervision externe, un service planté après déploiement n'est signalé que par le redémarrage automatique.
 - (−) Le routage S3 est contraint (R-014) : voir ADR-005.
 - **À surveiller** : coût (services `api` + `worker` × 2 environnements), latence Railway↔Supabase (même région ?), politique de rétention des journaux (3 à 30 jours selon l'offre) vs besoin d'audit, évolution de l'Infrastructure as Code Railway.
+
+## Conséquences de Q-017 (front sur Vercel) pour le déploiement et R-014
+- **CORS** du nouveau back : origine du front de production sur Vercel ; prévisualisations Vercel à décider (liste explicite, pas de joker).
+- **Rollback côté front** : promotion du déploiement Vercel précédent (ADR-005).
+- **R-014 — deux plateformes à examiner** : Railway (non documenté, ci-dessus) **et Vercel (documenté : les « Search Params » figurent dans les journaux d'exécution**, vercel.com/docs/logs/runtime, rétention 1 h à 30 jours selon l'offre). Le jeton traverse déjà le front Vercel (ouverture du lien e-mail) et `club-manager-api` (Vercel) ; **la migration du jeton vers un en-tête ne suffit pas** : le **lien de l'e-mail** lui-même contient `?token=`. Mitigation à planifier (LOT-14) : **placer le jeton dans le fragment `#token=`** du lien (jamais envoyé au serveur ni dans `Referer`), lu par le front en plus de `?token=` pendant la transition. Cela exige de modifier la génération du lien dans `club-manager-api` (action du propriétaire).

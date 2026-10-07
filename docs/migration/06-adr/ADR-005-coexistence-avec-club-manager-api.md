@@ -1,13 +1,18 @@
 # ADR-005 — Coexistence puis remplacement progressif de `club-manager-api` (S3)
 - **Date** : 2026-10-07 (révisé le même jour)
 - **Statut** : **Acceptée pour S3** (décision Q-011) — **le mécanisme de routage reste à trancher (Q-016)**.
-- **Révision** : la version de Phase 3 supposait un reverse proxy VPS commun ; le nouveau back étant sur **Railway** (Q-012) et le front sur une plateforme distincte, ce proxy n'existe plus.
+- **Révision** : la version de Phase 3 supposait un reverse proxy commun (sur un VPS, d'après une réponse erronée de Q-007) ; le nouveau back est sur **Railway** (Q-012) et le front sur **Vercel** (Q-017) : ce proxy n'existe pas.
 
 ## Contexte
 - `club-manager-api` (Vercel) porte les 92 opérations consommées, FFBB, FBI (navigateur headless), e-Marque, les crons et les migrations ; son code n'a **pas** été lu (`04` §A, `05` §13).
 - Le front (`src/lib/api/`) appelle **une seule base d'URL** : `NEXT_PUBLIC_CLUB_MANAGER_API_URL` (`config.ts:8`, `env.public.ts:24`), via un client central `apiFetch` (`client.ts:45-83`) enveloppé par `server.ts` (Server Components) et `browserClient.ts` (Client Components). Les routes publiques à jeton appellent `apiFetch` **directement** (`publicTables.ts:11-14`).
 - Le nouveau back (Railway, ADR-007) livre d'abord les endpoints **nouveaux** : LOT-02 (recherche publique), puis 03, 05, 07, 08, 09, 10.
 - **Contrainte R-014** : tout trafic portant `?token=` transiterait par l'infrastructure qui le route ; Railway ne documente ni ne permet d'exclure la journalisation des query strings (ADR-007 §7).
+- **Chemin réel du trafic à jeton personnel (Q-017, front sur Vercel)** — établi par lecture du code :
+  1. *Lien reçu par e-mail* : `https://<front Vercel>/public/{slug}/…?token=…` → **requête de page vers le projet Vercel du front** (toutes les pages `/public/*` sont dynamiques, `npm run build` : `ƒ`). Le jeton n'est lu que **dans le navigateur** (`PublicIdentityProvider.tsx:22-24` via `window.location`), puis retiré de la barre d'adresse (`:30-36`, `stripTokenFromUrl`) **après** la résolution d'identité — donc après que le serveur l'a reçu.
+  2. *Appels API ensuite* : `getPublicMe`, `listPublicTableAssignments`, etc. sont appelés depuis des **Client Components** (`PublicIdentityProvider.tsx:79-84`) via `apiFetch` : **navigateur → `club-manager-api` directement** (autre projet Vercel), jeton en `?token=` (`publicTables.ts:72-131`). Le serveur Next du front **n'est pas un relais** (aucun Route Handler : `src/app/api` n'existe pas) et ne voit jamais le jeton des appels API.
+  3. *Stockage* : `localStorage` (`publicToken.ts:19-28`) et un cookie « reconnu » qui ne contient **pas** le jeton (`PublicIdentityProvider.tsx:46`).
+  → Le jeton passe donc par **deux projets Vercel** (front : à l'ouverture du lien ; `club-manager-api` : à chaque appel). **Les journaux d'exécution Vercel enregistrent les « Search Params » de la requête** (source : *vercel.com/docs/logs/runtime*, « Log details », consultée le 2026-10-07 ; rétention : 1 h Hobby, 1 jour Pro, 30 jours avec Observability Plus, 3 jours Enterprise). **R-014 est donc déjà réel côté Vercel**, indépendamment de Railway.
 - Le jeton Supabase (Bearer) est le même pour les deux back (même émetteur) ; CORS : le navigateur appelle déjà `club-manager-api` en cross-origin.
 
 ## Options de routage (sans reverse proxy commun)
@@ -16,7 +21,7 @@ Le client résout, pour chaque requête, la base d'URL **selon le chemin** : une
 - (+) **Le nouveau back n'est jamais sur le chemin critique des modules non portés** ; aucune latence ni panne ajoutée au trafic hérité ; rollback = retirer le module de la liste.
 - (+) **Compatible R-014** : le trafic `?token=` hérité va directement à Vercel, sans passer par Railway.
 - (+) Aucun composant réseau supplémentaire à exploiter ; chaque back garde son périmètre de sécurité.
-- (−) La table de routage vit **dans le front** (code + déploiement du front pour la changer) ; les variables `NEXT_PUBLIC_*` sont **inlinées au build** → un rollback par drapeau exige un redéploiement du front (minutes) — sauf pour les appels faits côté serveur, qui peuvent lire un drapeau serveur sans reconstruire.
+- (−) La table de routage vit **dans le front** (code + déploiement du front pour la changer) ; les variables `NEXT_PUBLIC_*` sont **inlinées au build**. **Sur Vercel, le rollback d'un drapeau de routage se fait par la promotion du déploiement précédent** (retour immédiat à l'ancien build, avec ses anciennes valeurs inlinées) **ou** par modification de la variable puis redéploiement. Les appels faits côté serveur peuvent lire un drapeau serveur sans reconstruire.
 - (−) **CORS** à configurer sur le nouveau back ; **deux URLs publiques** de back exposées au navigateur ; le jeton Bearer est envoyé aux deux (même émetteur).
 - (−) Risque de **dérive** : un module routé vers le nouveau back mais non à parité côté données.
 ### (b) Le nouveau back proxifie `club-manager-api` pour les routes non portées (passerelle)
@@ -30,7 +35,7 @@ Le front n'appelle que le nouveau back ; celui-ci traite les routes portées et 
 Démarrer en (a) ; migrer vers (b) **uniquement** lorsque : (1) le jeton personnel est passé en en-tête sur tous les appels (R-014 clos), (2) LOT-10 a retiré les requêtes longues, (3) la majorité du trafic (estimé > 50 %) est déjà servie par le nouveau back, (4) disponibilité du nouveau back mesurée ≥ celle de l'existant sur 30 jours.
 
 ## Décision proposée (Q-016 : à trancher par le propriétaire)
-**Option (c) : (a) maintenant.** Motifs : R-014 interdit de faire transiter le trafic à jeton par Railway ; le nouveau back ne doit pas être un point de défaillance global avant d'avoir fait ses preuves ; la livraison du LOT-02 (en tête, R-013) n'exige qu'un seul préfixe routé.
+**Option (c) : (a) maintenant (acceptée).** Motifs : R-014 interdit de faire transiter le trafic à jeton par Railway ; le nouveau back ne doit pas être un point de défaillance global avant d'avoir fait ses preuves ; la livraison du LOT-02 (en tête, R-013) n'exige qu'un seul préfixe routé.
 Garde-fous : (1) **une seule fonction `resolveBase(path)`** — aucun `fetch` ailleurs ; (2) table de routage **testée** (chaque préfixe routé a un test de contrat) ; (3) drapeaux **par module**, défaut = hérité ; (4) pas de routage par expression générique : liste explicite de préfixes ; (5) le jeton personnel n'est **jamais** envoyé au nouveau back en query string (`400 TOKEN_IN_QUERY`).
 
 ## Trajectoire de remplacement module par module
@@ -49,5 +54,5 @@ Garde-fous : (1) **une seule fonction `resolveBase(path)`** — aucun `fetch` ai
 ## Conséquences
 - (+) Livraison incrémentale, R-013 refermé vite, le front garde un seul client réseau, sécurité du jeton préservée.
 - (−) Pendant S3, **deux autorisations** à garder identiques (mêmes tables de membership, test de parité) ; **dérive de schéma** si les deux écrivent (règle : le nouveau back n'écrit que dans ses tables, ADR-003) ; deux jeux d'URLs/CORS jusqu'au passage éventuel en (b).
-- (−) En (a), un rollback par drapeau `NEXT_PUBLIC_*` exige un redéploiement du front : à accepter ou à compenser par une configuration lue au runtime côté serveur.
-- **À surveiller** : disponibilité et latence du nouveau back (non mesurées), dérive de contrat (le schéma commité est déjà inexact, `04` E-1), état de Q-017 (où est le front ?) pour CORS/CSP.
+- (−) En (a), un rollback par drapeau `NEXT_PUBLIC_*` passe par la promotion du déploiement Vercel précédent ou un redéploiement ; documenté dans le runbook du LOT-02 (`11` §7).
+- **À surveiller** : disponibilité et latence du nouveau back (non mesurées), dérive de contrat (le schéma commité est déjà inexact, `04` E-1), CORS : l'origine autorisée est le domaine du front Vercel (production) ; les domaines de prévisualisation Vercel (`*.vercel.app`) sont à traiter au cas par cas (à décider, jamais de joker global).

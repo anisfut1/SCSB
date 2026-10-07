@@ -1,6 +1,6 @@
 # 05 — Architecture cible du nouveau back
 _Phase 3, 2026-10-07, **révisée le même jour pour Railway** — proposition en attente de validation 🛑 (Q-014 à Q-017 ouvertes ; Q-011 = S3 et Q-012 = Railway décidées)._
-_Révision : le nouveau back est hébergé sur **Railway** (pas sur le VPS) ; la coexistence S3 n'a plus de reverse proxy commun (ADR-005) ; la base peut rester chez Supabase ou aller chez Railway (Q-015, ADR-003)._ Documentation seule : aucun repository créé, aucun code back. Les chiffres de volumétrie sont **estimés** (Q-010 : « garde tes estimations »)._
+_Révision : le nouveau back est hébergé sur **Railway** (le front est sur **Vercel**, Q-017) ; la coexistence S3 n'a plus de reverse proxy commun (ADR-005) ; la base peut rester chez Supabase ou aller chez Railway (Q-015, ADR-003)._ Documentation seule : aucun repository créé, aucun code back. Les chiffres de volumétrie sont **estimés** (Q-010 : « garde tes estimations »)._
 
 **Cadrage (Q-002 rouverte)** : la Phase 3 conçoit un **nouveau back**, dans un repository dédié. Le contrat actuellement consommé par le front (`04-contrats-api.md` §A, 92 opérations) est la **contrainte de compatibilité** de départ ; `club-manager-api` n'a pas été lu et reste, par défaut, propriétaire des intégrations (ADR-005).
 

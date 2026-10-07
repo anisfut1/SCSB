@@ -7,7 +7,7 @@ _2026-10-07. Le propriétaire crée le repository lui-même et en communiquera l
 | Nom du dépôt, visibilité (privé recommandé), organisation GitHub | propriétaire | `ops/`, domaines, secrets |
 | Q-015 | Base : Supabase (a) / Railway (b) / hybride file seule (c) | connexion de l'API et de `pg-boss` |
 | Q-016 | Routage S3 : (a) client / (b) passerelle (recommandé : (c) = (a) maintenant) | structure de `ops/contract/` et du front |
-| Q-017 | Où est réellement le front (Vercel ? VPS ?) | CORS (origine autorisée), CSP |
+| Q-017 ✅ | Front sur **Vercel** (décision 2026-10-07) | CORS (origine = domaine Vercel du front + domaines de prévisualisation à décider), CSP |
 | **Q-018** | **« Annuaire public authentifié » (consigne du propriétaire) : quelle authentification, exactement ?** Voir §7 | forme du contrat du LOT-02 |
 
 ## 1. Arborescence initiale (sous-ensemble minimal pour le LOT-02 ; reprise du §12 de `05`, adaptée à Railway)
