@@ -13,6 +13,7 @@ export default defineConfig({
   test: {
     environment: "node",
     setupFiles: ["./vitest.setup.ts"],
-    include: ["src/**/*.test.ts"],
+    // Environnement `node` par défaut ; un test qui a besoin du DOM le déclare par fichier (`// @vitest-environment jsdom`, Q-009).
+    include: ["src/**/*.test.{ts,tsx}"],
   },
 });

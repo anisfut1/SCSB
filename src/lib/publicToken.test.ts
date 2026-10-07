@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearStoredPublicToken, consumePublicTokenFromUrl, getStoredPublicToken, hrefWithoutToken, resetConsumedPublicToken, setStoredPublicToken, tokenFromHref } from "./publicToken";
 
 const BASE = "https://front.test.example/public/sete/matchs";
@@ -41,71 +42,83 @@ describe("R-014 — jeton en fragment (#token=)", () => {
   });
 });
 
-describe("consumePublicTokenFromUrl — lecture puis nettoyage immédiat", () => {
+describe("consumePublicTokenFromUrl — vrai window jsdom", () => {
+  const PATH = "/public/sete/matchs";
+
+  beforeEach(() => {
+    window.history.replaceState(null, "", PATH);
+  });
   afterEach(() => {
-    vi.unstubAllGlobals();
     resetConsumedPublicToken();
+    window.history.replaceState(null, "", "/");
   });
 
-  function stubWindow(href: string) {
-    const replaceState = vi.fn();
-    vi.stubGlobal("window", { location: { href }, history: { state: { k: 1 }, replaceState } });
-    return replaceState;
-  }
+  const open = (suffix: string) => window.history.replaceState({ k: 1 }, "", `${PATH}${suffix}`);
 
-  it("fragment : renvoie le jeton et retire l'URL (ni query, ni fragment)", () => {
-    const replaceState = stubWindow(`${BASE}#token=${T}`);
+  it("fragment : renvoie le jeton ; l'URL réelle n'en contient plus (ni query, ni fragment)", () => {
+    open(`#token=${T}`);
     expect(consumePublicTokenFromUrl()).toBe(T);
-    expect(replaceState).toHaveBeenCalledExactlyOnceWith({ k: 1 }, "", "/public/sete/matchs");
+    expect(window.location.href).not.toContain(T);
+    expect(window.location.pathname + window.location.search + window.location.hash).toBe(PATH);
   });
-  it("query d'un ancien lien : renvoie le jeton et retire l'URL", () => {
-    const replaceState = stubWindow(`${BASE}?token=${T}`);
+  it("query d'un ancien lien : renvoie le jeton ; URL nettoyée, autres paramètres conservés", () => {
+    open(`?tab=x&token=${T}`);
     expect(consumePublicTokenFromUrl()).toBe(T);
-    expect(replaceState).toHaveBeenCalledExactlyOnceWith({ k: 1 }, "", "/public/sete/matchs");
+    expect(window.location.search).toBe("?tab=x");
+    expect(window.location.href).not.toContain(T);
   });
-  it("sans jeton : null, URL non touchée", () => {
-    const replaceState = stubWindow(BASE);
-    expect(consumePublicTokenFromUrl()).toBeNull();
-    expect(replaceState).not.toHaveBeenCalled();
+  it("les deux : le fragment est prioritaire, et l'URL n'a plus aucun jeton", () => {
+    open(`?token=ancien-jeton#token=${T}`);
+    expect(consumePublicTokenFromUrl()).toBe(T);
+    expect(window.location.search).toBe("");
+    expect(window.location.hash).toBe("");
   });
-  it("seconde lecture après nettoyage (StrictMode) : retrouve le jeton déjà lu", () => {
-    stubWindow(`${BASE}#token=${T}`);
+  it("conserve l'état d'historique et ne crée pas d'entrée supplémentaire", () => {
+    open(`#token=${T}`);
+    const before = window.history.length;
     consumePublicTokenFromUrl();
-    stubWindow(BASE);
+    expect(window.history.state).toEqual({ k: 1 });
+    expect(window.history.length).toBe(before);
+  });
+  it("un fragment d'ancre sans jeton est laissé intact, sans replaceState", () => {
+    open("#ancre");
+    const spy = vi.spyOn(window.history, "replaceState");
+    expect(consumePublicTokenFromUrl()).toBeNull();
+    expect(spy).not.toHaveBeenCalled();
+    expect(window.location.hash).toBe("#ancre");
+    spy.mockRestore();
+  });
+  it("double lecture (StrictMode) : la seconde, URL déjà nettoyée, retrouve le jeton", () => {
+    open(`#token=${T}`);
+    consumePublicTokenFromUrl();
+    expect(window.location.href).not.toContain(T);
     expect(consumePublicTokenFromUrl()).toBe(T);
   });
   it("après reset (oublier ce navigateur) : plus de jeton", () => {
-    stubWindow(`${BASE}#token=${T}`);
+    open(`#token=${T}`);
     consumePublicTokenFromUrl();
     resetConsumedPublicToken();
-    stubWindow(BASE);
     expect(consumePublicTokenFromUrl()).toBeNull();
   });
   it("replaceState qui échoue : le jeton est quand même renvoyé", () => {
-    vi.stubGlobal("window", { location: { href: `${BASE}#token=${T}` }, history: { state: null, replaceState: () => { throw new Error("x"); } } });
+    open(`#token=${T}`);
+    const spy = vi.spyOn(window.history, "replaceState").mockImplementation(() => {
+      throw new Error("x");
+    });
     expect(consumePublicTokenFromUrl()).toBe(T);
+    spy.mockRestore();
   });
 });
 
-describe("persistance localStorage (inchangée)", () => {
-  afterEach(() => vi.unstubAllGlobals());
-
-  function stubStorage() {
-    const store = new Map<string, string>();
-    vi.stubGlobal("window", {
-      localStorage: {
-        getItem: (k: string) => store.get(k) ?? null,
-        setItem: (k: string, v: string) => void store.set(k, v),
-        removeItem: (k: string) => void store.delete(k),
-      },
-    });
-    return store;
-  }
+describe("persistance localStorage (vrai storage jsdom)", () => {
+  afterEach(() => {
+    window.localStorage.clear();
+    vi.restoreAllMocks();
+  });
 
   it("écrit, relit et efface par club", () => {
-    const store = stubStorage();
     setStoredPublicToken("sete", T);
-    expect(store.get("scsb:public-token:sete")).toBe(T);
+    expect(window.localStorage.getItem("scsb:public-token:sete")).toBe(T);
     expect(getStoredPublicToken("sete")).toBe(T);
     expect(getStoredPublicToken("autre")).toBeNull();
     clearStoredPublicToken("sete");
@@ -113,19 +126,11 @@ describe("persistance localStorage (inchangée)", () => {
   });
 
   it("storage indisponible : aucune exception", () => {
-    vi.stubGlobal("window", {
-      localStorage: {
-        getItem: () => {
-          throw new Error("blocked");
-        },
-        setItem: () => {
-          throw new Error("blocked");
-        },
-        removeItem: () => {
-          throw new Error("blocked");
-        },
-      },
-    });
+    for (const method of ["getItem", "setItem", "removeItem"] as const) {
+      vi.spyOn(Storage.prototype, method).mockImplementation(() => {
+        throw new Error("blocked");
+      });
+    }
     expect(getStoredPublicToken("sete")).toBeNull();
     expect(() => setStoredPublicToken("sete", T)).not.toThrow();
     expect(() => clearStoredPublicToken("sete")).not.toThrow();
