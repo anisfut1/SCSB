@@ -251,8 +251,9 @@ components.schemas.ClaimRequestDto:   # additionalProperties: false ; JAMAIS de 
 |---|---|
 | `POST …/request-link` | anonyme ; 5/h par fiche, 20/h par IP, 10 nouvelles demandes/h par club |
 | `GET …/claim-requests` | JWT, `club_admin` du club (les autres rôles et les autres clubs : `403`/`404`) |
-| `POST …/approve` | JWT, `club_admin` ; revalidation forte (introspection, ADR-006) ; relit le rôle de la fiche |
+| `POST …/approve` | JWT, **`club_admin` seul (décidé)** ; revalidation forte (introspection, ADR-006) ; relit le rôle de la fiche |
 | `POST …/reject` | JWT, `club_admin` |
+**Décidés le 2026-10-07 (Q-024)** : expiration des demandes `pending` à **14 jours** (`409 EXPIRED` ensuite) ; rôles exclus = **tout rôle à droits d'écriture** (coach, admin, coordinateur de dérogations aujourd'hui) ; `422 ROLE_NOT_CLAIMABLE` couvre aussi le coordinateur.
 **Écarts de contrat** : `RequestPersonalLinkResultDto.maskedEmail` et le code `EMAIL_REQUIRED` disparaissent (ils révélaient l'état de la fiche) ; impact front : `IdentifyView.tsx:106-111,133` (champ e-mail toujours facultatif, message neutre de repli « contacte ton club ») — **PR front du LOT-02**. L'ancien comportement reste servi par `club-manager-api` tant que le module n'est pas basculé (ADR-005) : **R-018 reste ouvert jusqu'à la bascule**.
 
 ### B.2 — LOT-03 : gymnases dynamiques

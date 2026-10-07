@@ -80,3 +80,6 @@ Pour les violations déjà journalisées, copier uniquement la partie `https://<
 **Critère de bascule (après les 7 jours)** : (a) zéro violation `script-src`/`connect-src`/`form-action`/`frame-*` attribuable à l'application sur les parcours §6.1 refaits à J+7 ; (b) toutes les violations `img-src` restantes sont soit ajoutées à la liste, soit acceptées explicitement ; (c) aucune régression fonctionnelle signalée ; (d) le propriétaire valide par écrit. Sinon : prolonger de 7 jours.
 **Rollback** : remettre l'en-tête en `Content-Security-Policy-Report-Only` (une ligne dans `security-headers.ts`) et redéployer, **ou promouvoir le déploiement Vercel précédent** (retour immédiat, aucun état à restaurer). Prévoir ce rollback testé en prévisualisation avant la bascule.
 **Hors périmètre** : aucun collecteur de rapports (Q-021 d.4) ; si un jour il en existe un, il doit supprimer la query string **et le fragment** de `document-uri` avant toute écriture.
+
+## 7. Décision validée (2026-10-07, Q-025)
+L'en-tête `Content-Security-Policy` **séparé, limité à `frame-ancestors 'none'`**, posé en plus de `Content-Security-Policy-Report-Only` (politique complète) et de `X-Frame-Options: DENY`, est **validé** par le propriétaire. Le mode bloquant complet suit le plan du §6.

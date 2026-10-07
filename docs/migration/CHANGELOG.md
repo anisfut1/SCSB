@@ -53,3 +53,6 @@
 
 ## CI après Q-020 à Q-023 (2026-10-07)
 Runs `37681742496`/`37681736846` (`a038c9e`, docs) ✅ ; `37684885660`/`37684879305` (`e1d79ff`, 223 tests) ✅ — deux runs par commit (deux déclencheurs) tous deux au vert. Le push qui consigne ces runs déclenche un run docs, non relevé.
+
+## 2026-10-07 (Q-024, Q-025)
+- [Décisions] Revendication : expiration 14 jours, validateur `club_admin` seul, règle générale « tout rôle à droits d'écriture exclu » ; tests de contrat du LOT-02 mis à jour (expiration J+14 à l'instant près, coordinateur, test paramétré sur les droits) ; décisions prises seul validées — fichiers : `09`, `11` §7.9, `04` B.1 bis, `06-adr/ADR-006`, `12` §7
