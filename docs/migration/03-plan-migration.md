@@ -116,7 +116,7 @@ Flags : variable `NEXT_PUBLIC_*` **interdite** pour un flag sensible ; utiliser 
 
 ## Rappels de la Phase 3
 - Contrats détaillés par lot : `04-contrats-api.md` §B (B.1 = LOT-02, B.2 = LOT-03, B.3 = LOT-05/06, B.4 = LOT-04, B.5 = LOT-07, B.6 = LOT-08, B.7 = LOT-09, B.8 = LOT-10, B.9 = LOT-14/R-014, B.10 = LOT-12).
-- Choix structurants : ADR-002 à ADR-007 (statut **Proposée**, en attente de Q-011/Q-012/Q-013).
+- Choix structurants : ADR-002 à ADR-007 (**révisés le 2026-10-08 pour Python/FastAPI** : ADR-002 acceptée ; ADR-003/004/006/007 complétés d'une révision ; points non vérifiés listés en `09` Q-028).
 - LOT-14 (CSP, jeton public) inclut le transport du jeton par en-tête (E-4, B.9) : exige le nouveau back **et** une modification du front.
 
 ## LOT-04 — livré (2026-10-07)
@@ -154,3 +154,6 @@ En-têtes posés dans `next.config.ts` via `src/config/security-headers.ts` ; **
 ## Addendum 2026-10-07 — LOT-02 étendu à R-018 ; LOT-14 front livré
 - LOT-02 : périmètre élargi (Q-022) : `request-link` uniforme + file de validation admin + exclusion des rôles coach/admin ; spécification `11` §7.9, contrat `04` B.1 bis. Tests de contrat d'abord (`11` §7.9.6).
 - LOT-14 : livré côté front `4570207` (fragment `#token=`, nettoyage de l'URL, transport isolé, drapeau `NEXT_PUBLIC_PUBLIC_TOKEN_HEADER` défaut off) et `f2841a7` (anti-framing). **Rollback** : `git revert` du commit ; ou ne pas activer le drapeau. Ordre d'activation de l'en-tête : `club-manager-api` accepte + autorise en CORS `X-Personal-Link-Token` → activer en prévisualisation → production → fermer `?token=` (`400 TOKEN_IN_QUERY`).
+
+## Addendum 2026-10-08 — étape A back FastAPI
+Le LOT-02 sera implémenté en **Python/FastAPI** dans `ball-manager-back` (modules `core`, `auth`, `public_search`, `claims` : `05` §12, `11` §1). Ordre inchangé (tests de contrat d'abord, `11` §5, §7.5, §7.9.6). Prérequis avant initialisation : valider les choix de l'étape A (pilote psycopg 3, SQLAlchemy Core, Procrastinate, liste des paquets `11` §8), fournir le schéma réel (`11` §9), exécuter la vérification R-018 (`13`). Le dépôt back n'est **pas** initialisé à ce stade.
