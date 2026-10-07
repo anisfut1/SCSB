@@ -8,3 +8,15 @@
 | R-005 | `npm audit fix --force` rétrograderait Next en 14.2.35 (faux « correctif » dev) | Moyenne | Élevé | Ne jamais lancer `--force` ; montée ciblée |
 | R-006 | Pas de CI ni test de composants : régression UI non détectée lors des migrations | Moyenne | Moyen | Tests de caractérisation par lot (règle 4) |
 | R-007 | Autorisation relue côté Next (`club-context.ts:43-67`) : à confirmer qu'elle est aussi imposée par l'API | Moyenne | Élevé | Vérifier avec le code du back (Q-001) |
+
+## Audit de l'historique git (Q-006) — 2026-10-07, lecture seule
+- **Méthode** : aucun scanner installé (gitleaks / trufflehog absents). Balayage regex maison de `git log --all -p` (100 commits, toutes branches locales), sur les lignes ajoutées : JWT (rôle décodé sans afficher la valeur), `sb_secret_*`, clés privées PEM, `AKIA*`, jetons GitHub, affectations `*_SECRET|*_TOKEN|*_PASSWORD|SUPABASE_SERVICE_ROLE_KEY|FBI_CREDENTIALS_ENCRYPTION_KEY = <valeur longue>`.
+- **Résultat** : **aucun secret trouvé**. 2 correspondances, toutes des faux positifs (code de lecture d'env, pas de valeur) : `src/config/env.server.ts` @ `5db6b6a` (2026-09-21) et @ `68c5c86` (2026-09-21).
+- **Fichiers sensibles jamais ajoutés** : seuls des `.env*.example` apparaissent dans l'historique (`.env.example`, `spikes/fbi-auth/.env.fbi.example`, `worker/.env.example`) ; aucun `.env` réel.
+- **Limites** : regex, pas d'analyse d'entropie ; branches distantes non récupérées ; ne couvre pas l'historique de `club-manager-api`. Un passage gitleaks reste recommandé si un accès est possible (en CI : voir lot « CI minimale »).
+- Historique non modifié.
+| R-008 | Jeton personnel public stocké en `localStorage` (`lib/publicToken.ts:19`) : volable par XSS ; le lien donne l'identité « tel licencié » (affectation de tables, demandes) | Faible | Moyen | Vérifier CSP côté Next (aucun en-tête de sécurité dans `next.config.ts`) ; durée de vie / révocation du jeton côté back (à confirmer) |
+| R-009 | Annuaire public énumérable (TRT-001) : noms de mineurs exposés sans auth | Moyenne | Élevé | LOT-02 (P1) ; en attendant, rate-limit côté back si possible |
+| R-010 | `timezone` de club non validée (`club-settings.ts:36`) → `RangeError` Intl sur les pages Tables/Dérogations du club | Faible | Moyen | LOT-04 ; vérifier une contrainte en base |
+| R-011 | `getClaims()` : un compte révoqué reste accepté jusqu'à expiration du JWT dans le proxy | Faible | Moyen | Le back revalide à chaque appel ; durée de vie JWT à vérifier (Q-008) |
+| R-012 | Lots « back requis » (9/13) bloqués tant que Q-001 n'est pas levée | Haute | Élevé | Démarrer par LOT-01 et LOT-11 (front seul) ; lever Q-001 |

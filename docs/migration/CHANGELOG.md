@@ -9,3 +9,6 @@
 ## 2026-10-07 (suite)
 - [Phase 1] Commit `b933d0e` docs(migration): phase 1 cartographie
 - [LOT-00] next 16.3.6, eslint-config-next 16.3.6, sharp 0.35.5, source-map-js 1.2.2 ; audit prod 3 → 0 ; baseline verte (109 tests) — fichiers : `package.json`, `package-lock.json` — lien doc : `07-tests-et-qualite.md`
+- [LOT-00] Commit `0121eed` fix(security): LOT-00 bump next 16.3.6
+- [Phase 2] Audit d'historique git (Q-006) : aucun secret ; Q-005 et Q-006 résolues ; Q-001 et Q-007 toujours ouvertes — fichiers : `10-risques.md`, `09-questions-ouvertes.md`
+- [Phase 2] Inventaire (15 TRT) + plan de 14 lots (LOT-00 à LOT-13), 5 P1 ; Q-008, Q-009, Q-010, D-1, D-2 ouvertes ; R-008 à R-012 — fichiers : `02`, `03`, `00`, `08`, `09`, `10` — lien doc : `02-inventaire-traitements.md`
