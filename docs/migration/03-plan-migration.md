@@ -10,7 +10,7 @@ _Phase 2, 2026-10-07. Ordre : **sécurité d'abord**, puis meilleur ratio gain/e
 | LOT-03 | Gymnases dynamiques (multi-tenant) | TRT-003 | P1 | à confirmer | ⛔ nouveau back |
 | LOT-04 | Réglages club via `PATCH /v1/clubs/{id}` existant (+ vérifier validation du fuseau) | TRT-011 | P2 | **non** (endpoint existant, E-2) | ✅ livré (voir `git log`) |
 | LOT-05 | Saison & journée côté serveur | TRT-007, TRT-008 | P2 | oui | ⛔ nouveau back |
-| LOT-06 | Matchs : utiliser les filtres serveur existants (E-3) ; `weekends` nouveau | TRT-006 | P2 | partiel (`/matches/weekends`) | ⬜ **prêt en grande partie (front)** — sémantique `period=weekend` à confirmer |
+| LOT-06 | Matchs : utiliser les filtres serveur existants (E-3) ; `weekends` nouveau | TRT-006 | P2 | partiel (`/matches/weekends`) | ✅ livré **derrière flag** `FF_MATCHES_SERVER_FILTERS` (défaut off) ; `period=weekend` non utilisé (Q-014) |
 | LOT-07 | Endpoint tableau de bord (BFF) | TRT-005 | P1 | oui | ⛔ (dépend LOT-01, LOT-05) |
 | LOT-08 | Résultats groupés côté serveur | TRT-009 | P2 | oui | ⛔ (dépend LOT-05) |
 | LOT-09 | Import licenciés : parsing serveur | TRT-010 | P2 | oui | ⛔ nouveau back |
@@ -126,3 +126,12 @@ Flags : variable `NEXT_PUBLIC_*` **interdite** pour un flag sensible ; utiliser 
 - Tests : `src/server/actions/club-settings.test.ts` (9) — caractérisation écrite d'abord sur l'ancien code (6 verts), puis adaptée à l'API.
 - **Rollback** : `git revert <commit LOT-04>` (l'ancienne écriture RLS reste valide côté base).
 - **Reste** : `src/types/database.ts` (typage du client Supabase) n'est plus nécessaire qu'à `lib/supabase/*` : à réévaluer en Phase 5.
+
+## LOT-06 — livré derrière flag (2026-10-07)
+- **Code** : `ListMatchesParams` étendu (`teamId`, `homeAway`, `status`) et `matchesFilterSearchParams` (`src/lib/api/matches.ts`, partagé club/public) ; `src/features/matches/load-matches.ts` (`buildServerMatchQuery`, `loadMatchesForView`) ; flag serveur `src/config/flags.ts` (`FF_MATCHES_SERVER_FILTERS`, défaut **off**) ; pages `c/[clubSlug]/matchs` et `public/[clubSlug]/matchs`.
+- **Ce qui part au serveur** : `teamId` (seulement si l'id figure dans les équipes), `homeAway`, période « À venir » (`from=now`) / « Passés » (`to=now`). **Mode Journée : saison entière** (sélecteur de journée). `status` : paramètre disponible mais **aucune UI** ne l'utilise (aucun filtre de statut n'existait).
+- **`period=weekend` non utilisé** (Q-014). Le filtrage local `applyMatchFilters` est **toujours appliqué ensuite** (idempotent) : parité garantie par construction ; à retirer en Phase 5 une fois Q-014 confirmée.
+- **Pagination** : `listMatches` pagine déjà (pages de 200) ; la vue publique reste à **un seul appel `limit=200`** (voir R-015, non modifié).
+- **Tests** : `load-matches.test.ts` (22) — caractérisation (comptes figés sur l'ancien code : 15 / 1 / 315 / 158 / 75 / 5 / 11), parité × 2 sémantiques de `to`, requêtes, appels réseau, mesure simulée.
+- **Activer** : définir `FF_MATCHES_SERVER_FILTERS=1` sur le déploiement du front (variable **serveur**, jamais `NEXT_PUBLIC_*`), redéployer. **Rollback** : retirer la variable (ou `=0`) et redéployer ; `git revert` du commit en dernier recours.
+- **Critère pour retirer le flag** : Q-014 confirmée, mesure réelle (pas simulée) sur un déploiement de prévisualisation, absence d'écart d'affichage sur une semaine d'usage.

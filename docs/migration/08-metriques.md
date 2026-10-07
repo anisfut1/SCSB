@@ -16,6 +16,21 @@ Scénario : rendu serveur du tableau de bord d'un club_admin (layout + page : `r
 | Après | 0 | 1 | 1 | 1 `getClaims()` | **≤ 2** (0 si clés asymétriques, hors 1ʳᵉ récupération JWKS) |
 Latence : **non mesurée** ; estimation « ~30-100 ms par appel Auth » = hypothèse, à vérifier sur un déploiement.
 
+## LOT-06 — liste des matchs : requêtes et volume par changement de filtre (**SIMULÉ / ESTIMÉ**, 2026-10-07)
+**Ce n'est pas une mesure de production** : aucun appel à l'API réelle (pas d'accès, pas de staging documenté). Jeu synthétique déterministe : 15 équipes × 26 = **390 matchs** (estimé), « maintenant » = 2026-10-07 ; faux serveur appliquant la sémantique **supposée** de l'API (`from` inclus, `to` exclu — parité vérifiée aussi avec `to` inclus ; Q-014). Taille = JSON des réponses simulées (~471 o/match, estimé). Reproductible : `npx vitest run src/features/matches/load-matches.test.ts -t "mesure simulée" --silent=false`.
+| Scénario | Avant (flag off) | Après (`FF_MATCHES_SERVER_FILTERS=1`) | Gain volume |
+|---|---|---|---|
+| Journée (vue par défaut) | 2 req · 183 629 o | 2 req · 183 629 o | **0 %** (voir ci-dessous) |
+| Journée + équipe | 2 req · 183 629 o | 1 req · 12 285 o | −93 % |
+| À venir | 2 req · 183 629 o | 2 req · 149 211 o | −19 % |
+| À venir + domicile | 2 req · 183 629 o | 1 req · 74 762 o | −59 % |
+| Passés | 2 req · 183 629 o | 1 req · 34 480 o | −81 % |
+| Passés + équipe | 2 req · 183 629 o | 1 req · 2 354 o | −99 % |
+| À venir + équipe + extérieur | 2 req · 183 629 o | 1 req · 5 280 o | −97 % |
+Matchs **affichés** identiques à l'ancien comportement dans les 7 scénarios (14 tests de parité).
+**Limite structurelle** : la vue par défaut (« Journée », la plus utilisée) ne gagne **rien** : le sélecteur de journée (`JourneePicker`) a besoin des comptes par semaine de **toute la saison** (`match-filters.ts:145-156`), qu'aucun endpoint n'expose ; seul `GET …/matches/weekends` (`04` B.3, nouveau back) lèvera ce verrou. Avec équipe/lieu choisis, le gain existe même en mode Journée. Avec le flag et une équipe choisie, un aller-retour « équipes » précède les matchs (séquentiel, pour valider l'identifiant) : latence + 1 petite requête, non mesurée.
+Latence/TTFB : **non mesurés**.
+
 ## À mesurer (avant lot)
 | Lot | Mesure | Outil |
 |---|---|---|

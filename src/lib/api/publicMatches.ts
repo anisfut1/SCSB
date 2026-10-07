@@ -1,7 +1,7 @@
 import { apiFetch } from "./client";
 import type { TeamDto } from "./clubs";
 import type { DerogationStatusDto, MatchDetailsDto, MatchDocumentDto, MatchListItemDto } from "./matches";
-import type { ListMatchesParams } from "./matches";
+import { matchesFilterSearchParams, type ListMatchesParams } from "./matches";
 import type { PoolStandingsDto } from "./standings";
 
 export type { PoolStandingsDto, StandingRowDto } from "./standings";
@@ -29,9 +29,7 @@ export async function listPublicTeams(clubSlug: string): Promise<TeamDto[]> {
 
 /** GET /v1/public/clubs/:clubSlug/matches — mêmes filtres que la vue authentifiée (voir `./matches.ts#listMatches`), sans pagination automatique ici (la vue publique n'affiche que la saison en cours, un seul appel suffit). */
 export async function listPublicMatches(clubSlug: string, params: ListMatchesParams = {}): Promise<MatchListItemDto[]> {
-  const search = new URLSearchParams();
-  if (params.from) search.set("from", params.from);
-  if (params.to) search.set("to", params.to);
+  const search = matchesFilterSearchParams(params);
   search.set("limit", "200");
   const query = search.toString();
   const { matches } = await apiFetch<PublicMatchesListResponse>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/matches${query ? `?${query}` : ""}`);
