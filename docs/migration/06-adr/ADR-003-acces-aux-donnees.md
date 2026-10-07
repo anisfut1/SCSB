@@ -1,7 +1,29 @@
 # ADR-003 — Accès aux données du nouveau back
 - **Date** : 2026-10-07
 - **Statut** : **Acceptée pour la phase S3** : Supabase conservé (Q-015, décision du 2026-10-07) ; accès par SQL typé (Kysely) maintenu ; **réévaluation obligatoire en fin de S3** (voir ci-dessous).
-- **Révision** : 2026-10-07 (nouveau back sur Railway, Q-012).
+- **Révision** : 2026-10-07 (nouveau back sur Railway, Q-012) ; **révision 2026-10-08 : back Python/FastAPI (ADR-002)** — le choix d'outil d'accès aux données ci-dessous (Kysely + `pg`) est **remplacé** par la section « Révision FastAPI » ; le reste (Supabase conservé, rôle dédié, autorisation dans le code, schéma séparé, réévaluation en fin de S3) reste valable.
+
+## Révision FastAPI (2026-10-08)
+### Faits vérifiés dans la documentation (consultée le 2026-10-08)
+| Fait | Source |
+|---|---|
+| Supavisor **session mode (port 5432)** : « supporte les requêtes préparées » ; **transaction mode (6543)** : « ne supporte pas les requêtes préparées » ; les deux utilisent des adresses `…pooler.supabase.com` en **IPv4** sur toutes les offres ; la connexion directe (`db.<ref>.supabase.co:5432`) est en IPv6 (IPv4 avec add-on) et recommandée pour les backends persistants | supabase.com/docs/guides/database/connecting-to-postgres |
+| **asyncpg** : derrière PgBouncer en pooling `transaction` ou `statement`, erreurs `prepared statement "__asyncpg_stmt_xx__" does not exist` ; remèdes : pool asyncpg intégré, **`statement_cache_size=0`**, ou mode `session` | magicstack.github.io/asyncpg/current/faq.html |
+| **psycopg 3** : préparation automatique après `prepare_threshold` exécutions (désactivable : `prepare_threshold=None`) ; les middlewares de pooling ne sont « pas compatibles avec les requêtes préparées » sauf déclaration contraire ; **support de PgBouncer ≥ 1.22 à partir de psycopg 3.2** | psycopg.org/psycopg3/docs/advanced/prepare.html |
+| **PgBouncer** : en pooling transaction, jamais compatibles : `SET/RESET`, **`LISTEN`**, `PREPARE/DEALLOCATE`, verrous consultatifs de session ; plans préparés au niveau protocole possibles si `max_prepared_statements` ≠ 0 | pgbouncer.org/features.html |
+| SQLAlchemy 2 (dialecte asyncpg) expose `prepared_statement_cache_size`, `prepared_statement_name_func` et `statement_cache_size` pour PgBouncer en pooling transactionnel | docs.sqlalchemy.org/en/20/dialects/postgresql.html (section « Prepared Statement Name with PGBouncer » : **liste des paramètres lue, détail non lu**) |
+### Non vérifié
+- **Supavisor n'est pas PgBouncer** : aucune des documentations ci-dessus ne dit si asyncpg ou psycopg 3 fonctionnent avec les requêtes préparées derrière Supavisor en mode **transaction** au-delà de la phrase de Supabase ; la prise en charge de psycopg 3.2 est documentée pour **PgBouncer 1.22+**, pas pour Supavisor → **« non vérifié » pour Supavisor** (test V2 en staging).
+- Comportement de `LISTEN/NOTIFY` derrière **Supavisor session mode** : cohérent avec PgBouncer (session conservée), **non documenté pour Supavisor** → test V2.
+### Décision (révision)
+1. **Pilote : psycopg 3** (`psycopg[binary,pool]`) pour l'API **et** le worker — Procrastinate (ADR-004) est bâti sur psycopg 3, donc **un seul pilote** à qualifier derrière le pooler. asyncpg est écarté : deuxième pilote à qualifier, et son cache d'instructions préparées est le piège documenté ci-dessus.
+2. **Pooler : Supavisor session mode (5432)** pour l'API et le worker (requêtes préparées permises, `LISTEN` conservé). **Mode transaction (6543) exclu** pour le worker ; pour l'API, possible seulement après un test V2 positif **et** avec `prepare_threshold=None`. Connexion directe : seulement si l'IPv6 sortant de Railway est confirmé (non documenté).
+3. **Accès aux données : SQLAlchemy 2.x Core (async), SQL explicite — pas d'ORM** sur les tables du propriétaire historique. Les tables lues (`licencies`, `clubs`, …) sont décrites par des objets `Table` **minimaux** (seulement les colonnes nécessaires : principe de moindre privilège aussi dans le code) ; les agrégations s'écrivent en SQL lisible. Alternative écartée : SQL brut via psycopg seul (moins de garde-fous contre l'injection et pas de composition) ; ORM complet (veut posséder le schéma, conflit avec `club-manager-api`).
+4. **Migrations : Alembic, limité au schéma propre du back** (`api2`, `version_table_schema='api2'`, `include_schemas`/`include_object` filtrant tout autre schéma) ; **jamais** d'autogenerate sur les tables d'un autre propriétaire. En scénario remplacement (ADR-005 S2), le périmètre d'Alembic s'élargit par décision explicite.
+5. **Rôle Postgres dédié à privilèges minimaux** (non `service_role`) : `SELECT` colonne par colonne sur les tables lues (`GRANT SELECT (id, club_id, first_name, last_name, active) ON …`) ; `ALL` uniquement sur `api2` ; un second rôle pour le worker si besoin. La recherche publique (LOT-02) lit **uniquement** ces colonnes.
+6. **Réglages de connexion** : pool applicatif borné (API ≤ 10, worker ≤ 5, estimés) ; `sslmode=verify-full` ; `application_name` distinct par service ; délai d'instruction (`statement_timeout`) défini par le rôle.
+7. Les points « Option (a)/(b)/(c) », Q-015 et la réévaluation de fin de S3 ci-dessous sont **inchangés**.
+
 
 ## Contexte
 - Les données métier vivent aujourd'hui dans PostgreSQL via Supabase, avec RLS ; les migrations sont **possédées par `club-manager-api`** (`ARCHITECTURE.md` §1, `docs/MIGRATION_TO_API.md:60-70`). Supabase Auth reste l'émetteur des JWT (front : `proxy.ts`, `auth.server.ts`).
@@ -16,7 +38,7 @@
 | C. **Drizzle ORM** (schéma TS + migrations) | Types forts, migrations intégrées | Veut posséder le schéma → conflit avec le propriétaire actuel des migrations ; surcouche à aligner sur 34 migrations existantes |
 | D. **Prisma** | Écosystème, outillage | Moteur/binaire dans l'image Docker, introspection d'un schéma RLS, agrégations moins directes |
 
-## Décision (proposée)
+## Décision (proposée le 2026-10-07 — **outil remplacé par la révision FastAPI ci-dessus**)
 **Option A (Kysely + `pg`)**, avec : (1) un **rôle Postgres dédié au back, non `service_role` de Supabase**, droits minimaux (`SELECT` sur les tables lues, `INSERT/UPDATE` sur ses seules tables) ; (2) le schéma des tables **propres au nouveau back** dans un schéma séparé (ex. `api2`), jamais de modification des tables appartenant à `club-manager-api` en scénario coexistence ; (3) types générés par `kysely-codegen` en CI ; (4) autorisation centralisée : une fonction `requireClubRole(clubId, roles)` appelée par chaque route, avec tests « 403 par rôle » ; (5) en **scénario remplacement** (ADR-005 S2), le back reprend aussi les migrations (Supabase CLI ou `node-pg-migrate`).
 Connexion : **voir la révision Railway** (la connexion directe 5432 supposée en Phase 3 n'est plus acquise depuis Railway).
 

@@ -1,5 +1,5 @@
 # 05 — Architecture cible du nouveau back
-_Phase 3, 2026-10-07, **révisée le même jour pour Railway** — proposition en attente de validation 🛑 (Q-014 à Q-017 ouvertes ; Q-011 = S3 et Q-012 = Railway décidées)._
+_Phase 3, 2026-10-07, **révisée le même jour pour Railway** ; **révisée le 2026-10-08 : back Python + FastAPI** (ADR-002, repo `rmess/ball-manager-back`) — proposition en attente de validation 🛑 (Q-014 à Q-017 ouvertes ; Q-011 = S3 et Q-012 = Railway décidées)._
 _Révision : le nouveau back est hébergé sur **Railway** (le front est sur **Vercel**, Q-017) ; la coexistence S3 n'a plus de reverse proxy commun (ADR-005) ; la base peut rester chez Supabase ou aller chez Railway (Q-015, ADR-003)._ Documentation seule : aucun repository créé, aucun code back. Les chiffres de volumétrie sont **estimés** (Q-010 : « garde tes estimations »)._
 
 **Cadrage (Q-002 rouverte)** : la Phase 3 conçoit un **nouveau back**, dans un repository dédié. Le contrat actuellement consommé par le front (`04-contrats-api.md` §A, 92 opérations) est la **contrainte de compatibilité** de départ ; `club-manager-api` n'a pas été lu et reste, par défaut, propriétaire des intégrations (ADR-005).
@@ -16,9 +16,9 @@ _Révision : le nouveau back est hébergé sur **Railway** (le front est sur **V
 | Volumétrie | **estimée** : quelques clubs, ≤ ~500 matchs/saison/club, ≤ ~1 000 licenciés/club ; quelques dizaines d'utilisateurs actifs | Un seul serveur suffit ; pas de cache distribué ni de bus de messages |
 
 ## 2. Stack proposée (5 lignes)
-1. **TypeScript + Hono sur Node 24**, OpenAPI généré par Zod (`@hono/zod-openapi`) — ADR-002.
-2. **PostgreSQL Supabase conservé par défaut** (Q-015), accès SQL typé **Kysely + `pg`** via le pooler Supavisor (mode session), rôle dédié, tables propres dans un schéma séparé — ADR-003.
-3. **Jobs `pg-boss`** (file dans Postgres), worker = même image — ADR-004.
+1. **Python 3.13 + FastAPI + Pydantic v2** (uvicorn), OpenAPI généré par les modèles Pydantic et exporté pour le front — ADR-002.
+2. **PostgreSQL Supabase conservé par défaut** (Q-015), accès **SQLAlchemy 2 Core (SQL explicite) + psycopg 3** via le pooler Supavisor (mode session), migrations **Alembic** limitées au schéma `api2`, rôle dédié, tables propres dans un schéma séparé — ADR-003.
+3. **Jobs Procrastinate** (file dans Postgres, pas de Redis), worker = même image — ADR-004.
 4. **Coexistence S3** (puis remplacement progressif) avec `club-manager-api`, **routage par module dans le client front** (option (c) : (a) maintenant, passerelle plus tard) — ADR-005 ; **le trafic à jeton ne transite jamais par Railway** (R-014).
 5. **JWT Supabase revalidé côté back** (JWKS + introspection des écritures sensibles), jeton personnel haché et transporté **en en-tête** — ADR-006 ; **hébergement Railway** : Dockerfile, services `api` + `worker`, environnements `staging` + `production` — ADR-007 ; base Supabase conservée par défaut, **Q-015 ouverte** (ADR-003).
 
@@ -32,8 +32,8 @@ flowchart LR
   U -->|"modules hérités, y compris ?token="| L
   F -->|modules hérités| L
   subgraph Railway
-    A["API Hono<br/>service api"]
-    W["Worker pg-boss<br/>service worker"] --- A
+    A["API FastAPI<br/>service api"]
+    W["Worker Procrastinate<br/>service worker"] --- A
   end
   L["club-manager-api<br/>Vercel, existant"]
   A -->|"Postgres via pooler<br/>rôle dédié"| DB[(Supabase PostgreSQL)]
@@ -54,8 +54,8 @@ flowchart LR
   F -->|"une seule base d'URL"| G
   U -->|"une seule base d'URL"| G
   subgraph Railway
-    G["API Hono<br/>modules portés + passerelle"]
-    W["Worker pg-boss"]
+    G["API FastAPI<br/>modules portés + passerelle"]
+    W["Worker Procrastinate"]
   end
   G -->|"routes non portées<br/>Authorization transmis"| L["club-manager-api<br/>Vercel"]
   G --> DB[(PostgreSQL)]
@@ -100,7 +100,7 @@ sequenceDiagram
   autonumber
   participant B as Navigateur
   participant A as API
-  participant Q as File pg-boss (PostgreSQL)
+  participant Q as File Procrastinate (PostgreSQL)
   participant W as Worker
   participant L as club-manager-api
   B->>A: POST /v1/clubs/x/integrations/ffbb/sync (Prefer: respond-async, Idempotency-Key)
@@ -140,7 +140,7 @@ sequenceDiagram
 ```
 
 ## 5. Modèle de données (tables **propres** au nouveau back — proposition)
-Les tables métier existantes (matchs, licenciés, clubs…) restent chez leur propriétaire (ADR-003) ; le nouveau back n'ajoute qu'un schéma `api2` minimal, plus le schéma `pgboss` géré par la bibliothèque.
+Les tables métier existantes (matchs, licenciés, clubs…) restent chez leur propriétaire (ADR-003) ; le nouveau back n'ajoute qu'un schéma `api2` minimal, plus le schéma de Procrastinate, créé par sa propre commande de migration (droits à valider, test V2).
 ```mermaid
 erDiagram
   IDEMPOTENCY_KEY {
@@ -174,7 +174,7 @@ erDiagram
     timestamptz created_at
   }
 ```
-- `JOB_OWNERSHIP` relie un `jobId` (pg-boss) à son demandeur pour autoriser `GET /v1/jobs/{jobId}` (B.8). `RATE_LIMIT_BUCKET` n'est nécessaire que si plusieurs instances partagent les limites ; **une seule instance** → compteurs en mémoire (par défaut). `AUDIT_LOG` : actions sensibles (écritures FBI, liens personnels), **sans donnée personnelle dans `target`** (identifiants opaques).
+- `JOB_OWNERSHIP` relie un `jobId` (Procrastinate) à son demandeur pour autoriser `GET /v1/jobs/{jobId}` (B.8). `RATE_LIMIT_BUCKET` n'est nécessaire que si plusieurs instances partagent les limites ; **une seule instance** → compteurs en mémoire (par défaut). `AUDIT_LOG` : actions sensibles (écritures FBI, liens personnels), **sans donnée personnelle dans `target`** (identifiants opaques).
 
 ## 6. Découpage en modules (domaines)
 | Module | Contenu | Endpoints (04) | Lots |
@@ -193,7 +193,7 @@ erDiagram
 ## 7. Authentification et autorisation (ADR-006)
 - Chaque requête : **extraction du Bearer → vérification JWKS** (`exp`, `iss`, `aud`) → résolution `(userId)` → **rôles lus en base** pour `(userId, clubId)` (cache ≤ 30 s, estimé) → décision ; introspection `/auth/v1/user` (cache ≤ 10 s) pour les écritures sensibles → **R-011 refermé sur ces actions**.
 - Routes publiques : liste blanche explicite ; jeton personnel **haché** en base, comparaison à temps constant, transport par en-tête (E-4/R-014).
-- Défense en profondeur : validation Zod de chaque entrée ; CORS en liste blanche ; limitation de débit (publique : par IP et par club ; `request-link` : par licencié) ; `404` identique club inconnu / non membre ; messages d'erreur sans fuite d'information ; journaux sans jeton ni donnée personnelle.
+- Défense en profondeur : validation Pydantic de chaque entrée ; CORS en liste blanche ; limitation de débit (publique : par IP et par club ; `request-link` : par licencié) ; `404` identique club inconnu / non membre ; messages d'erreur sans fuite d'information ; journaux sans jeton ni donnée personnelle.
 - **Exigence R-013** : tout endpoint public nouveau est conçu sans énumération (longueur minimale, plafond de résultats, pas de total).
 - Test de sécurité automatique : énumérer toutes les routes et vérifier qu'aucune n'est publique hors liste blanche ; matrice « rôle × route » (200/403/404).
 
@@ -203,13 +203,13 @@ erDiagram
 - **Cache HTTP** : `Cache-Control: no-store` partout (multi-tenant, `client.ts:64-67`) ; exception **à valider** : lectures publiques sans jeton (matches/standings) avec `public, max-age=30` pour absorber la charge.
 
 ## 9. Jobs longs (ADR-004) et fuseau
-- **Jobs** : `Prefer: respond-async` → 202 ; statuts `pending|claimed|running|succeeded|failed` ; `Idempotency-Key` ; concurrence 2, délai 300 s, 3 essais (réseau seulement), **aucun rejeu automatique des écritures FBI** ; alertes : profondeur de file et âge du plus vieux job ; planifications récurrentes via `pg-boss` (les crons Vercel restent chez `club-manager-api`).
+- **Jobs** : `Prefer: respond-async` → 202 ; statuts `pending|claimed|running|succeeded|failed` ; `Idempotency-Key` ; concurrence 2, délai 300 s, 3 essais (réseau seulement), **aucun rejeu automatique des écritures FBI** ; alertes : profondeur de file et âge du plus vieux job ; planifications récurrentes via Procrastinate (les crons Vercel restent chez `club-manager-api`).
 - **Fuseau (D-2)** : stockage **UTC** ; `club.timezone` validé IANA à l'écriture (E-2) avec repli `Europe/Paris` s'il est absent ; **un seul module `shared/time`** (journée, samedi de référence, saison 1ᵉʳ août, conversions DST-safe) ; l'API renvoie des ISO UTC + `weekendKey` calculé côté back ; tests aux limites (31 juillet/1ᵉʳ août, passage à l'heure d'été/hiver). Les 28 occurrences `Europe/Paris` du front sont traitées dans le lot LOT-05, pas avant.
 
 ## 10. Hébergement Railway (ADR-007) — ce que cela implique
 | Sujet | Exigence |
 |---|---|
-| Build | **Dockerfile** multi-étapes (`node:24-slim` épinglé par digest, non-root) ; **pas de `railway.json`** (déprécié, échéance 2026-12-01) ; Nixpacks non sélectionnable ; Railpack = alternative écartée |
+| Build | **Dockerfile** multi-étapes (`python:3.13-slim` épinglé par digest, `uv`, non-root, `--no-access-log`) ; **pas de `railway.json`** (déprécié, échéance 2026-12-01) ; Nixpacks non sélectionnable ; Railpack = alternative écartée |
 | Services | `api` et `worker` (même image, commandes différentes) × environnements `staging` + `production` |
 | Déploiement | branche `release` + **« Wait for CI »** ; promotion manuelle ; retour arrière = redéployer le commit précédent (cohérent avec Q-007) |
 | Secrets | variables de service Railway par environnement, jamais dans le dépôt/l'image/les logs ; rotation documentée ; « variables scellées » : à vérifier |
@@ -220,46 +220,40 @@ erDiagram
 | Limites | requête HTTP : 15 min max / 5 min sans données ; 32 Ko d'en-têtes (vérifiés) ; latence Railway↔Supabase, tarifs, IPv6 sortant : **non vérifiés** |
 
 ## 11. Observabilité et erreurs
-- Journaux JSON (pino) : `requestId`, `userId` opaque, `clubId`, route, statut, durée ; **jamais** de jeton, e-mail, nom, licence.
+- Journaux JSON (`structlog`) : `requestId`, `userId` opaque, `clubId`, route, statut, durée ; **jamais** de jeton, e-mail, nom, licence.
 - Enveloppe d'erreur **inchangée** (`{error:{code,message,details?}}`, `errors.ts:3-58`) ; registre de codes versionné (reprend ceux listés en `04` §A.1 + `QUERY_TOO_SHORT`, `RATE_LIMITED`, `GONE`).
 - Métriques minimales : latence p95 par route, taux 5xx, profondeur de file, âge du plus vieux job ; traces OpenTelemetry **optionnelles** (non justifiées à cette charge).
 
-## 12. Proposition d'arborescence du nouveau repository (non créé — voir `11-init-repo-back.md`)
+## 12. Proposition d'arborescence du nouveau repository `ball-manager-back` (non initialisé — voir `11-init-repo-back.md`)
 ```
-<nouveau-repo>/                       # créé par le propriétaire ; nom à décider
-├── README.md · package.json · tsconfig.json · vitest.config.ts
+ball-manager-back/                    # github.com/rmess/ball-manager-back
+├── README.md · pyproject.toml · uv.lock · .python-version (3.13) · alembic.ini
 ├── Dockerfile                        # image unique, commandes api | worker (aucun railway.json)
-├── .github/workflows/ci.yml          # typecheck, lint, test, build image, audit, gitleaks (même base que SCSB)
+├── .github/workflows/ci.yml          # uv sync --frozen, ruff, mypy --strict, pytest, export OpenAPI (diff), build image, audit, gitleaks
 ├── ops/
-│   ├── railway.md                    # réglages du tableau de bord (services, variables, domaines, healthcheck, Wait for CI)
-│   ├── runbook.md                    # déploiement, retour arrière, rotation des secrets, vérification query string
-│   └── contract/ported-routes.json   # liste explicite des préfixes portés (consommée par les tests du front, ADR-005)
-├── docs/                             # ADR du back, openapi.json exporté
-├── scripts/                          # smoke (équivalent api-smoke), génération des types BDD
-├── src/
-│   ├── server.ts                     # entrée API (Hono + @hono/node-server, PORT fourni par Railway)
-│   ├── worker.ts                     # entrée worker (pg-boss)
-│   ├── app.ts                        # assemblage des modules, middlewares globaux (CORS, auth par défaut, 400 TOKEN_IN_QUERY)
-│   ├── config/                       # env.ts (Zod) ; jamais process.env ailleurs
-│   ├── shared/
-│   │   ├── auth/                     # jwks.ts, introspection.ts, requireUser.ts, requireClubRole.ts, personal-token.ts
-│   │   ├── http/                     # error-envelope.ts, pagination.ts, rate-limit.ts, request-id.ts, cors.ts
-│   │   ├── time/                     # timezone.ts, season.ts, weekend.ts (+ tests DST)
-│   │   ├── db/                       # kysely.ts, types.generated.ts
-│   │   └── log/                      # pino, redaction (jamais de query string)
-│   ├── modules/
-│   │   ├── public-access/ · matches/ · dashboard/ · results/ · licencies/ · venues/ · clubs/ · platform/
-│   │   └── jobs/                     # routes.ts, queue.ts, handlers/, adapters/club-manager-api.ts
-│   └── migrations/                   # SQL du schéma api2 seulement (ADR-003)
-└── test/
-    ├── contract/                     # parité avec le contrat actuel du front
+│   ├── railway.md                    # réglages du tableau de bord
+│   ├── runbook.md                    # déploiement, retour arrière, rotation des secrets, vérifications V1-V6
+│   └── contract/ported-routes.json   # préfixes portés (consommé par les tests du front, ADR-005)
+├── docs/                             # ADR du back, openapi.json exporté (versionné)
+├── alembic/                          # migrations du schéma api2 SEULEMENT (ADR-003)
+├── app/
+│   ├── main.py                       # création de l'application, routeurs, gestionnaires d'erreurs (enveloppe), middleware TOKEN_IN_QUERY
+│   ├── worker.py                     # application Procrastinate (tâches enregistrées)
+│   ├── core/                         # config (pydantic-settings), db (engine async), errors (enveloppe), logging (structlog, sans query),
+│   │                                 #   ratelimit, time (timezone, season, weekend), pagination, request_id
+│   ├── auth/                         # jwks.py, introspection.py, dependencies.py (require_user, require_club_role), personal_token.py
+│   ├── public_search/                # router.py · service.py · repository.py · schemas.py   (LOT-02, recherche bornée)
+│   ├── claims/                       # router.py · service.py · repository.py · schemas.py   (LOT-02, R-018, claim_requests)
+│   └── jobs/                         # (plus tard) router.py, tasks/, adapters/club_manager_api.py
+└── tests/
+    ├── contract/                     # parité avec le contrat actuel du front, OpenAPI = fichier versionné
     ├── security/                     # routes publiques = liste blanche, matrice rôle × route, anti-énumération, refus du jeton en query
-    └── integration/                  # base Postgres de test, jobs, pg-boss derrière pooler
+    └── integration/                  # base Postgres de test, jobs, Procrastinate derrière pooler
 ```
-Conventions : un module = `routes` (HTTP + Zod) → `service` (règles) → `repo` (Kysely) ; aucun accès BDD dans `routes` ; erreurs métier typées → enveloppe unique ; routes sous `/v1` ; `camelCase` comme le contrat actuel.
+Conventions : un module = `router` (HTTP + modèles Pydantic) → `service` (règles) → `repository` (SQLAlchemy Core) ; aucun accès BDD dans `router` ; erreurs métier typées → enveloppe unique ; routes sous `/v1` ; `camelCase` dans le contrat (alias Pydantic). Les modules `matches`, `dashboard`, `results`, `licencies`, `venues` sont ajoutés **lot par lot** (jamais de dossier vide).
 
 ## 13. Hypothèses explicites et limites
 - Aucune lecture du code de `club-manager-api` : tout ce qui le concerne vient des commentaires du front (`integrations.ts`, `matches.ts`…) et de `docs/` ; il peut déjà avoir certains des comportements proposés (ex. limitation de débit).
-- Base : Supabase par défaut, **Q-015 ouverte** ; clés JWT et durée de vie inconnues (Q-008).
+- Base : Supabase par défaut (Q-015 : conservé en S3) ; clés JWT et durée de vie inconnues (Q-008).
 - Railway : région, latence vers Supabase, IPv6 sortant, TLS du domaine propre, tarifs : non vérifiés ; front : hébergement réel inconnu (Q-017).
 - Aucune mesure de latence réseau (Railway↔Supabase, Railway↔Vercel) ; toutes les valeurs de limites (débit, TTL de cache, concurrence) sont **estimées** et à calibrer.
