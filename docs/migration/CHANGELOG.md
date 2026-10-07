@@ -43,3 +43,7 @@
 - [LOT-02] Spécification v2 : `04` §B.1 (OpenAPI), `11` §7 (règles chiffrées, 12 tests de contrat, bascule + rollback Vercel, fermeture de l'ancien endpoint avec critère vérifiable) ; R-018 (revendication de fiche sans adresse connue) et R-019 ajoutés ; `claimed` retiré du contrat — fichiers : `04`, `11`, `10`, `03`
 - [R-015] `listPublicMatches` pagine jusqu'à épuisement (pages de 200, plafond 25 pages) ; 8 tests ; 390 matchs synthétiques : 200 reçus → 390 reçus ; baseline 159 tests — fichiers : `src/lib/api/publicMatches.ts(.test)` — lien doc : `03-plan-migration.md`
 - [LOT-14/CSP] En-têtes de sécurité dans `next.config.ts` (`security-headers.ts`) : CSP en **Report-Only uniquement**, `nosniff`, `Referrer-Policy`, `Permissions-Policy` ; 13 tests ; vérifié par `next start` + `curl -I` ; +508 o/réponse ; sources avec `fichier:ligne` et décisions Q-021 dans `12-csp-report-only.md` ; R-008 non implémenté
+
+## 2026-10-07 (décisions Q-020 à Q-023)
+- [Décisions] Q-020 (règles LOT-02 validées), Q-021 (recommandations CSP acceptées), Q-022 (R-018 en P1 dans le LOT-02), Q-023 / R-014 (cible : fragment `#token=` + en-tête) consignées — fichiers : `09`, `10`, `06-adr/ADR-006`
+

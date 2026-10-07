@@ -37,3 +37,7 @@
 - (−) Dépend de Q-008 ; une incertitude (clés symétriques) change le coût (introspection partout).
 - (−) Cache de rôles = fenêtre de ≤ 30 s où un rôle retiré s'applique encore ; acceptable pour des rôles de club, **à valider** par le propriétaire.
 - À surveiller : latence de `/auth/v1/user` depuis Railway (non mesurée) ; rotation des clés JWKS ; journaux sans jeton ni donnée personnelle.
+
+## Addendum 2026-10-07 — cible du transport du jeton personnel (R-014, Q-023)
+Cible **retenue** : (1) lien d'e-mail avec le jeton en **fragment** (`…#token=<jeton>`), jamais transmis au serveur ni journalisé par Vercel ; (2) appels API avec l'en-tête **`X-Personal-Link-Token`** (et non `Authorization`, réservé au JWT Supabase). `?token=` reste accepté pendant la transition, puis est refusé (`400 TOKEN_IN_QUERY`). Côté front : le fragment est prioritaire sur la query ; l'URL est nettoyée (`history.replaceState`) dès la lecture ; le transport est isolé dans `src/lib/api/publicTokenTransport.ts` derrière `NEXT_PUBLIC_PUBLIC_TOKEN_HEADER` (défaut off). **Conséquence** : un en-tête personnalisé déclenche un préflight CORS ; `club-manager-api` doit l'autoriser (`Access-Control-Allow-Headers`) **avant** l'activation du drapeau. Actions du propriétaire : voir `00-suivi-progression.md`.
+

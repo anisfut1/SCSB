@@ -61,3 +61,10 @@
 | R-018 revendication de fiche sans adresse | **Nouveau, ouvert**, hors LOT-02 ; décision du propriétaire |
 | R-019 épuisement du budget par club | **Nouveau**, accepté dans la spécification (repli « contacte ton club ») |
 
+## Mise à jour 2026-10-07 (décisions Q-020 à Q-023)
+| Risque | Statut |
+|---|---|
+| R-014 jeton en query string | **Cible retenue** : fragment `#token=` (lien d'e-mail) + en-tête `X-Personal-Link-Token` (appels API). **Front prêt** (lecture du fragment, nettoyage immédiat de l'URL, transport isolé derrière drapeau, défaut off). **Reste ouvert** tant que `club-manager-api` n'a pas (1) généré le lien en fragment et (2) accepté l'en-tête — actions du propriétaire. Les liens déjà envoyés restent en `?token=` (rétrocompatibilité conservée) |
+| R-018 revendication de fiche sans adresse | **Traité en P1 dans le LOT-02** (Q-022) : validation admin, aucun envoi automatique, rôles coach/admin non revendicables. **Ouvert jusqu'à la livraison**, et **non vérifié sur l'existant** : procédure d'essai `11` §7.9.7 (action du propriétaire) |
+| R-019 | Inchangé (accepté) ; la file de validation ajoute une surface (spam de demandes) bornée par des limites de débit dédiées (`11` §7.9.5) |
+
