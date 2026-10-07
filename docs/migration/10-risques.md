@@ -15,7 +15,7 @@
 - **Fichiers sensibles jamais ajoutés** : seuls des `.env*.example` apparaissent dans l'historique (`.env.example`, `spikes/fbi-auth/.env.fbi.example`, `worker/.env.example`) ; aucun `.env` réel.
 - **Limites** : regex, pas d'analyse d'entropie ; branches distantes non récupérées ; ne couvre pas l'historique de `club-manager-api`. Un passage gitleaks reste recommandé si un accès est possible (en CI : voir lot « CI minimale »).
 - Historique non modifié.
-| R-008 | (lot P2 : LOT-14) Jeton personnel public stocké en `localStorage` (`lib/publicToken.ts:19`) : volable par XSS ; le lien donne l'identité « tel licencié » (affectation de tables, demandes) | Faible | Moyen | Vérifier CSP côté Next (aucun en-tête de sécurité dans `next.config.ts`) ; durée de vie / révocation du jeton côté back (à confirmer) |
+| R-008 | (lot P2 : LOT-14 ; **CSP Report-Only livrée, R-008 lui-même non traité**) Jeton personnel public stocké en `localStorage` (`lib/publicToken.ts:19`) : volable par XSS ; le lien donne l'identité « tel licencié » (affectation de tables, demandes) | Faible | Moyen | Vérifier CSP côté Next (aucun en-tête de sécurité dans `next.config.ts`) ; durée de vie / révocation du jeton côté back (à confirmer) |
 | R-009 | Annuaire public énumérable (TRT-001) : noms de mineurs exposés sans auth | Moyenne | Élevé | LOT-02 (P1) ; en attendant, rate-limit côté back si possible |
 | R-010 | `timezone` de club non validée (`club-settings.ts:36`) → `RangeError` Intl sur les pages Tables/Dérogations du club | Faible | Moyen | LOT-04 ; vérifier une contrainte en base |
 | R-011 | `getClaims()` : un compte révoqué reste accepté jusqu'à expiration du JWT dans le proxy | Faible | Moyen | **Front** : ADR-001 (inchangé). **Nouveau back** : revalidation JWKS + introspection des écritures sensibles (ADR-006, *conception, non implémentée*) ; durée de vie JWT et type de clés à vérifier (Q-008) |
@@ -48,4 +48,16 @@
 | R-014 (précision Q-017) | Chemin réel du jeton : (1) **ouverture du lien e-mail = requête de page vers le front Vercel** (`?token=`), (2) **appels API navigateur → `club-manager-api` (Vercel) en query** (`publicTables.ts:72-131`). Les journaux d'exécution Vercel enregistrent les « Search Params » (rétention 1 h à 30 jours selon l'offre). Mitigations : en-tête pour les appels API (nouveau back) **et** fragment `#token=` dans le lien e-mail (action `club-manager-api`) ; `Referrer-Policy` posé par LOT-14 (limite la fuite via `Referer`) | — | — | Voir ADR-005, ADR-007, `04` B.9 |
 | R-018 | **Revendication de fiche sans adresse connue** : tout visiteur connaissant un nom peut saisir sa propre adresse et recevoir le lien personnel d'un autre licencié (coach/admin inclus) — `IdentifyView.tsx:106-111`, `publicTables.ts:57-62` ; **côté back non vérifié** (code non lu). La spécification du LOT-02 retire `claimed` pour ne plus désigner les fiches revendicables | Moyenne | **Élevé** (écritures FBI possibles avec un lien admin/coordinateur) | Hors LOT-02 : validation de la première revendication par un admin, ou adresses pré-chargées, ou confirmation à l'adresse connue ; limitation de `request-link` (`11` §7.2) ; **décision du propriétaire requise** |
 | R-019 | **Épuisement volontaire du budget par club** (`11` §7.2) bloque l'auto-identification pendant la fenêtre (déni de service ciblé) | Faible-Moyenne | Faible-Moyen | Repli « contacte ton club », alerte à 50 % du budget, budgets calibrés sur l'usage réel |
+
+## Mise à jour 2026-10-07 (fin de séquence Q-015 à Q-018)
+| Risque | Statut |
+|---|---|
+| R-013 annuaire public | **Accepté jusqu'à la livraison du LOT-02** ; spécification prête (`11` §7). **Reste ouvert après livraison tant que l'ancien endpoint répond 200** (critère vérifiable `11` §7.7, action du propriétaire) |
+| R-014 jeton en query string | **Ouvert, non accepté.** Confirmé côté **Vercel** (« Search Params » dans les journaux d'exécution) ; Railway non documenté. `Referrer-Policy` explicite posé (LOT-14) ; en-tête pour les appels API et fragment `#token=` pour le lien e-mail à faire |
+| R-011 révocation de session | Front : ADR-001 inchangé. Nouveau back : revalidation conçue (ADR-006), non implémentée. Q-008 (JWKS, durée de vie JWT) à fournir |
+| R-015 troncature publique | **Corrigé côté front** (`1595e53`) ; sémantique API à vérifier (Q-014 T6/T7) |
+| R-016 comportements Railway non vérifiés | Ouvert (V1–V6 en staging) |
+| R-017 base Supabase exposée depuis Railway | Ouvert ; **région Railway à rapprocher de la région Supabase (exigence Q-015)** ; rôle dédié, TLS strict |
+| R-018 revendication de fiche sans adresse | **Nouveau, ouvert**, hors LOT-02 ; décision du propriétaire |
+| R-019 épuisement du budget par club | **Nouveau**, accepté dans la spécification (repli « contacte ton club ») |
 
