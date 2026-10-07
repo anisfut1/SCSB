@@ -50,3 +50,6 @@
 - [Q-023 / LOT-14] Front : `#token=` accepté (prioritaire sur `?token=`), URL nettoyée dès la lecture, transport du jeton isolé (`publicTokenTransport.ts`, `NEXT_PUBLIC_PUBLIC_TOKEN_HEADER`, défaut off) ; 172 → 222 tests — commit `4570207` — fichiers : `publicToken.ts`, `PublicIdentityProvider.tsx`, `api/public*.ts`
 - [Q-021 / LOT-14] `X-Frame-Options: DENY` + `Content-Security-Policy: frame-ancestors 'none'` appliqués (CSP complète toujours en Report-Only) ; 223 tests — commit `f2841a7` — fichiers : `security-headers.ts`
 - [Q-021] `12-csp-report-only.md` §6 : procédure de relevé des hôtes de logos et plan de passage en mode bloquant avec nonce (prérequis, étapes, rollback, critère de bascule à J+7)
+
+## CI après Q-020 à Q-023 (2026-10-07)
+Runs `37681742496`/`37681736846` (`a038c9e`, docs) ✅ ; `37684885660`/`37684879305` (`e1d79ff`, 223 tests) ✅ — deux runs par commit (deux déclencheurs) tous deux au vert. Le push qui consigne ces runs déclenche un run docs, non relevé.

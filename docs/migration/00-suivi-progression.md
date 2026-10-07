@@ -44,7 +44,7 @@
 | X-Frame-Options / frame-ancestors | ✅ appliqués (Q-021) | `f2841a7` |
 
 ## CI
-Runs : `37612678201` ✅, `37618494863` ✅, `37681560073` ✅ (commit `f830e38`, 172 tests). Runs après les décisions Q-020 à Q-023 : voir `CHANGELOG.md` (à jour après push).
+Runs : `37612678201` ✅, `37618494863` ✅, `37681560073` ✅ (commit `f830e38`, 172 tests). `37681742496` + `37681736846` ✅ (commit `a038c9e`, docs) ; `37684885660` + `37684879305` ✅ (commit `e1d79ff`, 223 tests).
 
 ## Décisions prises (2026-10-07)
 Q-015 (Supabase conservé pendant S3, réévaluation obligatoire en fin de S3), Q-016 (routage client par module, ADR-005 Acceptée), Q-017 (**front sur Vercel**, VPS supprimé de la documentation), Q-018 (recherche anonyme bornée), **Q-020** (règles LOT-02 validées), **Q-021** (CSP : toutes recommandations), **Q-022** (R-018 en P1 dans le LOT-02), **Q-023** (R-014 : fragment + en-tête).
