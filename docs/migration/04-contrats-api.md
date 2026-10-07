@@ -286,7 +286,7 @@ components.schemas.ClaimRequestDto:   # additionalProperties: false ; JAMAIS de 
 - **Autorisation du suivi** : seul le demandeur (ou un `club_admin` du même club) lit son job (`403` sinon) ; pour l'espace public, le jeton personnel.
 
 ### B.9 — Transport du jeton personnel public (R-008, E-4, R-014)
-Accepter `Authorization: Bearer <jeton personnel>` **ou** `X-Personal-Link-Token` en plus de `?token=` (déprécié, journalisé en `warn` sans valeur) ; le front bascule ensuite. Préflight CORS : autoriser ces en-têtes. Ajouter `DELETE /v1/public/clubs/{clubSlug}/me/token` (révocation par le titulaire) — **à confirmer** avec la durée de vie/rotation actuelle (inconnue).
+**Décision (Q-023, 2026-10-07)** : en-tête **`X-Personal-Link-Token`** (pas `Authorization`, réservé au JWT) ; lien d'e-mail avec le jeton en **fragment** `#token=`. Front prêt (`publicTokenTransport.ts`, drapeau `NEXT_PUBLIC_PUBLIC_TOKEN_HEADER`, défaut off). Accepter `X-Personal-Link-Token` en plus de `?token=` (déprécié, journalisé en `warn` sans valeur) ; le front bascule ensuite. Préflight CORS : autoriser ces en-têtes. Ajouter `DELETE /v1/public/clubs/{clubSlug}/me/token` (révocation par le titulaire) — **à confirmer** avec la durée de vie/rotation actuelle (inconnue).
 
 ### B.10 — LOT-12 (opportuniste)
 `summary` dans `GET …/table-assignments` (`DaySummary.tsx:13-26`) ; `?status=open` sur `GET …/issues` (`issues/page.tsx:32`) ; `countsByStatus` dans `GET …/derogation-requests` (`DashboardRequestsCard.tsx:13`).

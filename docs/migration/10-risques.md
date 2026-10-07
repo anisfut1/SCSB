@@ -68,3 +68,10 @@
 | R-018 revendication de fiche sans adresse | **Traité en P1 dans le LOT-02** (Q-022) : validation admin, aucun envoi automatique, rôles coach/admin non revendicables. **Ouvert jusqu'à la livraison**, et **non vérifié sur l'existant** : procédure d'essai `11` §7.9.7 (action du propriétaire) |
 | R-019 | Inchangé (accepté) ; la file de validation ajoute une surface (spam de demandes) bornée par des limites de débit dédiées (`11` §7.9.5) |
 
+## Alertes 2026-10-07 (fin de séquence Q-020 à Q-023)
+| Risque | Statut |
+|---|---|
+| R-013 | Inchangé : accepté jusqu'à la livraison du LOT-02 ; reste ouvert tant que l'ancien endpoint répond 200 |
+| R-014 | Front prêt, **ouvert** (actions `club-manager-api`) ; limite résiduelle : les liens déjà envoyés restent en `?token=` jusqu'à leur ouverture (le jeton atteint alors une fois les journaux Vercel) |
+| R-018 | Spécifié, **ouvert** ; vérification sur l'existant à faire |
+| R-019 | Inchangé, accepté |

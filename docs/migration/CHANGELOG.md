@@ -46,4 +46,7 @@
 
 ## 2026-10-07 (décisions Q-020 à Q-023)
 - [Décisions] Q-020 (règles LOT-02 validées), Q-021 (recommandations CSP acceptées), Q-022 (R-018 en P1 dans le LOT-02), Q-023 / R-014 (cible : fragment `#token=` + en-tête) consignées — fichiers : `09`, `10`, `06-adr/ADR-006`
-
+- [Q-022 / LOT-02] Spécification complétée pour R-018 : flux de revendication soumise à validation admin, réponse publique uniforme, exclusion coach/admin, endpoints `claim-requests`, 12 tests de contrat, procédure de vérification sur l'existant — commit `b0c7b45` — fichiers : `11` §7.9, `04` B.1 bis
+- [Q-023 / LOT-14] Front : `#token=` accepté (prioritaire sur `?token=`), URL nettoyée dès la lecture, transport du jeton isolé (`publicTokenTransport.ts`, `NEXT_PUBLIC_PUBLIC_TOKEN_HEADER`, défaut off) ; 172 → 222 tests — commit `4570207` — fichiers : `publicToken.ts`, `PublicIdentityProvider.tsx`, `api/public*.ts`
+- [Q-021 / LOT-14] `X-Frame-Options: DENY` + `Content-Security-Policy: frame-ancestors 'none'` appliqués (CSP complète toujours en Report-Only) ; 223 tests — commit `f2841a7` — fichiers : `security-headers.ts`
+- [Q-021] `12-csp-report-only.md` §6 : procédure de relevé des hôtes de logos et plan de passage en mode bloquant avec nonce (prérequis, étapes, rollback, critère de bascule à J+7)

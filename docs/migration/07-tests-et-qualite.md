@@ -52,3 +52,9 @@ Run `37618494863` (https://github.com/anisfut1/SCSB/actions/runs/37618494863), c
 
 ## CI après R-015 et LOT-14/CSP (2026-10-07)
 Run `37681560073` (https://github.com/anisfut1/SCSB/actions/runs/37681560073), commit `f830e38` : `Typecheck, lint, tests, build` ✅ (172 tests) et `Secrets (gitleaks, historique complet)` ✅. Le push qui consigne ce run déclenche un run docs seulement, non relevé.
+
+## Q-020 à Q-023 : jeton en fragment et anti-framing (2026-10-07)
+- Baseline avant : **172 tests** (24 fichiers). Après : **223 tests (26 fichiers)**, typecheck, lint propres, build OK avec drapeau off **et** on.
+- Jeton (`4570207`) : `publicToken.test.ts` (caractérisation d'origine d'abord, verte avant tout changement ; puis fragment, priorité, nettoyage, StrictMode) et `publicTokenCalls.test.ts` (14 appels × {query par défaut, en-tête}, valeurs du drapeau). Deux attentes de caractérisation saisies à la main étaient fausses (`+` contre `%20` de `URLSearchParams`) : corrigées en relevant le résultat réel de l'ancien code.
+- Anti-framing (`f2841a7`) : 14 tests dans `security-headers.test.ts` dont le `headers()` réel de `next.config.ts` ; vérifié par `next build` + `next start` + `curl -I` (`Content-Security-Policy: frame-ancestors 'none'`, `X-Frame-Options: DENY`).
+- **Non testé** : comportement d'un vrai navigateur (`history.replaceState`, préflight CORS de l'en-tête), aucun environnement DOM dans le dépôt (Q-009 : jsdom pas encore ajouté) ; les fonctions sont donc testées avec un `window` factice.
