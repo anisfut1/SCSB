@@ -7,4 +7,6 @@ _Lots de la Phase 2 à définir ; ordre : sécurité d'abord, puis ratio gain/ef
 - **Tests** : typecheck, lint, vitest, build identiques à la baseline (`07-tests-et-qualite.md`).
 - **Critères de done** : `npm audit --omit=dev` sans critique/haute, ou exceptions justifiées en ADR.
 - **Bascule / rollback** : commit unique, `git revert`.
-- **Statut** : ⬜ À faire (analyse en Phase 1)
+- **Réalisé (2026-10-07)** : `next` 16.3.5 → 16.3.6 (exception autorisée à la règle 1), `eslint-config-next` aligné, `npm audit fix` sans `--force`. Résultats : `07-tests-et-qualite.md`.
+- **Rollback** : `git revert <commit LOT-00>` puis `npm ci` (le lockfile revient à 16.3.5/sharp 0.35.4/source-map-js 1.2.1). Aucun changement de code applicatif à défaire.
+- **Statut** : ✅ Terminé

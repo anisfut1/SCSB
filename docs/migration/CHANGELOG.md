@@ -5,3 +5,7 @@
 - [Phase 0] LOT-00 sécurité ajouté au plan ; Phase 3 recadrée en analyse d'écart — fichiers : `03-plan-migration.md`, `05-architecture-cible.md`
 - [Phase 0] Commit `675fef8` docs(migration): phase 0 initialisation
 - [Phase 1] Cartographie complète : stack, dépendances, 3 vulnérabilités de prod détaillées (LOT-00), 3 variables NEXT_PUBLIC_* vérifiées (aucun secret), flux Mermaid, config morte, `worker/` obsolète — fichiers : `01-cartographie-repo.md`, `09`, `10`, `00` — lien doc : `01-cartographie-repo.md`
+
+## 2026-10-07 (suite)
+- [Phase 1] Commit `b933d0e` docs(migration): phase 1 cartographie
+- [LOT-00] next 16.3.6, eslint-config-next 16.3.6, sharp 0.35.5, source-map-js 1.2.2 ; audit prod 3 → 0 ; baseline verte (109 tests) — fichiers : `package.json`, `package-lock.json` — lien doc : `07-tests-et-qualite.md`

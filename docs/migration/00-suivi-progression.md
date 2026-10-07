@@ -16,7 +16,7 @@
 ## Lots de migration
 | ID     | Traitement | Fichiers front concernés | Endpoint cible | Priorité | Statut | Test | PR/commit |
 |--------|------------|--------------------------|----------------|----------|--------|------|-----------|
-| LOT-00 | Vulnérabilités de prod (next critique, sharp, source-map-js) | package.json, package-lock.json | — | P1 | ⬜ | ⬜ | |
+| LOT-00 | Vulnérabilités de prod (next critique, sharp, source-map-js) | package.json, package-lock.json | — | P1 | ✅ | ✅ (baseline) | voir `git log` |
 | _autres lots_ | _définis en Phase 2_ | | | | | | |
 
 ## Prochaines actions
