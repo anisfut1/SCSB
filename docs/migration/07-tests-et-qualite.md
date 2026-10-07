@@ -41,3 +41,6 @@ Run `37612678201` : `verify` ✅ (9 étapes) et `gitleaks` ✅. Détails et limi
 - Baseline avant les lots : **124 tests** ; après LOT-04 : **129** (`club-settings.test.ts` passe de 4 à 9) ; après LOT-06 : **151 tests, 22 fichiers** ; typecheck, lint (0 avertissement), build (flag off **et** flag on) ✅.
 - LOT-04 : caractérisation écrite d'abord sur l'ancien code (6 tests verts), puis adaptée à `api.clubs.update` ; vérification `grep -rn "\.from(" src` = aucun résultat.
 - LOT-06 : jeu synthétique 390 matchs ; parité d'affichage 7 scénarios × 2 sémantiques de `to` ; comptes figés relevés sur le code d'origine (un premier jeu de valeurs saisi à la main était faux : corrigé en lisant le résultat réel de l'ancien code).
+
+## CI après LOT-04, LOT-06 et révision Railway (2026-10-07)
+Run `37618494863` (https://github.com/anisfut1/SCSB/actions/runs/37618494863), commit `b540bbd` : `Typecheck, lint, tests, build` ✅ et `Secrets (gitleaks, historique complet)` ✅. Ce commit inclut le code des LOT-04 et LOT-06 (151 tests). Le push qui consigne ce run déclenche un run supplémentaire (docs seulement), non relevé ici.
