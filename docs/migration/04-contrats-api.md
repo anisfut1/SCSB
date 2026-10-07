@@ -221,7 +221,7 @@ _Principe (ADR-005) : tous **additifs sous `/v1`**, même enveloppe d'erreur, m�
 | club inconnu | `404 NOT_FOUND` (les slugs de clubs sont publics : pas un secret) |
 | budget dépassé | `429 RATE_LIMITED` + `Retry-After` |
 | jeton fourni (`?token=`, `Authorization`) | ignoré pour cette route ; `?token=` → `400 TOKEN_IN_QUERY` (règle globale, ADR-007 §7) |
-**Changements de contrat par rapport à l'annuaire actuel** (`PublicLicencieDto`, `schema.ts:7702-7708`) : plus de `lastName` complet, **plus de `claimed`** (indiquait quels profils n'ont pas encore de lien — cf. R-018), `id` + `firstName` + `lastInitial` seulement. Impact front : l'écran de confirmation ne peut plus distinguer « déjà inscrit » (`IdentifyView.tsx:173-175,240-246`) → message neutre ; « Lien envoyé, {firstName} » (`:~131`) inchangé.
+**Changements de contrat par rapport à l'annuaire actuel** (`PublicLicencieDto`, `schema.ts:7702-7708`) : plus de `lastName` complet, **plus de `claimed`** (indiquait quels profils n'ont pas encore de lien — cf. R-018), `id` + `firstName` + `lastInitial` seulement. Impact front : l'écran de confirmation ne peut plus distinguer « déjà inscrit » (`IdentifyView.tsx:173-175,240-246`) → message neutre ; « Lien envoyé, {firstName} » (`:133`) inchangé.
 **Ancien endpoint** `GET …/licencies` (annuaire complet) : à **fermer dans `club-manager-api`** (`410 GONE` ou `404`) — action du propriétaire, critère de done vérifiable en `11` §7.6 ; **tant qu'il répond `200`, R-013 n'est pas résolu**. `POST …/licencies/{id}/request-link` inchangé (`publicTables.ts:64`).
 
 ### B.2 — LOT-03 : gymnases dynamiques

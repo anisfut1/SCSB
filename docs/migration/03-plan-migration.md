@@ -131,7 +131,7 @@ Flags : variable `NEXT_PUBLIC_*` **interdite** pour un flag sensible ; utiliser 
 - **Code** : `ListMatchesParams` étendu (`teamId`, `homeAway`, `status`) et `matchesFilterSearchParams` (`src/lib/api/matches.ts`, partagé club/public) ; `src/features/matches/load-matches.ts` (`buildServerMatchQuery`, `loadMatchesForView`) ; flag serveur `src/config/flags.ts` (`FF_MATCHES_SERVER_FILTERS`, défaut **off**) ; pages `c/[clubSlug]/matchs` et `public/[clubSlug]/matchs`.
 - **Ce qui part au serveur** : `teamId` (seulement si l'id figure dans les équipes), `homeAway`, période « À venir » (`from=now`) / « Passés » (`to=now`). **Mode Journée : saison entière** (sélecteur de journée). `status` : paramètre disponible mais **aucune UI** ne l'utilise (aucun filtre de statut n'existait).
 - **`period=weekend` non utilisé** (Q-014). Le filtrage local `applyMatchFilters` est **toujours appliqué ensuite** (idempotent) : parité garantie par construction ; à retirer en Phase 5 une fois Q-014 confirmée.
-- **Pagination** : `listMatches` pagine déjà (pages de 200) ; la vue publique reste à **un seul appel `limit=200`** (voir R-015, non modifié).
+- **Pagination** : `listMatches` pagine déjà (pages de 200) ; la vue publique ne paginait pas (R-015) : **corrigé** par le commit R-015 ci-dessous.
 - **Tests** : `load-matches.test.ts` (22) — caractérisation (comptes figés sur l'ancien code : 15 / 1 / 315 / 158 / 75 / 5 / 11), parité × 2 sémantiques de `to`, requêtes, appels réseau, mesure simulée.
 - **Activer** : définir `FF_MATCHES_SERVER_FILTERS=1` sur le déploiement du front (variable **serveur**, jamais `NEXT_PUBLIC_*`), redéployer. **Rollback** : retirer la variable (ou `=0`) et redéployer ; `git revert` du commit en dernier recours.
 - **Critère pour retirer le flag** : Q-014 confirmée, mesure réelle (pas simulée) sur un déploiement de prévisualisation, absence d'écart d'affichage sur une semaine d'usage.
@@ -139,3 +139,11 @@ Flags : variable `NEXT_PUBLIC_*` **interdite** pour un flag sensible ; utiliser 
 ## LOT-02 — spécification v2 (2026-10-07, Q-018 = option 1)
 Contrat et règles : `04` §B.1 (OpenAPI), `11` §7 (règles chiffrées, mineurs, journaux, tests, bascule, fermeture de l'ancien endpoint). **Résumé** : `q` = prénom + nom (≥ 2 mots de ≥ 2 lettres) ; 5 résultats max ; `id` + prénom + initiale seulement ; plus de `claimed` ; budgets 30/min et 300/h par IP, 600/h par club ; journaux sans donnée personnelle (14 jours). **Dépendances** : repo du back (propriétaire), validation des règles (Q-020), vérification V1, fermeture de l'ancien endpoint (propriétaire, critère vérifiable `11` §7.7). **Statut** : spécifié, **non démarré**.
 
+
+
+## R-015 — pagination de la vue publique des matchs (2026-10-07, front seul)
+- **Défaut** : `listPublicMatches` faisait un seul appel `limit=200` (`publicMatches.ts`, ancien l.36-39) : sur le jeu synthétique de 390 matchs, **190 matchs perdus** (les plus récents si l'API trie par date croissante, hypothèse `matches.ts:40-52`). Concernait `public/[clubSlug]/matchs` et `public/[clubSlug]/resultats`.
+- **Correctif** : pagination par pages de 200 avec `offset`, arrêt sur page incomplète ou `pagination.total` atteint ; **plafond de sécurité 25 pages = 5 000 matchs** (`PUBLIC_MATCHES_MAX_PAGES`, 10× la saison estimée). Au-delà du plafond la liste est volontairement partielle et silencieuse (documenté dans le code).
+- **Tests** : `publicMatches.test.ts` (8) ; la caractérisation d'origine (1 appel, 200 reçus sur 390) a été écrite et passée **sur l'ancien code** avant le correctif, puis remplacée par l'attendu corrigé.
+- **Coût** : +1 requête pour une saison de 201 à 400 matchs (séquentielle). **Rollback** : `git revert` du commit.
+- **Non vérifié** : le comportement réel de l'API (tri, présence de `pagination` sur la route publique) — Q-014 T6/T7.

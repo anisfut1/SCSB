@@ -27,12 +27,40 @@ export async function listPublicTeams(clubSlug: string): Promise<TeamDto[]> {
   return teams;
 }
 
-/** GET /v1/public/clubs/:clubSlug/matches — mêmes filtres que la vue authentifiée (voir `./matches.ts#listMatches`), sans pagination automatique ici (la vue publique n'affiche que la saison en cours, un seul appel suffit). */
+/** Taille de page demandée à l'API publique (maximum accepté : 200, comme `MAX_MATCHES_LIMIT` côté club-manager-api). */
+const PUBLIC_MATCHES_PAGE_SIZE = 200;
+/**
+ * Plafond de sécurité : au plus 25 pages, soit 5 000 matchs. Une saison de club
+ * représente de l'ordre de 10² à 10³ matchs (estimé : 15 équipes × 26 = 390) ;
+ * le plafond protège contre un `pagination.total` aberrant ou une boucle sans
+ * fin, au prix d'une liste volontairement partielle au-delà.
+ */
+export const PUBLIC_MATCHES_MAX_PAGES = 25;
+
+/**
+ * GET /v1/public/clubs/:clubSlug/matches — mêmes filtres que la vue authentifiée
+ * (voir `./matches.ts#listMatches`). **Pagine jusqu'à épuisement** (R-015) : avant,
+ * un seul appel `limit=200` tronquait silencieusement une saison de plus de 200
+ * matchs (les plus récents manquaient, l'API triant par date croissante).
+ * S'arrête dès qu'une page est incomplète, que `pagination.total` est atteint,
+ * ou à `PUBLIC_MATCHES_MAX_PAGES`.
+ */
 export async function listPublicMatches(clubSlug: string, params: ListMatchesParams = {}): Promise<MatchListItemDto[]> {
-  const search = matchesFilterSearchParams(params);
-  search.set("limit", "200");
-  const query = search.toString();
-  const { matches } = await apiFetch<PublicMatchesListResponse>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/matches${query ? `?${query}` : ""}`);
+  const matches: MatchListItemDto[] = [];
+
+  for (let page = 0; page < PUBLIC_MATCHES_MAX_PAGES; page++) {
+    const offset = page * PUBLIC_MATCHES_PAGE_SIZE;
+    const search = matchesFilterSearchParams(params);
+    search.set("limit", String(PUBLIC_MATCHES_PAGE_SIZE));
+    search.set("offset", String(offset));
+
+    const response = await apiFetch<PublicMatchesListResponse>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/matches?${search.toString()}`);
+    matches.push(...response.matches);
+
+    const reachedTotal = response.pagination ? offset + PUBLIC_MATCHES_PAGE_SIZE >= response.pagination.total : false;
+    if (response.matches.length < PUBLIC_MATCHES_PAGE_SIZE || reachedTotal) break;
+  }
+
   return matches;
 }
 
