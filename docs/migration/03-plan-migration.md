@@ -8,9 +8,9 @@ _Phase 2, 2026-10-07. Ordre : **sécurité d'abord**, puis meilleur ratio gain/e
 | LOT-01 | Auth : jeton mémoïsé + `getClaims()` | TRT-002 | P1 | non | ✅ `a4c2580` |
 | LOT-02 | Roster public : recherche serveur — **1ᵉʳ lot de la Phase 4** (R-013, révision obligatoire) | TRT-001 | P1 | oui (nouveau back) | ⛔ nouveau back |
 | LOT-03 | Gymnases dynamiques (multi-tenant) | TRT-003 | P1 | à confirmer | ⛔ nouveau back |
-| LOT-04 | Réglages club via API + validation fuseau | TRT-011 | P2 | oui | ⛔ nouveau back |
+| LOT-04 | Réglages club via `PATCH /v1/clubs/{id}` existant (+ vérifier validation du fuseau) | TRT-011 | P2 | **non** (endpoint existant, E-2) | ⬜ **prêt (front seul)** |
 | LOT-05 | Saison & journée côté serveur | TRT-007, TRT-008 | P2 | oui | ⛔ nouveau back |
-| LOT-06 | Matchs : filtres + pagination serveur | TRT-006 | P2 | oui | ⛔ (dépend LOT-05) |
+| LOT-06 | Matchs : utiliser les filtres serveur existants (E-3) ; `weekends` nouveau | TRT-006 | P2 | partiel (`/matches/weekends`) | ⬜ **prêt en grande partie (front)** — sémantique `period=weekend` à confirmer |
 | LOT-07 | Endpoint tableau de bord (BFF) | TRT-005 | P1 | oui | ⛔ (dépend LOT-01, LOT-05) |
 | LOT-08 | Résultats groupés côté serveur | TRT-009 | P2 | oui | ⛔ (dépend LOT-05) |
 | LOT-09 | Import licenciés : parsing serveur | TRT-010 | P2 | oui | ⛔ nouveau back |
@@ -21,6 +21,7 @@ _Phase 2, 2026-10-07. Ordre : **sécurité d'abord**, puis meilleur ratio gain/e
 | LOT-14 | En-têtes de sécurité (CSP…) + durcissement jeton public (R-008) | — | P2 | non (révocation du jeton : à confirmer) | ⬜ à planifier (non implémenté) |
 
 **Ordre recommandé** : LOT-01 → LOT-11 (livrés) ; puis, dès que le nouveau back existe : **LOT-02 en tête (R-013)** → LOT-03 → LOT-04 → LOT-05 → (LOT-06 ∥ LOT-07 ∥ LOT-08) → LOT-09 → LOT-10 → LOT-12 ; LOT-13 en Phase 5.
+**Phase 3 (2026-10-07)** : LOT-04 et la majeure partie de LOT-06 sont **réalisables sans nouveau back** (endpoints existants, `04` E-2/E-3). Ils ne sont pas lancés : en attente de la validation 🛑 de fin de Phase 3.
 **Pourquoi LOT-07 (gros gain) après LOT-05** : il réutilise la borne de saison et la règle de journée côté serveur ; le faire avant dupliquerait la règle une 3ᵉ fois.
 **Pourquoi LOT-10 tardif** : le plus risqué (comportements d'intégration FFBB/FBI non testables sans le back) ; il se découpe en sous-lots par endpoint (sync FFBB, process-jobs, parse-documents, check-all-derogations, dérogation respond/check, import).
 
@@ -112,3 +113,8 @@ Flags : variable `NEXT_PUBLIC_*` **interdite** pour un flag sensible ; utiliser 
 - **Points d'attention** : Next 16 + styles inline/Tailwind exigent une CSP à nonce (à valider dans `node_modules/next/dist/docs/` avant d'écrire du code, AGENTS.md) ; autoriser `connect-src` vers l'URL Supabase et `club-manager-api` ; déployer d'abord en `Content-Security-Policy-Report-Only`.
 - **Jeton public** : durée de vie, rotation et révocation côté back (Q-001) ; envisager un cookie `HttpOnly` plutôt que `localStorage` (change l'architecture du lien personnel : décision à part).
 - **Tests** : test d'en-têtes sur la config ; parcours manuel connexion/espace public. **Done** : CSP en mode report-only sans violation sur les parcours principaux, puis enforcement. **Rollback** : retirer `headers()`.
+
+## Rappels de la Phase 3
+- Contrats détaillés par lot : `04-contrats-api.md` §B (B.1 = LOT-02, B.2 = LOT-03, B.3 = LOT-05/06, B.4 = LOT-04, B.5 = LOT-07, B.6 = LOT-08, B.7 = LOT-09, B.8 = LOT-10, B.9 = LOT-14/R-014, B.10 = LOT-12).
+- Choix structurants : ADR-002 à ADR-007 (statut **Proposée**, en attente de Q-011/Q-012/Q-013).
+- LOT-14 (CSP, jeton public) inclut le transport du jeton par en-tête (E-4, B.9) : exige le nouveau back **et** une modification du front.

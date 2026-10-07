@@ -33,3 +33,6 @@ Vulnérabilités dev restantes (consignées, hors lot) : `@next/eslint-plugin-ne
 - Tests ajoutés : `src/lib/timezone.test.ts` (+2, `isValidTimezone`), `src/server/actions/club-settings.test.ts` (4), `src/lib/api/auth-calls.test.ts` (5 : caractérisation 8 → 1 appel, jeton transmis, pas de cache inter-requêtes, JWT refusé, sans session), `src/proxy.test.ts` (4).
 - CI : `.github/workflows/ci.yml` validé par **actionlint** (0 erreur) ; la logique de vérification de somme de contrôle de gitleaks testée localement ; **premier run réel non effectué** (nécessite un push). Les jobs : `verify` (npm ci, typecheck, lint, test, build, `npm audit --omit=dev --audit-level=high`) et `gitleaks` (historique complet).
 - Actions épinglées par tag majeur (`checkout@v7`, `setup-node@v7`) ; gitleaks épinglé `8.30.1`. Épingler par SHA = durcissement possible (chaîne d'approvisionnement), non fait.
+
+## Premier run CI réel (2026-10-07)
+Run `37612678201` : `verify` ✅ (9 étapes) et `gitleaks` ✅. Détails et limites : `10-risques.md`. Aucun correctif nécessaire. Branche poussée : `refactor/migration-back` uniquement (jamais `main`, pas de `--force`).

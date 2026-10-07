@@ -19,3 +19,4 @@
 | Q-011 | Le nouveau back **remplace-t-il** `club-manager-api` ou **coexiste-t-il** (nouveaux endpoints seulement) ? Les deux scénarios sont préparés dans ADR-005. | ⏳ À poser au 🛑 fin de Phase 3 |
 | Q-012 | Contraintes de stack côté équipe : langages maîtrisés, BDD imposée, Supabase conservé pour l'auth et les données ? | ⏳ À poser au 🛑 fin de Phase 3 |
 | Q-013 | VPS : Docker disponible ? quel reverse proxy ? méthode de déploiement actuelle du front ? | ⏳ À poser au 🛑 fin de Phase 3 |
+| Q-014 | Sémantique exacte de `period=weekend` côté back existant (fuseau, samedi-dimanche ?) et validation du `timezone` par `PATCH /v1/clubs/{id}` : à vérifier par un appel d'essai avant LOT-04/LOT-06 (aucune lecture du code du back). | ⏳ |

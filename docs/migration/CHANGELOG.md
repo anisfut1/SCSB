@@ -21,3 +21,10 @@
 
 ## 2026-10-07 (suite 3)
 - [Décisions] D-3 = option B (R-013 accepté, révision au plus tard à la livraison du LOT-02 / prochain 🛑 de Phase 4) ; Q-001 résolue autrement (nouveau back) ; Q-002 rouverte ; Q-007 = VPS ; LOT-02 en tête de Phase 4 ; Q-011 à Q-013 ouvertes — fichiers : `09`, `10`, `03`, `00` — lien doc : `10-risques.md`
+
+## 2026-10-07 (suite 4 — Phase 3)
+- [Push] `git push -u origin refactor/migration-back` (branche seule, sans --force) ; premier run CI `37612678201` ✅ (verify + gitleaks) — fichiers : `10`, `07`
+- [Phase 3] `04-contrats-api.md` : 100 opérations (généré depuis `schema.ts` + appels `src/lib/api/`), 8 non appelées, écarts E-1 à E-6, nouveaux endpoints B.1 à B.11
+- [Phase 3] `05-architecture-cible.md` : stack, modules, auth, jobs, fuseau, VPS, arborescence du nouveau repo ; 5 diagrammes Mermaid validés par le parseur officiel (1 erreur de syntaxe trouvée et corrigée)
+- [Phase 3] ADR-002 (langage), 003 (données), 004 (jobs), 005 (coexistence, 2 scénarios), 006 (auth/jeton), 007 (VPS) — statut Proposée
+- [Plan] LOT-04 et LOT-06 débloqués côté front (endpoints existants) ; R-014 (jeton en query string) ouvert ; Q-014 ajoutée

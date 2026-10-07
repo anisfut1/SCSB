@@ -1,0 +1,39 @@
+# ADR-006 — Authentification, autorisation et jeton personnel public
+- **Date** : 2026-10-07
+- **Statut** : Proposée (complète ADR-001, qui traite le front)
+
+## Contexte
+- R-011 : avec `getClaims()` côté front (ADR-001), une session révoquée reste acceptée jusqu'à l'expiration du JWT ; le back doit donc **revalider** (`04` §B.11). Durée de vie JWT et type de clés (Q-008) **non vérifiés**.
+- Les rôles sont par club (`club.roles`, `club-context.ts:43-67`) ; un `platform_admin` existe (`/v1/platform/*`).
+- Espace public sans compte : identité = **jeton personnel** dans `?token=` (E-4) ; annuaire public à restreindre (R-013).
+- Le back choisit d'appliquer l'autorisation en code (ADR-003 : rôle Postgres sans RLS).
+
+## Options étudiées
+**Vérification du JWT Supabase côté back**
+| Option | Avantages | Inconvénients |
+|---|---|---|
+| A. Signature locale via **JWKS** (clés asymétriques) + contrôle `exp`/`aud`/`iss` | Pas d'appel réseau par requête ; rapide | Révocation non vue avant expiration ; exige des clés asymétriques (Q-008) |
+| B. Introspection `GET {supabase}/auth/v1/user` à chaque requête | Révocation immédiate | +1 appel réseau par requête (le coût que ADR-001 vient de supprimer côté front) ; dépendance de disponibilité |
+| C. **A par défaut + B pour les opérations sensibles** et en cache court | Compromis ; révocation vue sous quelques secondes pour l'essentiel | Deux chemins à tester |
+| D. Secret symétrique HS256 partagé | Simple | Secret partagé = pas de séparation ; si les clés sont symétriques, c'est le seul mode local (Q-008) |
+
+**Rôles** : lus en base **à chaque requête** (clé `(userId, clubId)`), cache mémoire ≤ 30 s (estimé) invalidé à l'écriture — jamais lus depuis le JWT (un rôle retiré s'applique immédiatement).
+
+**Jeton personnel public**
+| Option | Avantages | Inconvénients |
+|---|---|---|
+| A. Statu quo `?token=` | Zéro changement | Fuite dans journaux/Referer/historique (E-4, R-014) |
+| B. En-tête (`Authorization: Bearer` / `X-Personal-Link-Token`), `?token=` toléré puis supprimé | Supprime la fuite côté journaux ; compatible en transition | Le **lien envoyé par e-mail** contient forcément le jeton (le lien « porte » l'identité) → le jeton doit être échangé côté front puis retiré de l'URL (`history.replaceState`) et stocké ailleurs |
+| C. Cookie `HttpOnly` posé par le back après échange du lien | Insensible au vol XSS de `localStorage` (R-008) | Change l'architecture du lien perso, CSRF à traiter, domaines à aligner front/back |
+
+## Décision (proposée)
+1. **Option C (A + B sensible)** pour le JWT : JWKS en mémoire (rafraîchi), `exp` strict, `aud=authenticated`, `iss` du projet ; introspection `/auth/v1/user` (cache ≤ 10 s) pour : tout `POST/PUT/PATCH/DELETE`, `platform/*`, jobs d'écriture FBI, génération/réinitialisation de liens personnels. **Si Q-008 = clés symétriques** → introspection sur toutes les requêtes avec cache 10 s (ou secret partagé, option D, à éviter).
+2. **Jeton personnel** : stocké **haché** (SHA-256 + sel/HMAC serveur) ; comparaison à temps constant ; durée de vie et révocation explicites (`DELETE …/me/token`) ; transport par en-tête (option B) en première étape, option C en évolution (LOT-14).
+3. **Contrôles transverses** : middleware d'auth **par défaut** sur toute route (liste blanche des routes publiques) + test qui énumère les routes ; limitation de débit sur toutes les routes publiques et sur `request-link` (e-mail) ; CORS en liste blanche (domaine du front uniquement) ; validation Zod de toute entrée ; réponses 404 identiques pour « club inconnu » et « non membre » (comportement actuel, `club-context.ts:29-33`).
+4. **Aucun secret dans le navigateur** (inchangé) ; le back ne reçoit jamais le mot de passe Supabase.
+
+## Conséquences
+- (+) R-011 refermé sur les actions sensibles ; R-014 refermé par le transport en en-tête ; énumération publique impossible par conception (B.1).
+- (−) Dépend de Q-008 ; une incertitude (clés symétriques) change le coût (introspection partout).
+- (−) Cache de rôles = fenêtre de ≤ 30 s où un rôle retiré s'applique encore ; acceptable pour des rôles de club, **à valider** par le propriétaire.
+- À surveiller : latence de `/auth/v1/user` depuis le VPS (non mesurée) ; rotation des clés JWKS ; journaux sans jeton ni donnée personnelle.

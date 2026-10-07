@@ -10,12 +10,12 @@ _Mesures : aucune mesure runtime n'a été prise (pas de back, pas de profil nav
 | TRT-003 | Gymnases du club pilote codés en dur dans l'agenda | Logique métier | **P1** | M | moyen | venues du club (API existante) | à confirmer |
 | TRT-004 | Opérations de 1 à 5 min pilotées en synchrone depuis le navigateur | Tâches longues | **P1** | L | élevé | 202 + `jobId` + suivi | oui |
 | TRT-005 | Tableau de bord : agrégats recalculés depuis toute la saison (9 appels) | Agrégation / cascade | **P1** | M | moyen | endpoint BFF `dashboard` | oui |
-| TRT-006 | Liste des matchs : saison entière, filtrée/triée/regroupée côté Next | Pagination/filtre | P2 | M | moyen | filtres + pagination serveur | oui |
+| TRT-006 | Liste des matchs : saison entière, filtrée/triée/regroupée côté Next | Pagination/filtre | P2 | M | moyen | filtres serveur **déjà disponibles** (`04` E-3) : bascule front | non (sémantique `period=weekend` à confirmer) |
 | TRT-007 | Borne de saison calculée côté front, fuseau du runtime | Logique métier | P2 | S | faible | `season=current` côté API | oui |
 | TRT-008 | Règle « journée = week-end » + `Europe/Paris` en dur (≠ `club.timezone`) | Logique métier | P2 | M | moyen | `weekend=` / regroupement serveur | oui |
 | TRT-009 | Résultats : groupage par équipe, bilan V/D/N, jointure classements | Transformation | P2 | M | moyen | endpoint `results` | oui |
 | TRT-010 | Import licenciés : parsing TSV/CSV + règles de mapping dans le navigateur | Calcul CPU / règles | P2 | M | moyen | `POST …/import` accepte le texte brut | oui |
-| TRT-011 | Réglages du club : écriture directe Supabase, sans validation du fuseau | Sécurité/Validation | P2 | S | moyen | `PATCH /v1/clubs/:id/settings` | oui |
+| TRT-011 | Réglages du club : écriture directe Supabase, sans validation du fuseau | Sécurité/Validation | P2 | S | moyen | `PATCH /v1/clubs/{id}` **existe déjà** (`04` E-2) : bascule front | non (validation du fuseau à confirmer) |
 | TRT-012 | Conversion fuseau/DST codée 3 fois (+ 1 côté back) | Duplication | P3 | S | faible | un seul module / champs prêts à afficher | partiel |
 | TRT-013 | Comptages/filtres sur petites listes admin | Transformation légère | P3 | S | faible | champs `summary` / `?status=` | oui |
 | TRT-014 | Résumé de journée Tables (`computeDaySummary`) | Logique métier | P3 | S | faible | `summary` dans la réponse | oui |
@@ -61,7 +61,7 @@ _Mesures : aucune mesure runtime n'a été prise (pas de back, pas de profil nav
 ### TRT-006 — Liste des matchs : filtrage/tri/regroupement local  · P2
 - **Localisation** : `src/app/c/[clubSlug]/matchs/page.tsx:35` et `public/[clubSlug]/matchs/page.tsx:37` (saison entière) ; `features/matches/match-filters.ts:77-99` (`applyMatchFilters`), `:116-132` (`groupMatchesByWeekend`), `:145-156` (`weekendOptions` : recalcule le filtre sur toute la saison **pour chaque rendu**) ; `MatchesView.tsx:30-37`.
 - **Fréquence** : chaque changement de filtre (navigation serveur, car l'état est dans l'URL) → **re-téléchargement de la saison complète à chaque clic**, puis filtrage en mémoire côté serveur Next.
-- **Cible (à confirmer)** : `GET /v1/clubs/:id/matches?when=&side=&teamId=&weekend=` + `GET …/matches/weekends` (options + compteurs) ; filtre déjà partiellement supporté (`from`/`to` utilisés). **Cplx** M. **Risque** moyen. **Test** : `match-filters.test.ts` existe (caractérisation acquise).
+- **Mise à jour Phase 3 (2026-10-07)** : `GET …/matches` supporte **déjà** `period`, `teamId`, `homeAway`, `status`, `limit`, `offset` (`schema.ts:569-580`) ; le front n'envoie que `from`/`to` (`matches.ts:56-75`) et boucle sur des pages de 200. **Cible** : utiliser ces filtres (bascule front) ; seul `GET …/matches/weekends` (compteurs par journée) est nouveau (`04` B.3). **Cplx** M. **Risque** moyen. **Test** : `match-filters.test.ts` existe (caractérisation acquise).
 
 ### TRT-007 — Borne de saison  · P2
 - **Localisation** : `src/lib/season.ts:6-8` (1ᵉʳ août via `getMonth()`/`new Date(y,7,1)` = **fuseau du runtime**, UTC sur Vercel) ; 6 usages : `dashboard/page.tsx:63`, `matchs/page.tsx:35`, `resultats/page.tsx:30`, `admin/sync/page.tsx:41`, `public/…/matchs/page.tsx:37`, `public/…/resultats/page.tsx:27`.
@@ -86,7 +86,7 @@ _Mesures : aucune mesure runtime n'a été prise (pas de back, pas de profil nav
 ### TRT-011 — Réglages du club : écriture directe  · P2
 - **Localisation** : `src/server/actions/club-settings.ts:34-37` (seul `.from()` Supabase de `src/`), validations `:25-31` (nom non vide uniquement) ; `docs/MIGRATION_TO_API.md` catégorie D (`BACKEND_API_GAP`).
 - **Constats** : (a) seule dérogation à la règle « Supabase = auth uniquement » ; (b) la protection repose sur RLS + `GRANT/REVOKE` de colonnes (`:13-17`) — OK mais invisible depuis ce repo ; (c) **le fuseau (`timezone`) n'est pas validé** : n'importe quelle chaîne est stockée (`:25,36`). `new Intl.DateTimeFormat(…, { timeZone: "xyz" })` lève `RangeError` (`timezone.ts:16`, `labels.ts:32`) → un fuseau invalide saisi par un admin peut **casser les pages Tables/Dérogations de son club**. À vérifier : contrainte en base ?
-- **Décision demandée (D-1)** : *garder ou migrer ?* **Recommandation : migrer** vers `PATCH /v1/clubs/:clubId/settings` (validation Zod du fuseau via `Intl.supportedValuesOf("timeZone")`, club_admin imposé par le back), car (1) c'est l'unique accès BDD direct, (2) la validation manque, (3) `@supabase` côté serveur n'a plus d'autre rôle que l'auth. **Cplx** S. **Test** : action testable (mock Supabase) avant migration.
+- **Mise à jour Phase 3** : la route `PATCH /v1/clubs/{clubId}` (`name`, `shortName`, `timezone`, `logoUrl`, `accentColor`, `schema.ts:7305-7312`) **existe** et `api.clubs.update` est câblé (`clubs.ts:24-25`) : aucun nouvel endpoint. **Décision D-1 (migrer) retenue** ; mesure conservatoire livrée (`cb085e1`). Ancienne recommandation : `PATCH /v1/clubs/:clubId/settings` (validation Zod du fuseau via `Intl.supportedValuesOf("timeZone")`, club_admin imposé par le back), car (1) c'est l'unique accès BDD direct, (2) la validation manque, (3) `@supabase` côté serveur n'a plus d'autre rôle que l'auth. **Cplx** S. **Test** : action testable (mock Supabase) avant migration.
 
 ### TRT-012 — Conversion fuseau/DST dupliquée  · P3
 - **Localisation** : `src/lib/timezone.ts:13-32` (`zonedWallTimeToUtc`), `features/derogation-requests/labels.ts:108-120` (`zonedIso`, même algorithme), `labels.ts:68-72`/`timezone.ts:35-38` (`localDateKey`/`todayInTimezone`), + version back (`timezone.ts:6-11`). Utilisé par `SlotPicker.tsx:26-31` (propose 6 week-ends, construit l'ISO de la demande).
@@ -119,3 +119,9 @@ _Mesures : aucune mesure runtime n'a été prise (pas de back, pas de profil nav
 - **Calcul CPU lourd (PDF/images/crypto)** : aucun dans `src/`. `worker/` (Playwright, AES) est hors-chemin (Q-005).
 - **Polling** : seulement `pollJobUntilTerminal` (`jobs.ts:25-44`, borné à 40 essais) ; pas d'`setInterval`.
 - **`worker/`** : voir Q-005, suppression prévue en Phase 5 ; aucun traitement à migrer.
+
+
+## Mises à jour Phase 3
+- TRT-006 et TRT-011 : endpoints déjà existants (E-3, E-2 de `04-contrats-api.md`) → lots **débloqués côté front** (voir `03`).
+- TRT-001 : R-013 **accepté** (D-3 = B) ; LOT-02 en tête de Phase 4, révision obligatoire.
+- Nouveau constat hors inventaire initial : jeton personnel en query string (E-4, R-014).

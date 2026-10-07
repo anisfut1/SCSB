@@ -18,7 +18,7 @@
 | R-008 | (lot P2 : LOT-14) Jeton personnel public stocké en `localStorage` (`lib/publicToken.ts:19`) : volable par XSS ; le lien donne l'identité « tel licencié » (affectation de tables, demandes) | Faible | Moyen | Vérifier CSP côté Next (aucun en-tête de sécurité dans `next.config.ts`) ; durée de vie / révocation du jeton côté back (à confirmer) |
 | R-009 | Annuaire public énumérable (TRT-001) : noms de mineurs exposés sans auth | Moyenne | Élevé | LOT-02 (P1) ; en attendant, rate-limit côté back si possible |
 | R-010 | `timezone` de club non validée (`club-settings.ts:36`) → `RangeError` Intl sur les pages Tables/Dérogations du club | Faible | Moyen | LOT-04 ; vérifier une contrainte en base |
-| R-011 | `getClaims()` : un compte révoqué reste accepté jusqu'à expiration du JWT dans le proxy | Faible | Moyen | Le back revalide à chaque appel ; durée de vie JWT à vérifier (Q-008) |
+| R-011 | `getClaims()` : un compte révoqué reste accepté jusqu'à expiration du JWT dans le proxy | Faible | Moyen | **Front** : ADR-001 (inchangé). **Nouveau back** : revalidation JWKS + introspection des écritures sensibles (ADR-006, *conception, non implémentée*) ; durée de vie JWT et type de clés à vérifier (Q-008) |
 | R-012 | Lots « back requis » (9/13) bloqués tant que Q-001 n'est pas levée | Haute | Élevé | Démarrer par LOT-01 et LOT-11 (front seul) ; lever Q-001 |
 | R-013 | **TRT-001 / R-009 — annuaire public nominatif (mineurs inclus) sans authentification** | Moyenne | Élevé | **RISQUE ACCEPTÉ** — voir « Acceptation de risque R-013 » ci-dessous. Correction de fond : LOT-02 |
 
@@ -35,3 +35,10 @@
 - **Conséquence au plan** : LOT-02 passe **en tête** des lots de Phase 4 (`03-plan-migration.md`).
 - **Ce que l'acceptation ne couvre pas** : tout nouvel endpoint public créé par le nouveau back doit être conçu sans énumération (recherche serveur, longueur minimale, limitation de débit) — exigence reprise dans `05-architecture-cible.md`.
 - Mention RGPD : données nominatives de mineurs ; l'acceptation est une décision du propriétaire, pas une conformité.
+| R-014 | **Jeton personnel public transmis en query string** (`?token=`, 14+ appels : `publicTables.ts:72-131`, `publicDerogationRequests.ts:25-29`, `publicHome.ts:9`) → présent dans journaux d'accès du proxy, historique, `Referer` ; il donne l'identité d'un licencié (affectations, demandes, écritures FBI pour un coordinateur) | Moyenne | Moyen à élevé | Nouveau back : transport par en-tête (`04` B.9, ADR-006) ; en attendant, ne pas journaliser la query string au proxy VPS (ADR-007) ; durée de vie/révocation à confirmer. **Risque non traité, non accepté** |
+
+## Premier run CI réel (2026-10-07)
+- Run `37612678201` (https://github.com/anisfut1/SCSB/actions/runs/37612678201), branche `refactor/migration-back`, commit `2f35699` : **✅ success**.
+- Job `Typecheck, lint, tests, build` : ✅ (npm ci, typecheck, lint, tests, build, `npm audit --omit=dev --audit-level=high`).
+- Job `Secrets (gitleaks, historique complet)` : ✅ (étape « Scanner l'historique » en succès ; gitleaks échoue si une fuite est trouvée). Le job utilise `fetch-depth: 0` : toutes les branches distantes sont récupérées (`refs/remotes/origin/*`) et parcourues par `--all`.
+- **Limite** : le journal détaillé d'un run n'est pas lisible sans authentification GitHub ; le nombre de commits scannés n'a donc pas pu être relevé. Le statut « success » est celui retourné par l'API publique GitHub.
