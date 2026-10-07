@@ -12,3 +12,7 @@
 - [LOT-00] Commit `0121eed` fix(security): LOT-00 bump next 16.3.6
 - [Phase 2] Audit d'historique git (Q-006) : aucun secret ; Q-005 et Q-006 résolues ; Q-001 et Q-007 toujours ouvertes — fichiers : `10-risques.md`, `09-questions-ouvertes.md`
 - [Phase 2] Inventaire (15 TRT) + plan de 14 lots (LOT-00 à LOT-13), 5 P1 ; Q-008, Q-009, Q-010, D-1, D-2 ouvertes ; R-008 à R-012 — fichiers : `02`, `03`, `00`, `08`, `09`, `10` — lien doc : `02-inventaire-traitements.md`
+
+## 2026-10-07 (suite 2)
+- [D-1] Validation serveur du fuseau (`isValidTimezone`) dans `club-settings.ts`, 6 tests — commit `cb085e1` — lien doc : `02` TRT-011
+- [LOT-01] Auth : résolution unique par requête (`getServerAuth` + `cache()`), `getClaims()` dans proxy et rendu ; 9 → ≤ 2 appels ; tests `auth-calls.test.ts`, `proxy.test.ts` — fichiers : `auth.server.ts`, `session.ts`, `platform.ts`, `proxy.ts` — lien doc : `06-adr/ADR-001-auth-une-resolution-par-requete.md`, `08-metriques.md`

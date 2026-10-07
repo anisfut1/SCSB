@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
-import type { User } from "@supabase/supabase-js";
+import type { SessionUser } from "./session";
 import { requireUser } from "./session";
 import { api } from "@/lib/api/server";
 import { ApiError } from "@/lib/api/client";
@@ -31,7 +31,7 @@ export async function isPlatformAdmin(): Promise<boolean> {
 }
 
 /** Variante stricte pour les routes /platform/* : redirige si l'utilisateur n'est pas platform_admin. */
-export async function requirePlatformAdmin(): Promise<User> {
+export async function requirePlatformAdmin(): Promise<SessionUser> {
   const user = await requireUser();
 
   if (!(await isPlatformAdmin())) {

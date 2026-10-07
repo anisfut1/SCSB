@@ -8,6 +8,14 @@ _Aucune mesure runtime n'existe encore (pas d'accès au back, pas de profil navi
 | Plus gros chunks | 394 / 267 / 229 Ko | 2026-10-07 | `wc -c` |
 | Tests | 109 en ≈ 0,9 s | 2026-10-07 | `npm test` |
 
+## LOT-01 — appels Supabase Auth par navigation (mesuré par test, 2026-10-07)
+Scénario : rendu serveur du tableau de bord d'un club_admin (layout + page : `requireUser` + 7 `api.*`), fichier `src/lib/api/auth-calls.test.ts`. **Mesure en test avec Supabase simulé : elle compte les appels, pas la latence** (durée réelle non mesurée, Q-010).
+| | getUser() réseau (rendu) | getClaims() | getSession() (local) | Proxy | Total « réseau possible » |
+|---|---|---|---|---|---|
+| Avant | 8 | 0 | 7 | 1 `getUser()` (lu dans `proxy.ts:39`, non simulé) | **9** |
+| Après | 0 | 1 | 1 | 1 `getClaims()` | **≤ 2** (0 si clés asymétriques, hors 1ʳᵉ récupération JWKS) |
+Latence : **non mesurée** ; estimation « ~30-100 ms par appel Auth » = hypothèse, à vérifier sur un déploiement.
+
 ## À mesurer (avant lot)
 | Lot | Mesure | Outil |
 |---|---|---|

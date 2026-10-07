@@ -1,7 +1,12 @@
 import "server-only";
 import { redirect } from "next/navigation";
-import type { User } from "@supabase/supabase-js";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getServerAuth } from "@/lib/api/auth.server";
+
+/** Utilisateur connecté, tel que vérifié dans les claims JWT (pas de lecture de la table des profils). */
+export interface SessionUser {
+  id: string;
+  email: string | null;
+}
 
 /**
  * Utilisateur actuellement connecté (Server Components / Server Actions),
@@ -12,12 +17,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
  * src/lib/tenancy/club-context.ts) : ce module ne gère plus que
  * l'authentification globale (compte Supabase Auth), pas les permissions.
  */
-export async function getCurrentUser(): Promise<User | null> {
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
+export async function getCurrentUser(): Promise<SessionUser | null> {
+  const auth = await getServerAuth();
+  return auth ? { id: auth.userId, email: auth.email } : null;
 }
 
 /**
@@ -26,7 +28,7 @@ export async function getCurrentUser(): Promise<User | null> {
  * ces routes en amont (voir src/proxy.ts) ; cet appel est la seconde
  * barrière côté serveur, pas un simple confort d'UI.
  */
-export async function requireUser(): Promise<User> {
+export async function requireUser(): Promise<SessionUser> {
   const user = await getCurrentUser();
 
   if (!user) {
