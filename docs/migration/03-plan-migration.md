@@ -18,7 +18,7 @@ _Phase 2, 2026-10-07. Ordre : **sécurité d'abord**, puis meilleur ratio gain/e
 | LOT-11 | CI minimale (typecheck, lint, tests, build) + gitleaks | — | P2 | non | ✅ (commit ci-après ; premier run réel à observer après push) |
 | LOT-12 | Petites listes & résumés (opportuniste) | TRT-012 à 015 | P3 | oui | ⛔ |
 | LOT-13 | Nettoyage : `worker/`, `next.config.ts`, commentaires | — | P3 | non | ⬜ Phase 5 (Q-005 ✅) |
-| LOT-14 | En-têtes de sécurité (CSP…) + durcissement jeton public (R-008) | — | P2 | non (révocation du jeton : à confirmer) | ⬜ à planifier (non implémenté) |
+| LOT-14 | En-têtes de sécurité (CSP **Report-Only** ✅) + durcissement jeton public (R-008, ⬜) | — | P2 | non (jeton : nouveau back) | 🟡 partie CSP livrée (`12-csp-report-only.md`), reste R-008 et le passage en mode bloquant |
 
 **Ordre recommandé** : LOT-01 → LOT-11 (livrés) ; puis, dès que le nouveau back existe : **LOT-02 en tête (R-013)** → LOT-03 → LOT-04 → LOT-05 → (LOT-06 ∥ LOT-07 ∥ LOT-08) → LOT-09 → LOT-10 → LOT-12 ; LOT-13 en Phase 5.
 **Phase 3 (2026-10-07)** : LOT-04 et la majeure partie de LOT-06 sont **réalisables sans nouveau back** (endpoints existants, `04` E-2/E-3). Ils ne sont pas lancés : en attente de la validation 🛑 de fin de Phase 3.
@@ -147,3 +147,6 @@ Contrat et règles : `04` §B.1 (OpenAPI), `11` §7 (règles chiffrées, mineurs
 - **Tests** : `publicMatches.test.ts` (8) ; la caractérisation d'origine (1 appel, 200 reçus sur 390) a été écrite et passée **sur l'ancien code** avant le correctif, puis remplacée par l'attendu corrigé.
 - **Coût** : +1 requête pour une saison de 201 à 400 matchs (séquentielle). **Rollback** : `git revert` du commit.
 - **Non vérifié** : le comportement réel de l'API (tri, présence de `pagination` sur la route publique) — Q-014 T6/T7.
+
+## LOT-14 — partie CSP livrée (2026-10-07)
+En-têtes posés dans `next.config.ts` via `src/config/security-headers.ts` ; **CSP en `Content-Security-Policy-Report-Only` uniquement** ; sources et preuves, décisions Q-021 et procédure de lecture : `12-csp-report-only.md`. Tests : `security-headers.test.ts` (13). **Rollback** : retirer la fonction `headers()` de `next.config.ts` (ou `git revert`). **Reste** : R-008, fragment `#token=` (R-014), collecteur éventuel, passage en mode bloquant (nonce).

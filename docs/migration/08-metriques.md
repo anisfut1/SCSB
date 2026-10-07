@@ -40,3 +40,6 @@ Latence/TTFB : **non mesurés**.
 | LOT-08 | Idem `/resultats` | idem |
 | LOT-10 | Durée réelle des opérations > 20 s | logs back |
 | Global | LCP/INP des pages principales | Lighthouse sur un déploiement de prévisualisation |
+
+## LOT-14 (CSP Report-Only) — surcoût (mesuré, 2026-10-07)
+**+508 octets d'en-têtes par réponse** (valeurs servies par `next start` avec origines factices : CSP Report-Only + 3 en-têtes). Aucun effet fonctionnel attendu (la CSP ne bloque rien). Impact sur le temps de réponse : non mesuré (négligeable a priori).
