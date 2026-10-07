@@ -63,3 +63,9 @@ Runs `37681742496`/`37681736846` (`a038c9e`, docs) ✅ ; `37684885660`/`37684879
 - [Décision] Le back est réécrit en **Python + FastAPI** dans `rmess/ball-manager-back` (remplace Hono/TypeScript) ; la branche par défaut du front est `claude/sete-basket-app-architecture-c3hlxx` (pas de `main`) — fichiers : `09` Q-026/Q-027
 - [ADR] ADR-002 réécrit (acceptée), ADR-003 (psycopg 3 + SQLAlchemy Core + Alembic `api2`, faits pooler vérifiés), ADR-004 (Procrastinate, sans Redis), ADR-006 (PyJWT/JWKS, introspection, dépendance d'auth par défaut), ADR-007 (Dockerfile Python, `--no-access-log`) ; `05` (stack, schémas Mermaid validés au parseur, arborescence) ; `11` (arborescence, outillage, CI sans `pull_request`, **§8 liste des paquets**, **§9 tables supposées**) — commit `ac856a1`
 - [R-018] `13-verification-r018.md` : script de vérification prêt à copier-coller, résultats attendus, marche à suivre et mesure d'urgence côté `club-manager-api` ; constat : un `409 ALREADY_CLAIMED` existe déjà (`schema.ts:2663`) mais il n'empêche pas la première revendication
+
+## 2026-10-08 (étape C)
+- [Production] `fix/next-security` : next et eslint-config-next 16.3.6 → 16.3.8 (6 avis `npm audit`, GHSA-cjq9-62q9-8jv4 et 5 autres) ; audit prod 1 haute → 0 ; 236 tests avant/après ; commit `6722b3a` ; branche issue de la branche par défaut, PR à ouvrir par le propriétaire
+- [Intégration] Branche `integration/back-fastapi` créée depuis la branche par défaut (`fd937b3`) + `docs/adr-fastapi` ; invariant production et procédure de synchronisation (`03`, `README.md`)
+- [ADR] ADR-008 (Proposée) : émission du jeton au LOT-02b, endpoints existants lus (`schema.ts:2450,2610`, `tables.ts:145-150`) ; Q-030
+- [Décisions] Étape B validée (Q-029) ; risque R-022 (fenêtres fixes) ; mots courts ignorés (`04` B.1, `11` §7) ; `FORWARDED_ALLOW_IPS` (ADR-007, `11` §3, V7) ; valeurs de `club_role` (`11` §9)

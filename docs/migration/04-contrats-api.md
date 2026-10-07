@@ -175,7 +175,8 @@ _Principe (ADR-005) : tous **additifs sous `/v1`**, même enveloppe d'erreur, m�
         in: query
         required: true
         description: >
-          Deux mots au moins (prénom + nom, dans n'importe quel ordre), chacun d'au moins 2 lettres.
+          Deux mots valides au moins (prénom + nom, dans n'importe quel ordre), chacun d'au moins 2 lettres ;
+          les mots de moins de 2 lettres sont ignorés (« jeanne d'arc » équivaut à « jeanne arc »).
           Chaque mot est comparé au DÉBUT du prénom ou du nom (insensible à la casse et aux accents ;
           tirets et apostrophes traités comme des séparateurs). 4 mots maximum.
         schema: { type: string, minLength: 5, maxLength: 64 }
@@ -215,7 +216,8 @@ _Principe (ADR-005) : tous **additifs sous `/v1`**, même enveloppe d'erreur, m�
 | Cas | Réponse |
 |---|---|
 | `q` = « camille du » (2 mots ≥ 2 lettres) | `200` `{"licencies":[{"id":"…","firstName":"Camille","lastInitial":"D"}]}` _(exemple fictif)_ |
-| `q` = « camille » (1 mot) ou un mot de 1 lettre | `400 QUERY_TOO_SHORT` — « Saisis ton prénom et ton nom. » |
+| moins de 2 mots valides (« camille », « a b », « jeanne d ») | `400 QUERY_TOO_SHORT` — « Saisis ton prénom et ton nom. » |
+| `q` = « jeanne d'arc » ou « jean-pierre d » | `200` (les mots d'une lettre sont ignorés ; il reste 2 mots valides) |
 | caractères hors lettres/espace/`-`/`'`, ou > 4 mots | `400 INVALID_QUERY` |
 | aucun résultat | `200` `{"licencies":[]}` (même forme, même ordre de grandeur de délai) |
 | club inconnu | `404 NOT_FOUND` (les slugs de clubs sont publics : pas un secret) |

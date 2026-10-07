@@ -54,6 +54,7 @@ Les modules `matches`, `dashboard`, `results`, `licencies`, `venues`, `jobs` son
 - [ ] Liaison GitHub : `staging` ← `main` ; `production` ← `release` ; **« Wait for CI » activé** ; déploiement de PR désactivé.
 - [ ] Variables **(noms seulement ; aucune valeur dans ce dépôt)** : `DATABASE_URL` (rôle dédié, pooler session), `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `ALLOWED_ORIGINS`, `PERSONAL_TOKEN_HMAC_SECRET`, `CLUB_MANAGER_API_URL`, `CLUB_MANAGER_API_SERVICE_TOKEN`, `EMAIL_API_KEY`, `LOG_LEVEL`, `PORT` (fourni par Railway). Un jeu distinct par environnement.
 - [ ] Domaine : fourni par Railway pour `staging` ; domaine propre pour `production` (**TLS à vérifier**, V4).
+- [ ] **IP source / `--forwarded-allow-ips`** : l'image ne le fixe pas ; uvicorn n'accorde sa confiance à `X-Forwarded-For` que pour `127.0.0.1,::1` (vérifié par `tests/core/test_proxy_headers.py`). Derrière Railway, tous les clients apparaîtraient donc avec l'IP du proxy : la limite par IP s'appliquerait à tous ensemble. Au déploiement, fixer `FORWARDED_ALLOW_IPS` (variable du service) à l'adresse du **proxy Railway uniquement**, jamais `*` ; si cette adresse n'est pas documentée, lire l'IP source dans l'en-tête que la plateforme **réécrit** (à confirmer) et ne jamais se fier à un en-tête que le client peut fournir. **Vérification en staging (V7)** : depuis deux connexions de sortie différentes, envoyer 31 requêtes de recherche avec un `X-Forwarded-For` distinct à chaque fois ; la 31ᵉ de la même connexion doit recevoir `429`, et la première de l'autre connexion `200`.
 - [ ] Supervision externe de `GET /ready` + alerte de battement du worker.
 **Vérifications obligatoires (résultats à consigner dans `ops/runbook.md` et `10-risques.md`)**
 | # | Vérification | Critère | Si échec |
@@ -64,6 +65,7 @@ Les modules `matches`, `dashboard`, `results`, `licencies`, `venues`, `jobs` son
 | V4 | Domaine propre + TLS automatique | HTTPS valide | Rester sur le domaine Railway |
 | V5 | IPv6 sortant (connexion directe à Supabase) | informatif | Rester sur le pooler IPv4 |
 | V6 | « Variables scellées » disponibles ? | informatif | Variables classiques + rotation |
+| **V7** | **IP source derrière le proxy Railway** (voir ci-dessus) : `X-Forwarded-For` falsifié sans effet, IP réelle par client | critère ci-dessus | Ne pas exposer la recherche publique ; limite par IP inopérante |
 
 ## 4. CI du nouveau dépôt (vérifications seulement, **aucun déploiement automatique**)
 Même base que `.github/workflows/ci.yml` du front (validé : run `37612678201`) :
@@ -95,7 +97,7 @@ _Les valeurs chiffrées sont des **propositions justifiées par un modèle simpl
 ### 7.1 Règles de recherche et d'affichage
 | Règle | Valeur proposée | Justification |
 |---|---|---|
-| Forme de la requête `q` | **≥ 2 mots (prénom + nom), chacun ≥ 2 lettres** ; ≤ 4 mots ; ≤ 64 caractères ; lettres, espace, `-`, `'` seulement | Un visiteur légitime connaît son nom complet ; exiger les deux mots multiplie l'espace à deviner (voir 7.1 bis). Le jeton « 2 caractères » de la v1 laissait énumérer par préfixes à un mot |
+| Forme de la requête `q` | **≥ 2 mots valides (prénom + nom), chacun ≥ 2 lettres** ; les mots de **moins de 2 lettres sont ignorés** (« jeanne d'arc » = « jeanne arc », décision du 2026-10-08) ; ≤ 4 mots au total (courts compris) ; ≤ 64 caractères ; lettres, espace, `-`, `'` seulement | Un visiteur légitime connaît son nom complet ; exiger les deux mots multiplie l'espace à deviner (voir 7.1 bis). Le jeton « 2 caractères » de la v1 laissait énumérer par préfixes à un mot |
 | Correspondance | **début de mot** (prénom OU nom, ordre libre), insensible casse/accents, `-` `'` = séparateurs ; jamais de `%`/`_` interprétés | Tolère « elodie dupont » = « Dupont Élodie » ; évite les motifs génériques |
 | Nombre maximal de résultats | **5**, fixe (pas de paramètre `limit`) | Assez pour départager les homonymes ; plafonne ce qu'une requête peut révéler ; moins de paramètres = moins de surface |
 | Format affiché | **prénom complet + initiale du nom** (`Camille D.`) | Reconnaissable par la personne, insuffisant pour identifier un tiers ; le nom complet n'est jamais renvoyé |
@@ -128,7 +130,7 @@ Réponse au dépassement : `429 RATE_LIMITED` + `Retry-After` (secondes) + en-t�
 | Journaux HTTP de la plateforme (IP source, chemin) | **hors de notre contrôle** : Railway, rétention selon l'offre (3 j Free … 90 j Enterprise, docs consultées) ; la valeur de `q` est en query string → **non garantie absente** (V1, ADR-007 §7) | à vérifier ; **conséquence : `q` contient un nom, donc de la donnée personnelle**. Option si V1 échoue : transporter `q` dans un corps `POST /search` (non journalisé) — **décision à prendre après V1** |
 
 ### 7.5 Tests de contrat à écrire **en premier** dans le nouveau dépôt (tous rouges avant le code)
-1. `q` d'un seul mot, ou mot d'une lettre → `400 QUERY_TOO_SHORT` ; caractères interdits / > 4 mots / > 64 car. → `400 INVALID_QUERY`.
+1. Moins de 2 mots valides après suppression des mots d'une lettre (« camille », « a b », « jeanne d ») → `400 QUERY_TOO_SHORT` ; « jeanne d'arc » et « jean-pierre d » → `200` (recherche de « jeanne arc » / « jean pierre ») ; caractères interdits / > 4 mots / > 64 car. → `400 INVALID_QUERY`.
 2. Jamais plus de **5** résultats, même pour « ab cd » sur un roster de 1 000 homonymes synthétiques.
 3. **Forme stricte** de la réponse : exactement `{ licencies: [{ id, firstName, lastInitial }] }` ; aucun champ supplémentaire (`additionalProperties: false`) ; **absence** de `lastName`, `claimed`, `birthDate`, `email`, `category` ; `lastInitial` = 1 lettre.
 4. Aucun résultat → `200 []` (jamais 404) ; forme identique ; club inconnu → 404.
@@ -256,6 +258,8 @@ done
 **Volontairement absents** : Redis/arq/Celery (pas de besoin chiffré), asyncpg (un seul pilote), bibliothèque de limitation de débit (compteurs dans `api2.rate_limits`, atomiques, valables pour plusieurs instances : ADR-003, révision ORM), `testcontainers` (service Postgres de CI plutôt qu'une dépendance Docker en test), `schemathesis`/`hypothesis` (non justifiés au LOT-02).
 
 ## 9. Tables et colonnes — schéma trouvé dans le front (révision 2026-10-08, étape B)
+**Valeurs de l'enum `club_role`** (source `5deeaa4:supabase/migrations/20260921100020_club_memberships.sql:18-25`, créé `a9ed788`, 2026-09-21) : `club_admin`, `correspondant_club`, `responsable_tables`, `coach`, `joueur`, `parent`. Règle de revendication (décision 2026-10-08) : **refus par défaut** ; seuls `joueur` et `parent` sont sans droit d'écriture, toute autre valeur (connue, future ou inconnue) exclut la fiche du parcours public (`ball-manager-back` : `claims/eligibility.py`, test paramétré `tests/claims/test_eligibility.py`). L'ancien rôle `super_admin` (`…20260921083030_user_roles.sql:2-9`) n'existe plus dans le schéma courant du front.
+
 **Source réelle trouvée** : les 34 migrations Supabase du front, présentes dans l'historique git (dernière version au commit `5deeaa4`, 2026-09-21 ; supprimées par `a51b9ad`, 2026-09-22), plus le fichier de types écrit à la main `5deeaa4:src/types/database.ts` (pas de types générés par `supabase gen types`). **Limite** : ce schéma date d'avant la bascule vers `club-manager-api` ; la base réelle peut avoir évolué (jetons, colonnes). Détail par table : ADR-003, « Révision ORM ».
 | Besoin | Table réelle | Colonnes confirmées | Écart avec l'hypothèse précédente | Source (`5deeaa4:`) |
 |---|---|---|---|---|
