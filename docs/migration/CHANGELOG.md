@@ -56,5 +56,10 @@ Runs `37681742496`/`37681736846` (`a038c9e`, docs) ✅ ; `37684885660`/`37684879
 
 ## 2026-10-07 (Q-024, Q-025)
 - [Décisions] Revendication : expiration 14 jours, validateur `club_admin` seul, règle générale « tout rôle à droits d'écriture exclu » ; tests de contrat du LOT-02 mis à jour (expiration J+14 à l'instant près, coordinateur, test paramétré sur les droits) ; décisions prises seul validées — fichiers : `09`, `11` §7.9, `04` B.1 bis, `06-adr/ADR-006`, `12` §7
-- [Q-009] jsdom + Testing Library (dev), tests du jeton en vrai DOM, `window` factice retiré ; 223 → 227 tests ; suite ≈ 0,7 s → ≈ 0,9 s
+- [Q-009] (commit `34c4225`) jsdom + Testing Library (dev), tests du jeton en vrai DOM, `window` factice retiré ; 223 → 227 tests ; suite ≈ 0,7 s → ≈ 0,9 s
 - [CI] Un seul run par commit (`pull_request` retiré, cause : `ci.yml:4-5` + PR n°1) — commit `b857079`, run `37685831364` ✅ (typecheck, lint, 227 tests, build, audit, gitleaks historique complet)
+
+## 2026-10-08 (étape A back FastAPI)
+- [Décision] Le back est réécrit en **Python + FastAPI** dans `rmess/ball-manager-back` (remplace Hono/TypeScript) ; la branche par défaut du front est `claude/sete-basket-app-architecture-c3hlxx` (pas de `main`) — fichiers : `09` Q-026/Q-027
+- [ADR] ADR-002 réécrit (acceptée), ADR-003 (psycopg 3 + SQLAlchemy Core + Alembic `api2`, faits pooler vérifiés), ADR-004 (Procrastinate, sans Redis), ADR-006 (PyJWT/JWKS, introspection, dépendance d'auth par défaut), ADR-007 (Dockerfile Python, `--no-access-log`) ; `05` (stack, schémas Mermaid validés au parseur, arborescence) ; `11` (arborescence, outillage, CI sans `pull_request`, **§8 liste des paquets**, **§9 tables supposées**) — commit `ac856a1`
+- [R-018] `13-verification-r018.md` : script de vérification prêt à copier-coller, résultats attendus, marche à suivre et mesure d'urgence côté `club-manager-api` ; constat : un `409 ALREADY_CLAIMED` existe déjà (`schema.ts:2663`) mais il n'empêche pas la première revendication

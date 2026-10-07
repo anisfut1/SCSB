@@ -1,35 +1,35 @@
 # 11 — Initialisation du nouveau repository du back (préparation, **rien n'est exécuté**)
+_**Révision 2026-10-08 : le back est en Python + FastAPI** (ADR-002) dans `rmess/ball-manager-back` (créé, ne contient que `README.md`). Les §1, §2, §4 et le §8 (liste des paquets) sont adaptés à Python ; les spécifications du §7 ne changent pas. Les mentions résiduelles de `pg-boss`/Hono dans les §5-§6 sont historiques._
 _2026-10-07. Le propriétaire crée le repository lui-même et en communiquera l'URL ; **l'agent ne crée ni dépôt, ni code back, ni service Railway**. Ce document est une checklist et un plan de livraison. Prérequis de décision : ADR-003 (Q-015), ADR-005 (Q-016), Q-017, Q-018._
 
 ## 0. Décisions à prendre avant de commencer
 | ID | Décision | Pourquoi ça bloque |
 |---|---|---|
 | Nom du dépôt, visibilité (privé recommandé), organisation GitHub | propriétaire | `ops/`, domaines, secrets |
-| Q-015 | Base : Supabase (a) / Railway (b) / hybride file seule (c) | connexion de l'API et de `pg-boss` |
+| Q-015 | Base : Supabase (a) / Railway (b) / hybride file seule (c) | connexion de l'API et de Procrastinate |
 | Q-016 | Routage S3 : (a) client / (b) passerelle (recommandé : (c) = (a) maintenant) | structure de `ops/contract/` et du front |
 | Q-017 ✅ | Front sur **Vercel** (décision 2026-10-07) | CORS (origine = domaine Vercel du front + domaines de prévisualisation à décider), CSP |
 | **Q-018** | **« Annuaire public authentifié » (consigne du propriétaire) : quelle authentification, exactement ?** Voir §7 | forme du contrat du LOT-02 |
 
-## 1. Arborescence initiale (sous-ensemble minimal pour le LOT-02 ; reprise du §12 de `05`, adaptée à Railway)
+## 1. Arborescence initiale (sous-ensemble minimal pour le LOT-02 ; détail et conventions : `05` §12)
 ```
-<nouveau-repo>/
-├── README.md · package.json · tsconfig.json · vitest.config.ts · eslint.config.mjs · .nvmrc (24) · .gitignore (.env*)
-├── Dockerfile                          # multi-étapes, node:24-slim épinglé par digest, non-root ; commandes api | worker
+ball-manager-back/
+├── README.md · pyproject.toml · uv.lock · .python-version (3.13) · alembic.ini · .gitignore (.env*, .venv)
+├── Dockerfile                          # multi-étapes, python:3.13-slim épinglé par digest, uv, non-root ; commandes api | worker
 ├── .github/
 │   ├── workflows/ci.yml                # voir §4
-│   ├── dependabot.yml                  # npm + github-actions + docker, hebdomadaire
+│   ├── dependabot.yml                  # pip/uv + github-actions + docker, hebdomadaire
 │   └── CODEOWNERS
-├── ops/
-│   ├── railway.md                      # réglages du tableau de bord (§3)
-│   ├── runbook.md                      # déploiement, retour arrière, rotation des secrets, vérifications V1–V6
-│   └── contract/ported-routes.json     # préfixes portés, consommé par les tests du front (ADR-005)
-├── docs/                               # ADR du back + openapi.json exporté
-├── src/
-│   ├── server.ts · app.ts · worker.ts  # worker : coquille vide au LOT-02 (démarre pg-boss si Q-015 tranchée)
-│   ├── config/env.ts                   # Zod ; seule lecture de process.env
-│   ├── shared/{http,db,log,auth,time}/ # http : error-envelope, cors, rate-limit, request-id ; log : redaction sans query
-│   └── modules/public-access/          # routes.ts · service.ts · repo.ts · schemas.ts · *.test.ts
-└── test/{contract,security,integration}/
+├── ops/{railway.md, runbook.md, contract/ported-routes.json}
+├── docs/                               # ADR du back + openapi.json exporté (versionné)
+├── alembic/                            # schéma api2 seulement
+├── app/
+│   ├── main.py · worker.py             # worker : application Procrastinate, coquille vide au LOT-02
+│   ├── core/                           # config (pydantic-settings, seule lecture de l'environnement), db, errors, logging, ratelimit, time, pagination
+│   ├── auth/                           # jwks, introspection, dependencies, personal_token
+│   ├── public_search/                  # router · service · repository · schemas
+│   └── claims/                         # router · service · repository · schemas
+└── tests/{contract,security,integration}/
 ```
 Les modules `matches`, `dashboard`, `results`, `licencies`, `venues`, `jobs` sont **ajoutés lot par lot** (ne pas créer de dossiers vides).
 
@@ -39,11 +39,11 @@ Les modules `matches`, `dashboard`, `results`, `licencies`, `venues`, `jobs` son
 - [ ] Créer la branche `release` (déploiement production, §3), protégée de la même façon.
 - [ ] Activer **Secret scanning + Push protection**, alertes Dependabot, `CODEOWNERS`.
 - [ ] Ajouter les secrets GitHub **seulement si nécessaire** (la CI n'en a pas besoin : build et tests utilisent des valeurs factices).
-**Projet Node**
-- [ ] `npm init`, `engines.node >= 24`, `"type": "module"`, scripts `dev | build | start | start:worker | typecheck | lint | test`.
-- [ ] Dépendances (**versions à relever le jour J**, ne pas copier de ce document) : `hono`, `@hono/node-server`, `@hono/zod-openapi`, `zod`, `kysely`, `pg`, `pino` ; `pg-boss` **seulement** quand Q-015 est tranchée ; dev : `typescript`, `vitest`, `tsx`, `eslint`, `kysely-codegen`.
-- [ ] `src/config/env.ts` (Zod, échoue au démarrage si variable manquante) ; `GET /health` (sans secret) et `GET /ready` (BDD) ; **enveloppe d'erreur** `{ "error": { "code", "message", "details"? } }` (`errors.ts:3-58` du front) ; **auth par défaut** sur toute route (liste blanche explicite des routes publiques) ; CORS en liste blanche ; **refus de `?token=`** (`400 TOKEN_IN_QUERY`).
-- [ ] `Dockerfile` : build en 2 étapes, `USER node`, `HEALTHCHECK` sur `/health`, pas de `railway.json`.
+**Projet Python** (aucune version n'est copiée de ce document : relever les versions le jour J)
+- [ ] `uv init`, `requires-python = ">=3.13,<3.14"`, `uv.lock` versionné ; scripts documentés dans le README : `uv run fastapi dev`/`uvicorn app.main:app`, `uv run pytest`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy --strict app`, `uv run python -m app.scripts.export_openapi`.
+- [ ] Paquets : **voir §8** (liste exacte et raisons).
+- [ ] `app/core/config.py` (pydantic-settings, échoue au démarrage si une variable manque) ; `GET /health` (sans secret ni BDD) et `GET /ready` (BDD) ; **enveloppe d'erreur** `{ "error": { "code", "message", "details"? } }` (`errors.ts:3-58` du front), y compris pour les erreurs de validation Pydantic ; **dépendance d'auth par défaut** sur le routeur racine, routes publiques sur un routeur à liste blanche ; CORS en liste blanche ; **refus de `?token=`** (`400 TOKEN_IN_QUERY`, middleware ASGI).
+- [ ] `Dockerfile` : spécification dans ADR-007 (addendum 2026-10-08) ; `--no-access-log` ; pas de `railway.json`.
 - [ ] Test **« routes publiques = liste blanche »** et test **« aucun log ne contient la query string »** dès le premier commit.
 **Premier commit** : squelette + CI verte, **avant** toute logique métier.
 
@@ -59,7 +59,7 @@ Les modules `matches`, `dashboard`, `results`, `licencies`, `venues`, `jobs` son
 | # | Vérification | Critère | Si échec |
 |---|---|---|---|
 | **V1** | **Query string dans les journaux Railway (R-014)** : en staging, appeler `GET /health?probe=SENTINELLE-NON-SECRETE`, puis chercher cette valeur dans Observability / HTTP logs et dans les logs applicatifs | valeur **absente** partout | Garantie **non établie** : le nouveau back refuse déjà `?token=` ; ne jamais router de trafic à jeton vers Railway |
-| V2 | `pg-boss` derrière le pooler **session** de Supabase (démarrage, migration de schéma, cron, redémarrage) | tout passe | Repli ADR-003 option (c) |
+| V2 | **psycopg 3 + Procrastinate** derrière le pooler **session** de Supabase (démarrage, schéma de Procrastinate avec le rôle à privilèges minimaux, `LISTEN/NOTIFY`, tâche périodique, redémarrage ; requêtes préparées actives) | tout passe | Repli ADR-003 option (c) |
 | V3 | Latence aller-retour Railway→Supabase (50 requêtes simples, p50/p95) | consignée ; seuil décidé avec le propriétaire | Changer de région ou option (b) |
 | V4 | Domaine propre + TLS automatique | HTTPS valide | Rester sur le domaine Railway |
 | V5 | IPv6 sortant (connexion directe à Supabase) | informatif | Rester sur le pooler IPv4 |
@@ -67,17 +67,17 @@ Les modules `matches`, `dashboard`, `results`, `licencies`, `venues`, `jobs` son
 
 ## 4. CI du nouveau dépôt (vérifications seulement, **aucun déploiement automatique**)
 Même base que `.github/workflows/ci.yml` du front (validé : run `37612678201`) :
-- `verify` : `npm ci`, `typecheck`, `lint`, `test`, `build`, `npm audit --omit=dev --audit-level=high`.
+- `verify` : `uv sync --frozen`, `ruff check`, `ruff format --check`, `mypy --strict`, `pytest` (avec un service Postgres de CI pour `tests/integration`), **export OpenAPI et `git diff --exit-code docs/openapi.json`**, `pip-audit`.
 - **`gitleaks`** : binaire épinglé avec somme de contrôle, `--log-opts="--all"`, `--redact=100`, `fetch-depth: 0`.
 - **`docker`** : `docker build` de l'image (sans publication), puis `hadolint` sur le `Dockerfile` (optionnel).
-- Déclencheurs : `push`, `pull_request` et un cron hebdomadaire (comme le front). C'est ce workflow que « Wait for CI » attend côté Railway.
+- Déclencheurs : `push` (toutes les branches) et un cron hebdomadaire — **pas de `pull_request`** (leçon du front : double run par commit, `ci.yml:4-5` côté SCSB). C'est ce workflow que « Wait for CI » attend côté Railway.
 - Actions épinglées par tag majeur au départ ; **épinglage par SHA** recommandé (chaîne d'approvisionnement), non fait dans le front.
 
 ## 5. Plan de livraison — **LOT-02 en premier** (R-013, révision obligatoire à la livraison)
 Ordre strict, **tests d'abord** :
 1. **Contrat** : figer l'OpenAPI de `GET /v1/public/clubs/{clubSlug}/licencies/search?q=` (`04` B.1, v2) ; écrire **d'abord** les tests de contrat listés au §7.5, qui doivent tous échouer avant le code.
 2. **Accès aux données** : rôle Postgres **lecture seule** limité aux colonnes `id`, prénom, nom de la table des licenciés ; normalisation (minuscules, sans accents, séparateurs) ; correspondance par **préfixe de mot** ; `LIMIT 5` dans la requête ; aucune pagination exposée ; aucune colonne sensible lue (date de naissance, catégorie, e-mail).
-3. **Anti-énumération** : budgets du §7.2 (par IP, par club, résultats vides) ; clé de limitation = HMAC de l'IP à sel journalier, **en mémoire seulement** (un seul réplica ; sinon table de compteurs) ; journaux sans `q`, sans nom, sans IP (§7.4).
+3. **Anti-énumération** : budgets du §7.2 (par IP, par club, résultats vides) ; clé de limitation = HMAC de l'IP à sel journalier, **seule l'empreinte est stockée**, dans `api2.rate_limits` (plusieurs instances ; ADR-003, révision ORM) ; journaux sans `q`, sans nom, sans IP (§7.4).
 4. **Staging** : déploiement, vérifications V1 à V3, test d'énumération du §7.5 exécuté contre l'instance, calibrage des budgets sur un jour d'usage réel, **revue sécurité** (matrice, tentative d'énumération, `Origin` non autorisé).
 5. **Front (PR dans SCSB, séparée)** : `resolveBase(path)` dans `src/lib/api/client.ts` + liste de modules actifs ; `IdentifyView.tsx` interroge le serveur avec anti-rebond (≈ 300 ms), supprime le chargement complet (`IdentifyView.tsx:66-87`) et le filtre local ; **tests de composant** avec jsdom + Testing Library (Q-009 accepté, devDependencies seulement) ; drapeau `FF_PUBLIC_SEARCH`, défaut = ancien comportement.
 6. **Bascule** : activer le drapeau en staging puis en production ; **fermer l'ancien endpoint** `GET …/licencies` (`410`) — **changement à faire côté `club-manager-api` par le propriétaire** (l'agent n'y a pas accès) ; sans cela **R-013 reste ouvert**.
@@ -124,7 +124,7 @@ Réponse au dépassement : `429 RATE_LIMITED` + `Retry-After` (secondes) + en-t�
 |---|---|---|
 | Journaux applicatifs du back | `requestId`, route (gabarit), statut, durée, `resultCount` (0 à 5), décision de limitation ; **jamais `q`, nom, e-mail ni IP** | **14 jours** (estimé : suffisant pour un incident récent, minimal) |
 | Compteurs agrégés d'alerte (par club, par heure) | nombres uniquement | 90 jours |
-| Clé de limitation | HMAC(IP, sel journalier), **en mémoire**, jamais écrite sur disque ni journalisée | durée de la fenêtre (≤ 1 jour) |
+| Clé de limitation | HMAC(IP, sel journalier dérivé d'un secret), stocké dans `api2.rate_limits` (**révision 2026-10-08**, plusieurs instances) ; l'IP en clair n'est jamais écrite ni journalisée | durée de la fenêtre (≤ 1 jour), purge à l'expiration |
 | Journaux HTTP de la plateforme (IP source, chemin) | **hors de notre contrôle** : Railway, rétention selon l'offre (3 j Free … 90 j Enterprise, docs consultées) ; la valeur de `q` est en query string → **non garantie absente** (V1, ADR-007 §7) | à vérifier ; **conséquence : `q` contient un nom, donc de la donnée personnelle**. Option si V1 échoue : transporter `q` dans un corps `POST /search` (non journalisé) — **décision à prendre après V1** |
 
 ### 7.5 Tests de contrat à écrire **en premier** dans le nouveau dépôt (tous rouges avant le code)
@@ -235,3 +235,35 @@ done
 **Si un message est arrivé pour B ou C** : (a) ne pas cliquer sur le lien depuis un navigateur partagé ; (b) régénérer/révoquer le jeton de la fiche concernée dans l'application ; (c) supprimer l'adresse de test des fiches ; (d) me renvoyer **uniquement** : les codes HTTP des 6 appels, le nombre de messages reçus pour A, B, C. **Ne pas** me renvoyer le lien ni le jeton.
 **Nettoyage** : retirer l'adresse de test des fiches A, B, C ; supprimer les fiches de test si elles ne servent plus ; vider la boîte de test.
 
+## 8. Liste exacte des paquets de l'initialisation (**rien n'est installé à cette étape** ; versions à relever le jour J)
+| Paquet | Dépendance | Raison |
+|---|---|---|
+| `fastapi` | exécution | framework HTTP + OpenAPI (ADR-002) ; apporte `pydantic` v2 et `starlette` |
+| `uvicorn[standard]` | exécution | serveur ASGI (uvloop, httptools) ; lancé avec `--no-access-log` (ADR-007) |
+| `pydantic-settings` | exécution | lecture typée de l'environnement, échec au démarrage |
+| `sqlalchemy[asyncio]` | exécution | **ORM SQLAlchemy 2** (`Mapped[...]`) ; tables d'autrui mappées en lecture seule, tables `api2` en lecture-écriture (ADR-003, révision ORM) |
+| `psycopg[binary,pool]` | exécution | pilote unique API + worker, pool asynchrone ; `binary` évite la compilation dans l'image (ADR-003) |
+| `alembic` | exécution (migrations) | schéma `api2` seulement (ADR-003) |
+| `procrastinate` (pilote psycopg 3 confirmé par la doc ; **nom de l'extra non confirmé**) | exécution | file de jobs dans Postgres (ADR-004) ; ajouté **au premier job**, pas au LOT-02 si le worker reste vide |
+| `pyjwt[crypto]` | exécution | vérification JWT via `PyJWKClient` (ADR-006) |
+| `httpx` | exécution **et** tests | introspection `/auth/v1/user`, appels serveur-à-serveur, e-mails par API HTTP (fournisseur non choisi : aucun SDK), client de test ASGI |
+| `structlog` | exécution | journaux JSON, redaction (jamais de query string, nom, e-mail, IP) |
+| `pytest`, `pytest-asyncio`, `pytest-cov` | dev | tests ; mesure de couverture |
+| `time-machine` | dev | horloge simulée : expiration à J+14 à l'instant près (`11` §7.9.6 test 7) |
+| `ruff` | dev | lint + format |
+| `mypy` | dev | typage strict avec le plugin Pydantic |
+| `pip-audit` | dev | équivalent de `npm audit` en CI |
+**Volontairement absents** : Redis/arq/Celery (pas de besoin chiffré), asyncpg (un seul pilote), bibliothèque de limitation de débit (compteurs dans `api2.rate_limits`, atomiques, valables pour plusieurs instances : ADR-003, révision ORM), `testcontainers` (service Postgres de CI plutôt qu'une dépendance Docker en test), `schemathesis`/`hypothesis` (non justifiés au LOT-02).
+
+## 9. Tables et colonnes — schéma trouvé dans le front (révision 2026-10-08, étape B)
+**Source réelle trouvée** : les 34 migrations Supabase du front, présentes dans l'historique git (dernière version au commit `5deeaa4`, 2026-09-21 ; supprimées par `a51b9ad`, 2026-09-22), plus le fichier de types écrit à la main `5deeaa4:src/types/database.ts` (pas de types générés par `supabase gen types`). **Limite** : ce schéma date d'avant la bascule vers `club-manager-api` ; la base réelle peut avoir évolué (jetons, colonnes). Détail par table : ADR-003, « Révision ORM ».
+| Besoin | Table réelle | Colonnes confirmées | Écart avec l'hypothèse précédente | Source (`5deeaa4:`) |
+|---|---|---|---|---|
+| Résoudre le club par slug | `public.clubs` | `id`, `name`, `ffbb_club_id`, `slug` (unique, format `^[a-z0-9]+(-[a-z0-9]+)*$`), `timezone`, `status` ∈ {`active`,`suspended`}, `short_name`, `logo_url`, `accent_color`, `created_at` | **Confirmé** | `supabase/migrations/20260921100000_clubs_rename_and_extend.sql:14-20,36-38` |
+| Recherche de fiches | `public.licencies` | `id`, `club_id`, `first_name`, `last_name`, `birth_date`, `license_number`, `email`, `phone`, `active`, `created_at`, `updated_at` ; index `licencies_club_id_idx` | **Confirmé** ; `category_label` **absent** (le DTO le calcule) | `supabase/migrations/20260921083010_licencies.sql:4-21` |
+| Adresse connue (R-018) | `licencies.email` | nullable | **Confirmé** | idem :11 |
+| Rôles d'une fiche | `club_memberships` (`licencie_id` → fiche, `user_id`, `status`) + `membership_roles` (`role` ∈ `club_role`, `scope_team_id`) | voir ADR-003 | **Écart** : les rôles ne sont pas sur `licencies` ; le lien fiche → rôles passe par `club_memberships.licencie_id` ; `club_role` = {`club_admin`,`correspondant_club`,`responsable_tables`,`coach`,`joueur`,`parent`} (**pas de rôle « coordinateur »**) | `supabase/migrations/20260921100020_club_memberships.sql:18-25,30-38,80-94` |
+| Droits d'écriture | calcul côté back | `public_admin/public_coach/public_coordinator` **ne sont pas des colonnes** | **Contredit** : DTO calculés ; le coordinateur de dérogations n'a pas de rôle dans ce schéma → **hypothèse** : règle par défaut « tout rôle sauf `joueur` et `parent` a des droits d'écriture » (refus par défaut) | idem |
+| Fiche « déjà revendiquée », anti-renvoi | table de jetons | — | **Rien trouvé** : aucune table de jetons dans l'historique ; nom et colonnes restent des **hypothèses** | — |
+| Nouvelles tables du back | `api2.claim_requests`, `api2.claim_decisions`, `api2.alert_counters`, `api2.rate_limits` | voir §7.9.4 et ADR-003 | conception | `11` §7.9 |
+**À fournir par le propriétaire** (inchangé en substance) : le DDL **actuel** de `clubs`, `licencies`, `club_memberships`, `membership_roles` et de la table des jetons personnels (nom et colonnes inconnus), pour comparer avec ci-dessus ; l'extension `unaccent` est-elle installée, et dans quel schéma (**non vérifié** : le code du back l'appelle sans préfixe) ; **index** de recherche : l'index `(club_id)` existe, aucun index sur le nom ; sur un roster d'environ 1 000 fiches par club, le filtre par `club_id` suffit (estimé) — tout index complémentaire appartient à `club-manager-api`, jamais à `api2`.

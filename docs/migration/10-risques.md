@@ -75,3 +75,11 @@
 | R-014 | Front prêt, **ouvert** (actions `club-manager-api`) ; limite résiduelle : les liens déjà envoyés restent en `?token=` jusqu'à leur ouverture (le jeton atteint alors une fois les journaux Vercel) |
 | R-018 | Spécifié, **ouvert** ; vérification sur l'existant à faire |
 | R-019 | Inchangé, accepté |
+
+## Mise à jour 2026-10-08 (étape A back FastAPI)
+| Risque | Statut |
+|---|---|
+| R-018 | Inchangé (ouvert, non vérifié). Script prêt : `13-verification-r018.md`. Nouveau constat : le contrat expose déjà `409 ALREADY_CLAIMED` (`schema.ts:2663`), qui n'arrête que la *seconde* revendication ; le premier venu peut donc garder une fiche |
+| R-020 (nouveau) | **Compatibilité psycopg 3 / Procrastinate / requêtes préparées / `LISTEN` derrière Supavisor non documentée** (documentée pour PgBouncer ≥ 1.22 seulement). Gravité moyenne. Mitigation : mode **session**, test V2 en staging, repli `--no-listen-notify` puis file sur petite base Railway (ADR-003/004) |
+| R-021 (nouveau) | **Dérive du contrat OpenAPI** entre le back FastAPI et les types générés du front (deux repos, deux comptes GitHub). Mitigation : schéma exporté et versionné, CI back qui échoue sur toute différence, génération front à partir de ce fichier (ADR-002 §5) |
+| R-016 | Inchangé (Railway non vérifié) ; l'image Python n'a pas été construite : taille et démarrage **non mesurés** |

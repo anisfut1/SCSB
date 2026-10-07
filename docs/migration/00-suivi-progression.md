@@ -1,6 +1,6 @@
 # Suivi de progression
 
-**Dernière mise à jour** : 2026-10-07 — **Phase en cours** : 4 (LOT-04 ✅, LOT-06 ✅ flag, R-015 ✅, LOT-14 : CSP Report-Only ✅, anti-framing ✅, jeton en fragment côté front ✅ ; **LOT-02 spécifié (R-018 inclus), non démarré**) — **Avancement global** : 64 %
+**Dernière mise à jour** : 2026-10-08 (étape A back FastAPI : documentation seulement) — **Phase en cours** : 4 (LOT-04 ✅, LOT-06 ✅ flag, R-015 ✅, LOT-14 : CSP Report-Only ✅, anti-framing ✅, jeton en fragment côté front ✅ ; **LOT-02 spécifié (R-018 inclus), non démarré**) — **Avancement global** : 64 %
 
 ## Phases
 | Phase | Intitulé                         | Statut        | Validée le |
@@ -52,8 +52,11 @@ Q-015 (Supabase conservé pendant S3, réévaluation obligatoire en fin de S3), 
 ## Livré le 2026-10-07 (séquence Q-024/Q-025)
 Décisions (`982ed7e`), jsdom + tests du jeton en vrai DOM, `window` factice retiré (commit `test: jsdom…`), CI dédoublonnée (`b857079`). Baseline : **227 tests, 27 fichiers**.
 
+## Étape A back FastAPI (2026-10-08, branche `docs/adr-fastapi`)
+ADR-002/003/004/006/007, `05`, `11` révisés pour Python/FastAPI (`ac856a1`) ; script R-018 (`13`) ; `09` Q-026 à Q-028, `10` R-020/R-021. **Aucun code, aucun paquet installé, repo back inchangé.** En attente de validation des choix avant l'initialisation du repo back.
+
 ## Prochaines actions
-- [ ] **Propriétaire, action 1 (urgente)** : vérifier R-018 sur l'existant (`11` §7.9.7)
+- [ ] **Propriétaire, action 1 (urgente)** : vérifier R-018 sur l'existant — script prêt dans `13-verification-r018.md`
 - [ ] **Propriétaire** — liste ordonnée des actions en attente : voir la réponse de la session (priorité 1 à 8)
 - [ ] Ensuite : LOT-02 dans le nouveau repo (tests de contrat d'abord, `11` §7.5 et §7.9.6)
 

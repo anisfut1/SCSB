@@ -1,6 +1,6 @@
 # ADR-006 — Authentification, autorisation et jeton personnel public
 - **Date** : 2026-10-07
-- **Statut** : Proposée (complète ADR-001, qui traite le front)
+- **Statut** : Proposée (complète ADR-001, qui traite le front) ; **addendum 2026-10-08 : implémentation Python/FastAPI** (fin du document)
 
 ## Contexte
 - R-011 : avec `getClaims()` côté front (ADR-001), une session révoquée reste acceptée jusqu'à l'expiration du JWT ; le back doit donc **revalider** (`04` §B.11). Durée de vie JWT et type de clés (Q-008) **non vérifiés**.
@@ -43,3 +43,14 @@ Cible **retenue** : (1) lien d'e-mail avec le jeton en **fragment** (`…#token=
 
 ## Addendum 2026-10-07 (2) — décisions validées
 Validées par le propriétaire (Q-025) : (1) en-tête **`X-Personal-Link-Token`** (jamais `Authorization`) ; (2) **nettoyage de l'URL dès la lecture** du jeton, avant toute validation réseau, y compris en cas d'échec ; (3) revendication de fiche (R-018) : validateur `club_admin` seul, expiration 14 jours, **tout rôle à droits d'écriture exclu** du parcours public (Q-024).
+
+## Addendum 2026-10-08 — vérification du JWT en Python (FastAPI, ADR-002)
+### Faits vérifiés (docs consultées le 2026-10-08)
+- Supabase : endpoint JWKS `https://<projet>.supabase.co/auth/v1/.well-known/jwks.json`, qui ne renvoie des clés **que si le projet utilise des clés de signature asymétriques** ; le secret partagé HS256 est **déconseillé** par Supabase ; pour HS256 la vérification passe par le serveur d'authentification (`GET …/auth/v1/user` avec le Bearer) ; l'endpoint JWKS est mis en cache **10 minutes** côté edge Supabase, il est conseillé d'attendre ≥ 20 minutes avant de révoquer une clé et **de ne pas cacher plus longtemps dans l'application** (supabase.com/docs/guides/auth/jwts).
+- PyJWT : `PyJWKClient` trouve la clé par l'en-tête `kid`, **rafraîchit le JWKS si le `kid` est inconnu**, et inclut un cache ; `jwt.decode` accepte `audience`, `algorithms`, `issuer` (pyjwt.readthedocs.io/en/stable/usage.html ; paramètres exacts du cache : **non lus**, renvoyés à la référence d'API).
+### Décision
+1. **Q-008 tranche** entre deux modes : (a) **clés asymétriques** → `PyJWKClient` (cache ≤ 10 min, aligné sur Supabase) + `jwt.decode(..., algorithms=["ES256","RS256"] selon la clé, audience="authenticated", issuer=…, options exp obligatoire)` ; **liste blanche d'algorithmes, jamais `none` ni HS256 dans ce mode** ; (b) **HS256 hérité** → **introspection `GET /auth/v1/user` sur chaque requête** avec cache ≤ 10 s (le secret partagé n'est pas copié dans le back, conformément à la recommandation Supabase). Q-008 reste **à fournir** par le propriétaire (JWKS vide ou non, durée de vie).
+2. **Introspection** (`httpx.AsyncClient`, timeout court, cache ≤ 10 s) pour toute écriture sensible : `POST/PUT/PATCH/DELETE`, `platform/*`, **approbation d'une revendication** (R-018), envoi d'un lien personnel ; échec du serveur d'authentification → `503` (jamais d'autorisation par défaut).
+3. **Dépendance FastAPI par défaut** : `Depends(require_user)` appliquée au **routeur racine** ; les routes publiques sont dans un routeur distinct à **liste blanche explicite** ; un test énumère `app.routes` et échoue si une route hors liste blanche est publique. `require_club_role(club_id, roles)` lit les rôles **en base** à chaque requête (cache ≤ 30 s).
+4. **Jeton personnel** : `X-Personal-Link-Token` (validé Q-025), comparaison à temps constant (`hmac.compare_digest`), haché (HMAC-SHA-256 avec secret serveur) ; `?token=` → `400 TOKEN_IN_QUERY` via un middleware ASGI qui inspecte `scope["query_string"]`. Les journaux n'enregistrent jamais `scope["query_string"]`.
+5. **Revendication R-018** : `is_write_capable(licencie)` calculé côté serveur à partir des drapeaux de la fiche et des rôles (`11` §7.9.2) ; test paramétré sur les droits.

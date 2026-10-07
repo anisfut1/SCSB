@@ -1,6 +1,22 @@
 # ADR-004 — Jobs asynchrones et planification
-- **Date** : 2026-10-07
+- **Date** : 2026-10-07 ; **révision 2026-10-08 (Python/FastAPI) : `pg-boss` remplacé par Procrastinate**, voir « Révision FastAPI » ci-dessous
 - **Statut** : Proposée (révisée le 2026-10-07 pour Railway ; dépend de Q-015 pour la connexion de `pg-boss`)
+
+## Révision FastAPI (2026-10-08)
+### Options comparées (back Python)
+| Option | Avantages | Inconvénients |
+|---|---|---|
+| **A. Procrastinate** (file dans PostgreSQL, psycopg 3, asyncio) | Aucune infra de plus ; retries, planification périodique, verrous en base, workers asyncio (annoncés par le projet ; **détails d'API non revérifiés ici**) ; cohérent avec le choix de psycopg 3 (ADR-003) ; enqueue dans la même transaction que l'écriture métier **à vérifier** | Veut **son schéma** (appliqué par sa commande de migration, schéma/droits à valider derrière le rôle dédié) ; `LISTEN/NOTIFY` exige une connexion de session ; moins répandu que Celery |
+| B. **arq** (Redis) / **Celery + Redis** | Très répandus, outillage riche | **Redis à exploiter** sur Railway (service en plus, sauvegarde, secret) sans besoin chiffré à ~quelques dizaines d'utilisateurs ; enqueue non transactionnel avec Postgres |
+| C. File maison : table `jobs` + `SELECT … FOR UPDATE SKIP LOCKED` (modèle existant `fbi_jobs`/claim, `worker/src/jobs/claim.ts`) | Aucune dépendance, maîtrise totale | Retries, backoff, planification périodique, reprise après crash : à réécrire et tester |
+| D. Tâches de fond FastAPI (`BackgroundTasks`) | Zéro infra | Perdues au redémarrage, pas de retries ni de statut : **exclu** (la fermeture d'onglet comme un redéploiement perdraient le travail) |
+### Faits vérifiés (docs consultées le 2026-10-08)
+- Procrastinate s'appuie sur les verrous de PostgreSQL et sur **`LISTEN`** pour être notifié d'une nouvelle tâche ; on peut désactiver `LISTEN/NOTIFY` (option `--no-listen-notify`, une connexion de moins par worker) ; avec un pooler externe, un `AsyncNullConnectionPool` désactive le pool applicatif (procrastinate.readthedocs.io — pages « Limit the number of opened connections » et résultats de recherche ; **page dédiée aux poolers non retrouvée : 404**).
+- PgBouncer : `LISTEN` incompatible avec le pooling transaction (pgbouncer.org/features.html).
+### Non vérifié
+Fonctionnement de Procrastinate derrière **Supavisor** (session et transaction), droits nécessaires pour son schéma avec un rôle à privilèges minimaux, version exacte et prérequis Python/PostgreSQL → **test V2** en staging ; **repli** : `--no-listen-notify` (sondage) puis option (c) d'ADR-003 (petite base Railway dédiée à la file) puis option C ci-dessus.
+### Décision (révision)
+**Option A (Procrastinate)** — pas de Redis (aucun besoin chiffré à cette charge). Mêmes règles qu'avant : service `worker` distinct (même image, ADR-007), contrat `Prefer: respond-async` → `202 {jobId}`, `GET /v1/jobs/{jobId}` (statuts `pending|claimed|running|succeeded|failed`, correspondance à définir avec les états Procrastinate `todo|doing|succeeded|failed` — **non vérifiée**), `Idempotency-Key` via le verrou de file/`queueing_lock` (**non vérifié**), concurrence 2, délai 300 s, 3 essais pour les erreurs réseau uniquement, **aucun rejeu automatique des écritures FBI** (`retry=False`). Connexion : **session mode uniquement**. Les mentions de `pg-boss` ci-dessous sont **historiques**.
 
 ## Contexte
 TRT-004 : 11 endpoints retiennent une requête HTTP de 30 à 280 s depuis le navigateur (`integrations.ts:64,82,98,138`, `derogations.ts:44`, `matches.ts:107,127`, `publicTables.ts:134,143`, `licencies.ts:52,65`) ; incident de production documenté (`client.ts:13-17`). Le motif `202 + jobId` + `GET /v1/jobs/{jobId}` existe déjà (`jobs.ts:7-44`). Le travail réel (FFBB, FBI avec navigateur headless, e-Marque) est dans `club-manager-api` ; en coexistence, le nouveau back **pilote** ces traitements sans les réimplémenter.
