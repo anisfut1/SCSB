@@ -84,3 +84,13 @@ export type CreateLicencieDto = components["schemas"]["CreateLicencieDto"];
 export async function createLicencie(fetcher: ApiFetcher, clubId: string, body: CreateLicencieDto): Promise<LicencieDto> {
   return fetcher<LicencieDto>(`/v1/clubs/${clubId}/licencies`, { method: "POST", body });
 }
+
+/** POST …/licencies/:licencieId/photo — photo DÉJÀ compressée (voir lib/images/compress-photo.ts), base64. */
+export async function uploadLicenciePhoto(fetcher: ApiFetcher, clubId: string, licencieId: string, body: { contentType: "image/webp" | "image/jpeg"; data: string }): Promise<LicencieDto> {
+  return fetcher<LicencieDto>(`/v1/clubs/${clubId}/licencies/${licencieId}/photo`, { method: "POST", body, timeoutMs: 60_000 });
+}
+
+/** DELETE …/licencies/:licencieId/photo — retire la photo de la fiche. */
+export async function deleteLicenciePhoto(fetcher: ApiFetcher, clubId: string, licencieId: string): Promise<LicencieDto> {
+  return fetcher<LicencieDto>(`/v1/clubs/${clubId}/licencies/${licencieId}/photo`, { method: "DELETE" });
+}

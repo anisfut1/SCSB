@@ -9,6 +9,7 @@ import type { TeamDto } from "@/lib/api/clubs";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Checkbox, Field, FormMessage, Input, Select } from "@/components/ui/Field";
+import { PhotoUploader } from "./PhotoUploader";
 
 type Status = { kind: "success" | "error"; text: string } | null;
 
@@ -105,9 +106,10 @@ export function LicencieProfileEditForm({
       ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Photo (URL)" optional className="sm:col-span-2">
-          {(props) => <Input {...props} type="url" placeholder="https://…" value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} />}
-        </Field>
+        <PhotoUploader clubId={clubId} licencieId={licencie.id} name={`${licencie.firstName} ${licencie.lastName}`} photoUrl={photoUrl || null} onChange={(url) => {
+          setPhotoUrl(url ?? "");
+          router.refresh();
+        }} />
         <Field label="Email" optional>
           {(props) => <Input {...props} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />}
         </Field>

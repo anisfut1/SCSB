@@ -97,6 +97,8 @@ export function createApi(fetcher: ApiFetcher) {
       autoAssignTeams: (clubId: string) => licencies.autoAssignTeams(fetcher, clubId),
       remove: (clubId: string, licencieId: string) => licencies.deleteLicencie(fetcher, clubId, licencieId),
       create: (clubId: string, body: licencies.CreateLicencieDto) => licencies.createLicencie(fetcher, clubId, body),
+      uploadPhoto: (clubId: string, licencieId: string, body: { contentType: "image/webp" | "image/jpeg"; data: string }) => licencies.uploadLicenciePhoto(fetcher, clubId, licencieId, body),
+      deletePhoto: (clubId: string, licencieId: string) => licencies.deleteLicenciePhoto(fetcher, clubId, licencieId),
     },
     platform: {
       listClubs: () => platform.listPlatformClubs(fetcher),
