@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDaysToDateString, currentOrNextWeekendSaturday, formatWeekendLabel, todayInTimezone, weekendRangeForSaturday } from "./timezone";
+import { addDaysToDateString, isValidTimezone, currentOrNextWeekendSaturday, formatWeekendLabel, todayInTimezone, weekendRangeForSaturday } from "./timezone";
 
 const PARIS = "Europe/Paris";
 
@@ -67,5 +67,19 @@ describe("formatWeekendLabel", () => {
 
   it("formate un week-end à cheval sur 2 mois", () => {
     expect(formatWeekendLabel("2026-10-31")).toBe("Week-end du 31 octobre au 1 novembre");
+  });
+});
+
+describe("isValidTimezone", () => {
+  it("accepte un fuseau IANA connu", () => {
+    expect(isValidTimezone("Europe/Paris")).toBe(true);
+    expect(isValidTimezone("America/Martinique")).toBe(true);
+  });
+
+  it("rejette une chaîne arbitraire, vide ou mal casée", () => {
+    expect(isValidTimezone("")).toBe(false);
+    expect(isValidTimezone("xyz")).toBe(false);
+    expect(isValidTimezone("europe/paris")).toBe(false);
+    expect(isValidTimezone("Europe/Paris; DROP TABLE clubs")).toBe(false);
   });
 });

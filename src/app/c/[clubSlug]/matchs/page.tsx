@@ -8,6 +8,8 @@ import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { ButtonLink } from "@/components/ui/Button";
 import { MatchesView } from "@/features/matches/MatchesView";
 import { parseMatchFilters } from "@/features/matches/match-filters";
+import { loadMatchesForView } from "@/features/matches/load-matches";
+import { matchesServerFiltersEnabled } from "@/config/flags";
 
 /**
  * Vue "Ce week-end" + filtres (ARCHITECTURE.md §3, Module 1), scopée au
@@ -32,7 +34,14 @@ export default async function MatchsPage({
   const club = await requireClubContext(clubSlug);
   const filters = parseMatchFilters(await searchParams);
 
-  const [teams, matches] = await Promise.all([api.clubs.teams(club.id), api.matches.list(club.id, { from: currentSeasonStart().toISOString() })]);
+  const { teams, matches } = await loadMatchesForView({
+    serverFilters: matchesServerFiltersEnabled(),
+    filters,
+    seasonStart: currentSeasonStart(),
+    now: new Date(),
+    fetchTeams: () => api.clubs.teams(club.id),
+    fetchMatches: (params) => api.matches.list(club.id, params),
+  });
 
   return (
     <PageContainer width="wide">
