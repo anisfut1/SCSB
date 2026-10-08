@@ -15,19 +15,22 @@ import { clubAccentStyle } from "@/lib/ui/accent";
 /**
  * Racine de l'application : résout le contexte club de l'utilisateur
  * (§14 du brief SaaS) plutôt que de rediriger vers une destination unique.
- * - 0 club : message d'accueil (+ lien /platform/clubs si platform_admin)
+ * - platform_admin : espace Clubs (/platform/clubs)
+ * - 0 club : message d'accueil
  * - 1 club : redirection directe
  * - plusieurs clubs : choix
  */
 export default async function HomePage() {
   await requireUser();
-  const clubs = await listUserClubs();
+  const [clubs, canManagePlatform] = await Promise.all([listUserClubs(), isPlatformAdmin()]);
+
+  // L'opérateur de la plateforme arrive sur l'espace Clubs, jamais
+  // directement dans un club (retour du club, 2026-10-08).
+  if (canManagePlatform) redirect("/platform/clubs");
 
   if (clubs.length === 1) {
     redirect(`/c/${clubs[0]!.slug}/dashboard`);
   }
-
-  const canManagePlatform = clubs.length === 0 ? await isPlatformAdmin() : false;
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col">

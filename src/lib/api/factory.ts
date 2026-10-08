@@ -106,6 +106,9 @@ export function createApi(fetcher: ApiFetcher) {
       purgeEmarqueDocuments: () => platform.purgeEmarqueDocuments(fetcher),
       deleteOldSeasons: (clubId: string) => platform.deleteOldSeasons(fetcher, clubId),
       retryFailedEmarqueImports: () => platform.retryFailedEmarqueImports(fetcher),
+      clubMembers: (clubId: string) => platform.listPlatformClubMembers(fetcher, clubId),
+      grantClubAdmin: (clubId: string, email: string) => platform.grantPlatformClubAdmin(fetcher, clubId, email),
+      revokeClubAdmin: (clubId: string, membershipId: string) => platform.revokePlatformClubAdmin(fetcher, clubId, membershipId),
     },
     tables: {
       list: (clubId: string, params?: tables.ListTableAssignmentsParams) => tables.listTableAssignments(fetcher, clubId, params),

@@ -53,7 +53,7 @@ export default async function PlatformClubsPage() {
       <PageHeader
         eyebrow="Plateforme"
         title="Clubs"
-        description="Réservé à l'opérateur de la plateforme (platform_admin). La gestion quotidienne d'un club se fait depuis son espace d'administration, jamais ici."
+        description="Réservé à l'opérateur de la plateforme. Clique sur un club pour voir et nommer ses administrateurs ; la gestion quotidienne se fait ensuite dans l'espace du club."
       />
 
       <section aria-label="Indicateurs plateforme" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
@@ -84,11 +84,11 @@ export default async function PlatformClubsPage() {
                   {clubs.map((club) => (
                     <Tr key={club.id}>
                       <Td>
-                        <Link href={`/c/${club.slug}/dashboard`} className="group flex items-center gap-3">
+                        <Link href={`/platform/clubs/${club.id}`} className="group flex items-center gap-3">
                           <ClubLogo name={club.name} size="sm" />
                           <span className="flex flex-col">
                             <span className="font-medium text-foreground group-hover:text-accent-text group-hover:underline group-hover:underline-offset-4">{club.name}</span>
-                            <span className="type-meta font-mono text-xs">/c/{club.slug}</span>
+                            <span className="type-meta text-xs">Gérer les administrateurs ›</span>
                           </span>
                         </Link>
                       </Td>
@@ -113,7 +113,7 @@ export default async function PlatformClubsPage() {
             <ul className="flex flex-col gap-3 md:hidden">
               {clubs.map((club) => (
                 <li key={club.id}>
-                  <Link href={`/c/${club.slug}/dashboard`} data-interactive="true" className="surface-card flex flex-col gap-3 p-4">
+                  <Link href={`/platform/clubs/${club.id}`} data-interactive="true" className="surface-card flex flex-col gap-3 p-4">
                     <div className="flex items-center gap-3">
                       <ClubLogo name={club.name} size="md" />
                       <div className="flex min-w-0 flex-1 flex-col">

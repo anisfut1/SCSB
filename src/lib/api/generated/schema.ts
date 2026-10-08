@@ -5184,6 +5184,221 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/platform/clubs/{clubId}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    clubId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Membres et rôles du club (platform_admin) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlatformClubMembersDto"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/clubs/{clubId}/admins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    clubId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["GrantClubAdminDto"];
+                };
+            };
+            responses: {
+                /** @description Administrateur nommé (compte invité s'il n'existait pas) */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlatformClubMembersDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/clubs/{clubId}/admins/{membershipId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    clubId: string;
+                    membershipId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Rôle administrateur retiré (jamais le dernier) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlatformClubMembersDto"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/platform/maintenance/purge-emarque-documents": {
         parameters: {
             query?: never;
@@ -8422,6 +8637,42 @@ export interface components {
             /** Format: email */
             adminEmail?: string;
         };
+        PlatformClubMembersDto: {
+            club: {
+                /** Format: uuid */
+                id: string;
+                slug: string;
+                name: string;
+            };
+            members: components["schemas"]["ClubMemberDto"][];
+        };
+        ClubMemberDto: {
+            /** Format: uuid */
+            membershipId: string;
+            /** Format: uuid */
+            userId: string;
+            email: string | null;
+            displayName: string | null;
+            /** @enum {string} */
+            status: "active" | "suspended";
+            licencie: {
+                /** Format: uuid */
+                id: string;
+                firstName: string;
+                lastName: string;
+            } | null;
+            roles: components["schemas"]["RoleGrantDto"][];
+            isMe: boolean;
+        };
+        RoleGrantDto: {
+            role: components["schemas"]["ClubRole"];
+            /** Format: uuid */
+            scopeTeamId: string | null;
+        };
+        GrantClubAdminDto: {
+            /** Format: email */
+            email: string;
+        };
         PurgeEmarqueDocumentsResultDto: {
             documentsExamined: number;
             documentsPurged: number;
@@ -8696,29 +8947,6 @@ export interface components {
         };
         ClubMemberListDto: {
             members: components["schemas"]["ClubMemberDto"][];
-        };
-        ClubMemberDto: {
-            /** Format: uuid */
-            membershipId: string;
-            /** Format: uuid */
-            userId: string;
-            email: string | null;
-            displayName: string | null;
-            /** @enum {string} */
-            status: "active" | "suspended";
-            licencie: {
-                /** Format: uuid */
-                id: string;
-                firstName: string;
-                lastName: string;
-            } | null;
-            roles: components["schemas"]["RoleGrantDto"][];
-            isMe: boolean;
-        };
-        RoleGrantDto: {
-            role: components["schemas"]["ClubRole"];
-            /** Format: uuid */
-            scopeTeamId: string | null;
         };
         InviteMemberDto: {
             /** Format: email */

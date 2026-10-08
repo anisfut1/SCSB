@@ -52,3 +52,20 @@ export async function deleteOldSeasons(fetcher: ApiFetcher, clubId: string): Pro
 export async function retryFailedEmarqueImports(fetcher: ApiFetcher): Promise<RetryFailedEmarqueImportsResultDto> {
   return fetcher(`/v1/platform/maintenance/retry-failed-emarque-imports`, { method: "POST" });
 }
+
+export type PlatformClubMembersDto = components["schemas"]["PlatformClubMembersDto"];
+
+/** GET /v1/platform/clubs/:clubId/members — membres et rôles d'un club, vus par le platform_admin. */
+export async function listPlatformClubMembers(fetcher: ApiFetcher, clubId: string): Promise<PlatformClubMembersDto> {
+  return fetcher(`/v1/platform/clubs/${encodeURIComponent(clubId)}/members`);
+}
+
+/** POST /v1/platform/clubs/:clubId/admins — nomme administrateur du club (compte invité s'il n'existe pas). */
+export async function grantPlatformClubAdmin(fetcher: ApiFetcher, clubId: string, email: string): Promise<PlatformClubMembersDto> {
+  return fetcher(`/v1/platform/clubs/${encodeURIComponent(clubId)}/admins`, { method: "POST", body: { email } });
+}
+
+/** DELETE /v1/platform/clubs/:clubId/admins/:membershipId — retire le rôle administrateur (jamais le dernier). */
+export async function revokePlatformClubAdmin(fetcher: ApiFetcher, clubId: string, membershipId: string): Promise<PlatformClubMembersDto> {
+  return fetcher(`/v1/platform/clubs/${encodeURIComponent(clubId)}/admins/${encodeURIComponent(membershipId)}`, { method: "DELETE" });
+}
