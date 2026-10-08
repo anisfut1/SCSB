@@ -132,9 +132,15 @@ export function IdentifyView({
             <div className="text-reflow">
               <h1 className="type-title text-foreground">Lien envoyé, {step.licencie.firstName} !</h1>
               <p className="mt-2 text-[15px] leading-relaxed text-muted">
-                Un email vient de partir à <span className="type-numeric font-medium text-foreground">{step.maskedEmail}</span>. Ouvre-le et appuie sur <span className="font-medium text-foreground">« Ouvrir mon espace »</span> : tu seras reconnu·e automatiquement sur cet appareil.
+                Un email vient de partir à <span className="type-numeric font-medium text-foreground">{step.maskedEmail}</span>. Ouvre-le et appuie sur <span className="font-medium text-foreground">« Ouvrir l&apos;espace du club »</span> : tu seras reconnu·e automatiquement sur cet appareil.
               </p>
-              <p className="type-meta mt-3">Rien reçu d&apos;ici quelques minutes ? Vérifie tes spams. Chaque nouvelle demande remplace l&apos;ancien lien.</p>
+              <div className="mt-4 rounded-[var(--radius-md)] border border-[color-mix(in_oklab,var(--warning)_24%,transparent)] bg-warning-soft p-3 text-[13.5px] leading-relaxed text-foreground">
+                <p className="font-medium">Pas reçu ? Regarde dans tes indésirables (spams).</p>
+                <p className="mt-1 text-muted">
+                  S&apos;il y est, ouvre-le et appuie sur <span className="font-medium text-foreground">« Ce n&apos;est pas un spam »</span> : les prochains arriveront directement dans ta boîte de réception.
+                </p>
+              </div>
+              <p className="type-meta mt-3">Chaque nouvelle demande remplace l&apos;ancien lien.</p>
             </div>
             <Button variant="ghost" icon={<ArrowLeft />} onClick={backToList}>
               Ce n&apos;est pas moi
