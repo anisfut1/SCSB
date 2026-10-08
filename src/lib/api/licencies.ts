@@ -52,6 +52,29 @@ export async function importLicencies(fetcher: ApiFetcher, clubId: string, body:
   return fetcher<ImportLicenciesResultDto>(`/v1/clubs/${clubId}/licencies/import`, { method: "POST", body, timeoutMs: 60_000 });
 }
 
+export type LicenceSyncResultDto = components["schemas"]["LicenceSyncResultDto"];
+export type LicenceImportStatusDto = components["schemas"]["LicenceImportStatusDto"];
+
+/**
+ * Import des licenciés depuis FBI (retour du club, 2026-10-08 : « faut que
+ * tout soit pour les nuls ») — l'admin dépose le fichier Excel FBI tel quel
+ * (« Gestion des licences », filtre Validé, bouton Excel).
+ */
+export async function importLicencesFile(fetcher: ApiFetcher, clubId: string, file: File): Promise<LicenceSyncResultDto> {
+  const form = new FormData();
+  form.append("file", file);
+  return fetcher<LicenceSyncResultDto>(`/v1/clubs/${clubId}/licencies/import/file`, { method: "POST", body: form, timeoutMs: 60_000 });
+}
+
+/** « Mettre à jour depuis FBI » : la mise à jour se fait en arrière-plan dans la session FBI du club (aussi chaque jour). */
+export async function requestFbiLicenceImport(fetcher: ApiFetcher, clubId: string): Promise<{ jobId: string | null; alreadyQueued: boolean }> {
+  return fetcher(`/v1/clubs/${clubId}/licencies/import/fbi`, { method: "POST" });
+}
+
+export async function getLicenceImportStatus(fetcher: ApiFetcher, clubId: string): Promise<LicenceImportStatusDto> {
+  return fetcher<LicenceImportStatusDto>(`/v1/clubs/${clubId}/licencies/import/status`);
+}
+
 /**
  * POST /v1/clubs/:clubId/licencies/auto-assign-teams (club_admin) —
  * répartition automatique best-effort des licenciés sans équipe, à partir

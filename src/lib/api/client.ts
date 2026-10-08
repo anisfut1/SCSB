@@ -48,7 +48,9 @@ export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Prom
 
   const requestHeaders = new Headers(headers);
   requestHeaders.set("Accept", "application/json");
-  if (body !== undefined) {
+  // Fichier déposé (ex. export Excel FBI) : envoyé tel quel, le navigateur pose lui-même le Content-Type multipart.
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  if (body !== undefined && !isFormData) {
     requestHeaders.set("Content-Type", "application/json");
   }
   if (accessToken) {
@@ -60,7 +62,7 @@ export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Prom
     response = await fetch(url, {
       ...rest,
       headers: requestHeaders,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: isFormData ? (body as FormData) : body !== undefined ? JSON.stringify(body) : undefined,
       // Données multi-tenant/authentifiées : jamais mises en cache par
       // défaut (§41 de la demande) — un club ne doit jamais recevoir une
       // réponse mise en cache pour un autre club.

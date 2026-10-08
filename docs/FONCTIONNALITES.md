@@ -87,12 +87,12 @@ Chaque bloc : **ce que ça fait** → écrans → routes API principales (préfi
 - API : `GET|PATCH /clubs/{id}`, `GET|POST /clubs/{id}/teams`, `PATCH …/teams/{teamId}`, `GET|PATCH …/venues…`, `GET|POST …/members`, `PUT …/members/{id}/roles`, `GET …/capabilities`.
 
 ### 3.4 Licenciés et fiches joueurs
-- Liste des licenciés (import FFBB par copier-coller, ajout manuel, suppression), rattachement aux équipes (glisser-déposer + rattachement automatique par catégorie).
+- Liste des licenciés : **mise à jour automatique depuis FBI chaque jour** (licences validées, export Excel de « Gestion des licences ») avec un bouton « Mettre à jour depuis FBI », ou dépôt du fichier Excel FBI tel quel ; ajout manuel, suppression ; rattachement aux équipes (glisser-déposer + rattachement automatique par catégorie). Un import n'efface rien et ne modifie jamais nom, email, équipe ou rôles.
 - Fiche joueur (club) : identité, contact (admin ou la personne elle-même), photo, tous ses matchs et ses statistiques, lien personnel (admin).
 - **Photo** : choisie depuis un fichier (PNG, JPEG…), recadrée et compressée dans le navigateur (WebP 512 px, ~25 Ko), stockée par l'API (512 Ko maximum), l'ancienne photo est supprimée.
 - **Fiche publique** : nom, prénom, photo, équipes, chiffres de la saison, meilleur match, prochain match, 10 derniers matchs, tables tenues. Jamais de date de naissance, de coordonnées ni de numéro de licence ; les matchs « à vérifier » sont exclus.
 - Écrans : `/joueurs`, `/joueurs/{id}`, `/public/{club}/joueurs/{id}`.
-- API : `GET|POST /clubs/{id}/licencies`, `GET|DELETE …/licencies/{lid}`, `PATCH …/profile`, `POST|DELETE …/photo`, `POST …/import`, `POST …/auto-assign-teams`, `GET /public/clubs/{slug}/players/{lid}`.
+- API : `GET|POST /clubs/{id}/licencies`, `GET|DELETE …/licencies/{lid}`, `PATCH …/profile`, `POST|DELETE …/photo`, `POST …/import`, `POST …/import/file`, `POST …/import/fbi`, `GET …/import/status`, `POST …/auto-assign-teams`, `GET /public/clubs/{slug}/players/{lid}`.
 
 ### 3.5 Matchs, compositions et statistiques
 - Liste des matchs (filtres équipe, domicile/extérieur, période ; pagination), détail en onglets : Informations, Composition, Statistiques, Officiels, e-Marque.
@@ -191,7 +191,7 @@ Appels faits **au chargement** de la page (côté serveur). Les actions (boutons
 | Domaine | Actions et routes |
 |---|---|
 | Réglages, équipes, gymnases | `clubs.update` (`PATCH /clubs/{id}`), `clubs.createTeam/updateTeam`, `members.updateVenue` |
-| Licenciés | `licencies.create/import/remove/autoAssignTeams/updateProfile/uploadPhoto/deletePhoto` |
+| Licenciés | `licencies.create/importFile/requestFbiImport/importStatus/remove/autoAssignTeams/updateProfile/uploadPhoto/deletePhoto` |
 | Tables | `tables.assign/unassign/suggestions/setRefereeStatus/personalLink/resetPublicAccess` |
 | Dérogations FBI | `derogations.respond`, `matches.checkDerogation/createDerogation`, `integrations.checkAllDerogations` |
 | Intégrations | `integrations.saveFbi/testFbi/processFbiJobs/parseFbiDocuments/triggerFbiScheduleReconciliation/triggerFfbbSync`, `jobs.pollUntilTerminal`, `emarqueTracking.relaunch`, `issues.resolve` |
@@ -297,6 +297,7 @@ Le chantier de migration front → back et ses lots (LOT-02 à LOT-13) sont suiv
 Les plus récentes d'abord. Historique complet : `git log` des deux dépôts et [`docs/migration/CHANGELOG.md`](migration/CHANGELOG.md).
 
 **2026-10-08**
+- Joueurs : licenciés importés automatiquement depuis FBI chaque jour (licences validées) + bouton « Mettre à jour depuis FBI » + dépôt du fichier Excel ; fin du copier-coller.
 - Espace public : une fiche sans email ne reçoit plus de lien automatiquement ; l'admin approuve ou refuse la demande (R-018, anti-troll).
 - Espace public : « retrouve ton nom » par prénom + nom (fautes et ordre tolérés), « Prévenir le club » si introuvable ; annuaire public fermé (R-013).
 - Comptes de A à Z : emails Ball Manager (invitation, nouvel accès, mot de passe oublié), pages `/bienvenue` et `/mot-de-passe-oublie`.

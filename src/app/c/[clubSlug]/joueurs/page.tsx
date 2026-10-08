@@ -5,7 +5,7 @@ import { isClubAdmin } from "@/lib/permissions/roles";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/States";
 import { StatusBadge } from "@/components/ui/Badge";
-import { ImportLicenciesPanel } from "@/features/licencies/ImportLicenciesPanel";
+import { LicenceImportPanel } from "@/features/licencies/LicenceImportPanel";
 import { RosterBoard } from "@/features/licencies/RosterBoard";
 import { AddPersonButton } from "@/features/licencies/AddPersonButton";
 
@@ -17,7 +17,8 @@ import { AddPersonButton } from "@/features/licencies/AddPersonButton";
  * l'admin voie la structure complète du club, pas seulement les équipes
  * déjà peuplées.
  *
- * `club_admin` : import en masse depuis un export FBI + glisser-déposer
+ * `club_admin` : licenciés à jour depuis FBI (automatique chaque jour, ou
+ * fichier Excel déposé — retour du club, 2026-10-08) + glisser-déposer
  * pour réaffecter un licencié d'une équipe à l'autre (demande du club,
  * 2026-09-28 : "ajoute les tous stp... Fais moi un truc ou jpeux glisser
  * les cartes pr les mettre d'une equipe a lautre").
@@ -26,7 +27,12 @@ export default async function JoueursPage({ params }: { params: Promise<{ clubSl
   const { clubSlug } = await params;
   const club = await requireClubContext(clubSlug);
   const isAdmin = isClubAdmin(club.roles);
-  const [licencies, teams] = await Promise.all([api.licencies.list(club.id), api.clubs.teams(club.id)]);
+  const [licencies, teams, importStatus] = await Promise.all([
+    api.licencies.list(club.id),
+    api.clubs.teams(club.id),
+    // Écran admin seulement ; un échec n'empêche jamais d'afficher la liste.
+    isAdmin ? api.licencies.importStatus(club.id).catch(() => null) : Promise.resolve(null),
+  ]);
 
   return (
     <PageContainer width="wide">
@@ -48,7 +54,7 @@ export default async function JoueursPage({ params }: { params: Promise<{ clubSl
           ) : null
         }
       />
-      {isAdmin ? <ImportLicenciesPanel clubId={club.id} /> : null}
+      {isAdmin ? <LicenceImportPanel clubId={club.id} clubSlug={clubSlug} initialStatus={importStatus} /> : null}
       {licencies.length === 0 ? (
         <EmptyState
           icon={<Users />}
