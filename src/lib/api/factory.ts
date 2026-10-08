@@ -119,6 +119,8 @@ export function createApi(fetcher: ApiFetcher) {
       listPublicAccess: (clubId: string) => tables.listPublicAccess(fetcher, clubId),
       resetPublicAccess: (clubId: string, licencieId: string) => tables.resetPublicAccess(fetcher, clubId, licencieId),
       personalLink: (clubId: string, licencieId: string) => tables.getPersonalLink(fetcher, clubId, licencieId),
+      claimRequests: (clubId: string) => tables.listClaimRequests(fetcher, clubId),
+      decideClaimRequest: (clubId: string, requestId: string, decision: "approve" | "reject") => tables.decideClaimRequest(fetcher, clubId, requestId, decision),
     },
   };
 }

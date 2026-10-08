@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent, type ReactNode } from "react";
-import { ArrowLeft, Mail, MailCheck, Search, Send, UserRound, UserX } from "lucide-react";
+import { ArrowLeft, Hourglass, Mail, MailCheck, Search, Send, UserRound, UserX } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, IconMedallion } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
@@ -16,6 +16,7 @@ type Step =
   | { kind: "pick" }
   | { kind: "confirm"; licencie: PublicLicencieMatch; needsEmail: boolean }
   | { kind: "sent"; licencie: PublicLicencieMatch; maskedEmail: string }
+  | { kind: "pending"; licencie: PublicLicencieMatch; email: string }
   | { kind: "not-found" }
   | { kind: "request-sent" };
 
@@ -122,7 +123,9 @@ export function IdentifyView({
     setFeedback(null);
     try {
       const result = await requestPersonalLink(clubSlug, step.licencie.id, { email: step.needsEmail ? email.trim() : null, returnTo });
-      setStep({ kind: "sent", licencie: step.licencie, maskedEmail: result.maskedEmail });
+      // Fiche sans adresse connue : l'administrateur du club valide avant tout envoi (R-018, retour du club 2026-10-08).
+      if (result.pendingApproval || !result.maskedEmail) setStep({ kind: "pending", licencie: step.licencie, email: email.trim() });
+      else setStep({ kind: "sent", licencie: step.licencie, maskedEmail: result.maskedEmail });
     } catch (err) {
       if (err instanceof ApiError && err.code === "EMAIL_REQUIRED") {
         // Aucune adresse connue pour ce nom : on la demande, sans considérer cela comme une erreur.
@@ -170,6 +173,31 @@ export function IdentifyView({
     );
   }
 
+  if (step.kind === "pending") {
+    return (
+      <div className="mx-auto flex w-full max-w-lg flex-col gap-5 py-4">
+        <Card variant="glow">
+          <div className="flex flex-col items-start gap-4">
+            <IconMedallion tone="info" size="lg">
+              <Hourglass />
+            </IconMedallion>
+            <div className="text-reflow">
+              <h1 className="type-title text-foreground">Demande transmise, {step.licencie.firstName}</h1>
+              <p className="mt-2 text-[15px] leading-relaxed text-muted">
+                Ta fiche n&apos;a pas encore d&apos;adresse email. Pour protéger ton profil, l&apos;administrateur de {clubName} vérifie que <span className="font-medium text-foreground">{step.email}</span> est bien la tienne.
+              </p>
+              <p className="mt-2 text-[15px] leading-relaxed text-muted">Dès qu&apos;il valide, ton lien personnel arrive par email. Rien d&apos;autre à faire d&apos;ici là.</p>
+              <p className="type-meta mt-3">Sans réponse sous 14 jours, la demande expire : contacte directement le club.</p>
+            </div>
+            <Button variant="ghost" icon={<ArrowLeft />} onClick={backToList}>
+              Revenir à la recherche
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   if (step.kind === "confirm") {
     const { licencie, needsEmail } = step;
     return (
@@ -188,7 +216,7 @@ export function IdentifyView({
             </div>
 
             {needsEmail ? (
-              <Field label="Ton adresse email" required hint="Ton lien personnel y sera envoyé. Elle est enregistrée sur ta fiche licencié." error={feedback?.tone === "danger" ? feedback.message : undefined}>
+              <Field label="Ton adresse email" required hint="Ta fiche n'a pas encore d'adresse : l'administrateur du club la vérifie, puis ton lien personnel y est envoyé." error={feedback?.tone === "danger" ? feedback.message : undefined}>
                 {(props) => <Input {...props} type="email" inputMode="email" autoComplete="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} placeholder="prenom.nom@exemple.fr" />}
               </Field>
             ) : (
@@ -204,7 +232,7 @@ export function IdentifyView({
             ) : null}
 
             <Button type="submit" variant="primary" size="lg" loading={sending} disabled={needsEmail && !email.trim()} icon={<Mail />}>
-              {needsEmail ? "Envoyer mon lien" : "Recevoir mon lien par email"}
+              {needsEmail ? "Demander mon lien" : "Recevoir mon lien par email"}
             </Button>
           </form>
         </Card>

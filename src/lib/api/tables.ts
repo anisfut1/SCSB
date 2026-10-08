@@ -140,6 +140,22 @@ export async function resetPublicAccess(fetcher: ApiFetcher, clubId: string, lic
 }
 
 export type PersonalLinkDto = components["schemas"]["PersonalLinkDto"];
+export type ClaimRequestDto = components["schemas"]["ClaimRequestDto"];
+
+/**
+ * GET .../public-access/claims (club_admin) — retour du club, 2026-10-08 :
+ * « si ce n'est pas son mail, c'est l'admin qui décide de lui envoyer ou
+ * non ». Demandes de lien pour une fiche sans adresse, en attente.
+ */
+export async function listClaimRequests(fetcher: ApiFetcher, clubId: string): Promise<ClaimRequestDto[]> {
+  const { requests } = await fetcher<{ requests: ClaimRequestDto[] }>(`/v1/clubs/${clubId}/table-assignments/public-access/claims`);
+  return requests;
+}
+
+/** Approuver : le lien part à l'adresse demandée, qui est enregistrée sur la fiche. Refuser : rien n'est envoyé. */
+export async function decideClaimRequest(fetcher: ApiFetcher, clubId: string, requestId: string, decision: "approve" | "reject"): Promise<void> {
+  await fetcher(`/v1/clubs/${clubId}/table-assignments/public-access/claims/${requestId}/${decision}`, { method: "POST" });
+}
 
 /**
  * POST .../public-access/:licencieId/link (club_admin) — retour du club,

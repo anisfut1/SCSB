@@ -159,7 +159,7 @@ Appels faits **au chargement** de la page (côté serveur). Les actions (boutons
 | `/joueurs/{id}` | membre | `licencies.get`, `clubs.teams`, `tables.listPublicAccess` (admin) |
 | `/tables` | admin, resp. tables | `tables.list` |
 | `/tables/classement` | membre | `GET /public/clubs/{slug}/table-leaderboard` |
-| `/tables/public-access` | admin | `tables.listPublicAccess` |
+| `/tables/public-access` | admin | `tables.listPublicAccess`, `tables.claimRequests`, `tables.decideClaimRequest` |
 | `/derogations`, `/nouvelle`, `/{id}` | coach, coordinateur, admin | `derogationRequests.context`, `.list`, `.get` |
 | `/admin/integrations` | admin | `integrations.get`, `clubs.capabilities` |
 | `/admin/integrations/fbi` | admin | `integrations.get` |
@@ -264,7 +264,7 @@ Variables : `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_REPLY_TO` (facultative), `P
 | A-7 | Recherche d'un compte par email en parcourant les comptes (`listUsers`) | Faible | Fonction SQL dédiée quand le nombre de comptes grandira |
 | A-8 | Photos visibles publiquement, joueurs souvent mineurs | Info | **Couvert** : le club fait signer une autorisation de droit à l'image (décision du 2026-10-08) |
 | A-13 | Annuaire complet des licenciés lisible sans compte (`GET …/licencies`, risque R-013 de `docs/migration/`) | Élevé | **Corrigé** le 2026-10-08 : recherche prénom + nom (5 résultats max, initiale du nom), ancien endpoint fermé (`410`) |
-| A-14 | Revendication d'une fiche sans adresse connue : le lien part à l'adresse saisie sans validation (risque R-018 de `docs/migration/11` §7.9) | Moyen | À décider : validation par un admin (spec de `docs/migration/11` §7.9) |
+| A-14 | Revendication d'une fiche sans adresse connue : le lien part à l'adresse saisie sans validation (risque R-018 de `docs/migration/11` §7.9) | Moyen | **Corrigé** le 2026-10-08 : aucun envoi automatique, la demande attend la décision d'un admin (« Demandes à valider » sur `/tables/public-access`, expiration 14 jours, 5 demandes/h par IP) |
 | A-9 | Tables de diagnostic encore présentes (`debug_image_captures`, `emarque_debug_cells`, `fbi_probe_*`, `fbi_session_traces`) | Faible | Purge planifiée ou suppression |
 | A-10 | `match_change_history` ~40 000 lignes et en croissance | Faible | Rétention (ex. saison en cours) |
 | A-11 | Vérification de chaque appel API par aller-retour Supabase Auth (`getUser`) | Faible | Vérification locale du JWT (clés asymétriques) si la latence le justifie |
@@ -279,7 +279,6 @@ Le chantier de migration front → back et ses lots (LOT-02 à LOT-13) sont suiv
 **Maintenant**
 - A-4 : nom d'expéditeur « Ball Manager » dans Gmail.
 - Valider en réel le parcours invitation → `/bienvenue` → connexion.
-- A-14 : décider de la validation des revendications sans adresse (R-018).
 
 **Ensuite**
 - A-5 : supervision et redémarrage automatique du worker FBI, demande d'accès officiel à la FFBB.
@@ -298,6 +297,7 @@ Le chantier de migration front → back et ses lots (LOT-02 à LOT-13) sont suiv
 Les plus récentes d'abord. Historique complet : `git log` des deux dépôts et [`docs/migration/CHANGELOG.md`](migration/CHANGELOG.md).
 
 **2026-10-08**
+- Espace public : une fiche sans email ne reçoit plus de lien automatiquement ; l'admin approuve ou refuse la demande (R-018, anti-troll).
 - Espace public : « retrouve ton nom » par prénom + nom (fautes et ordre tolérés), « Prévenir le club » si introuvable ; annuaire public fermé (R-013).
 - Comptes de A à Z : emails Ball Manager (invitation, nouvel accès, mot de passe oublié), pages `/bienvenue` et `/mot-de-passe-oublie`.
 - Plateforme : arrivée sur Clubs, page par club pour nommer/retirer les administrateurs.
