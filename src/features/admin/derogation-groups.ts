@@ -47,21 +47,34 @@ function compareDerogations(a: DerogationListItemDto, b: DerogationListItemDto):
   return 0;
 }
 
+/** Ce que touche une dérogation (date, horaire, salle) : cases FBI si lues, sinon valeurs demandées présentes. */
+function changedKinds(d: DerogationListItemDto): Set<"date" | "horaire" | "salle"> {
+  const kinds = new Set<"date" | "horaire" | "salle">();
+  const known = changesKnown(d);
+  if (known ? d.modifierDate : d.dateRencontreDemandee) kinds.add("date");
+  if (known ? d.modifierHoraire : d.heureDemandee) kinds.add("horaire");
+  if (d.modifierSalle) kinds.add("salle");
+  return kinds;
+}
+
 /**
- * Dérogation acceptée dont l'horaire demandé a été remplacé par une
- * dérogation acceptée déposée PLUS TARD (dates de dépôt connues des deux
- * côtés, sinon rien n'est affirmé). Renvoie la date de dépôt de la remplaçante.
+ * Dérogation acceptée remplacée par une dérogation acceptée déposée PLUS
+ * TARD qui change la même chose (date, horaire ou salle) — ex. n°25 :
+ * salle → Lido le 14/09, puis salle → Maurice Clavel le 18/09. Dates de
+ * dépôt connues des deux côtés, sinon rien n'est affirmé. Renvoie la date
+ * de dépôt de la remplaçante.
  */
 export function supersededBy(d: DerogationListItemDto, all: DerogationListItemDto[]): string | null {
-  if (etatTone(d.etat) !== "success" || !(d.heureDemandee || d.dateRencontreDemandee)) return null;
+  if (etatTone(d.etat) !== "success") return null;
+  const kinds = changedKinds(d);
   const t = derogationTime(d);
-  if (t === null) return null;
-  const later = all
-    .filter((o) => o !== d && etatTone(o.etat) === "success" && (o.heureDemandee || o.dateRencontreDemandee))
+  if (kinds.size === 0 || t === null) return null;
+  const next = all
+    .filter((o) => o !== d && etatTone(o.etat) === "success" && [...changedKinds(o)].some((k) => kinds.has(k)))
     .map((o) => ({ o, t: derogationTime(o) }))
     .filter((x): x is { o: DerogationListItemDto; t: number } => x.t !== null && x.t > t)
     .sort((a, b) => a.t - b.t)[0];
-  return later ? later.o.dateDepot : null;
+  return next ? next.o.dateDepot : null;
 }
 
 function groupKey(derogation: DerogationListItemDto): string {

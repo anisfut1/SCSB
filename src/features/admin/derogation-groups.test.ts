@@ -150,3 +150,15 @@ describe("chronologie réelle (retour du club, 2026-10-08, rencontre 2 vs Agde :
     expect(supersededBy(d2, [d1, d2])).toBeNull();
   });
 });
+
+describe("remplacement d'une salle (n°25 vs Sauvian : salle → Lido le 14/09, puis → Maurice Clavel le 18/09)", () => {
+  const base = { matchId: "m-25", etat: "Acceptée par l'organisme dirigeant", modifierDate: false, modifierHoraire: false, modifierSalle: true, inverserRencontre: false, inverserEquipe: false };
+  it("signale la première salle comme remplacée, jamais un horaire sans rapport", () => {
+    const lido = derogation({ ...base, id: "l", dateDepot: "14/09/2026 19:58", salleDemandee: "COMPLEXE SPORTIF DU LIDO - SETE" });
+    const horaire = derogation({ ...base, id: "h", modifierSalle: false, modifierHoraire: true, heureDemandee: "17:00", dateDepot: "14/09/2026 20:00" });
+    const clavel = derogation({ ...base, id: "c", dateDepot: "18/09/2026 09:37", salleDemandee: "GYMNASE MAURICE CLAVEL - SETE" });
+    expect(supersededBy(lido, [lido, horaire, clavel])).toBe("18/09/2026 09:37");
+    expect(supersededBy(horaire, [lido, horaire, clavel])).toBeNull();
+    expect(supersededBy(clavel, [lido, horaire, clavel])).toBeNull();
+  });
+});
