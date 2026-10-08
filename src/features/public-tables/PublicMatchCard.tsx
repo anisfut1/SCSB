@@ -141,7 +141,7 @@ export function PublicMatchCard({
               ) : slot ? (
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <PersonAvatar name={`${slot.licencie.firstName} ${slot.licencie.lastName}`} size="sm" />
+                    <PersonAvatar name={`${slot.licencie.firstName} ${slot.licencie.lastName}`} src={slot.licencie.photoUrl} size="sm" />
                     <div className="flex min-w-0 flex-col leading-tight">
                       <span className="truncate text-sm font-medium text-foreground">
                         {slot.licencie.firstName} {slot.licencie.lastName}

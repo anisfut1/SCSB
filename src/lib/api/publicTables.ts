@@ -152,3 +152,11 @@ export async function createPublicDerogation(clubSlug: string, token: string, ma
     timeoutMs: 120_000,
   });
 }
+
+export type TableLeaderboardDto = components["schemas"]["TableLeaderboardDto"];
+export type TableLeaderboardEntryDto = components["schemas"]["TableLeaderboardEntryDto"];
+
+/** GET .../table-leaderboard — classement des tables tenues cette saison, visible de tous (aucun jeton). */
+export async function getTableLeaderboard(clubSlug: string): Promise<TableLeaderboardDto> {
+  return apiFetch<TableLeaderboardDto>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/table-leaderboard`);
+}

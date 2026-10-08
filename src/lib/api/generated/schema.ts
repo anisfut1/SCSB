@@ -3480,6 +3480,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/public/clubs/{clubSlug}/table-leaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Slug du club (flux public sans compte) */
+                    clubSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Classement des tables tenues cette saison (ex æquo = même rang) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TableLeaderboardDto"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/public/clubs/{clubSlug}/players/{licencieId}": {
         parameters: {
             query?: never;
@@ -7902,6 +7949,7 @@ export interface components {
             id: string;
             firstName: string;
             lastName: string;
+            photoUrl?: string | null;
         };
         TableTeamRefDto: {
             /** Format: uuid */
@@ -8099,6 +8147,21 @@ export interface components {
             difference: number | null;
             outOfRanking: boolean;
             isClub: boolean;
+        };
+        TableLeaderboardDto: {
+            seasonStart: string;
+            totalDone: number;
+            entries: components["schemas"]["TableLeaderboardEntryDto"][];
+        };
+        TableLeaderboardEntryDto: {
+            rank: number;
+            licencie: components["schemas"]["TableLicencieRefDto"];
+            done: number;
+            upcoming: number;
+            byRole: {
+                role: components["schemas"]["TableAssignmentRole"];
+                count: number;
+            }[];
         };
         PublicPlayerProfileDto: {
             player: {

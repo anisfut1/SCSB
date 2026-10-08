@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarCheck, ChevronLeft, ChevronRight, KeyRound } from "lucide-react";
+import { CalendarCheck, ChevronLeft, ChevronRight, KeyRound, Trophy } from "lucide-react";
 import { requireAnyClubRoleContext } from "@/lib/tenancy/club-context";
 import { isClubAdmin } from "@/lib/permissions/roles";
 import { api } from "@/lib/api/server";
@@ -49,11 +49,16 @@ export default async function TablesPage({
         title="Tables de marque"
         description="Marqueur, chronométreur, délégué de club et arbitre : un poste à la fois, choisi parmi des suggestions expliquées."
         actions={
-          isClubAdmin(club.roles) ? (
-            <ButtonLink href={`${base}/public-access`} variant="secondary" icon={<KeyRound />}>
-              Gérer les accès publics
+          <>
+            <ButtonLink href={`${base}/classement`} variant="secondary" icon={<Trophy />}>
+              Classement
             </ButtonLink>
-          ) : null
+            {isClubAdmin(club.roles) ? (
+              <ButtonLink href={`${base}/public-access`} variant="secondary" icon={<KeyRound />}>
+                Gérer les accès publics
+              </ButtonLink>
+            ) : null}
+          </>
         }
       />
 

@@ -40,7 +40,7 @@ function CandidateRow({ candidate, onChoose, choosing }: { candidate: TableSugge
   return (
     <li className={cn("flex flex-col gap-3 rounded-[var(--radius-md)] border bg-surface-raised p-3 shadow-1", recommended ? "border-accent-border" : "border-border")}>
       <div className="flex items-start gap-3">
-        <PersonAvatar name={name} size="sm" />
+        <PersonAvatar name={name} src={candidate.licencie.photoUrl} size="sm" />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-sm font-medium text-foreground">{name}</span>
           {candidate.teams.length > 0 ? <span className="type-meta truncate text-xs">{candidate.teams.map((t) => t.name).join(", ")}</span> : null}
@@ -87,7 +87,7 @@ function UnavailableRow({ candidate }: { candidate: TableUnavailableCandidateDto
   return (
     <li className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-border bg-surface p-3">
       <div className="flex items-start gap-3">
-        <PersonAvatar name={name} size="sm" className="opacity-60" />
+        <PersonAvatar name={name} src={candidate.licencie.photoUrl} size="sm" className="opacity-60" />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-sm font-medium text-muted">{name}</span>
           {candidate.teams.length > 0 ? <span className="type-meta truncate text-xs">{candidate.teams.map((t) => t.name).join(", ")}</span> : null}
