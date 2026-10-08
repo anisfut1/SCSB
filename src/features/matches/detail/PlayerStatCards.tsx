@@ -95,6 +95,7 @@ function Highlight({ label, row, value, accent, href }: { label: string; row: St
         </span>
       )}
       <span aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+      {href ? <ChevronRight aria-hidden className="absolute right-1.5 top-1.5 size-4 text-white/80" /> : null}
       <div className="flex flex-col gap-0.5 p-2 text-white">
         <span className="text-[10px] font-medium uppercase tracking-wide text-white/70">{label}</span>
         <span className="type-numeric text-[15px] font-bold leading-tight">{value}</span>
@@ -121,7 +122,7 @@ function PlayerRow({ row, href }: { row: StatRow; href: string | null }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-[15px] font-medium text-foreground">
           <span className="type-numeric mr-1.5 text-muted">#{row.jerseyNumber ?? "?"}</span>
-          {name}
+          {href ? <span className="underline decoration-border-strong underline-offset-4">{name}</span> : name}
         </p>
         <p className="type-meta type-numeric truncate text-[12.5px]">
           {formatSecondsPlayed(row.secondsPlayed)} · {row.threePointsMade ?? "—"}×3 pts · {row.twoPointsInteriorMade ?? "—"} int · {row.twoPointsExteriorMade ?? "—"} ext · {row.freeThrowsMade ?? "—"} LF · {row.foulsCommitted ?? "—"} f.
@@ -131,7 +132,12 @@ function PlayerRow({ row, href }: { row: StatRow; href: string | null }) {
         <span className="type-numeric text-2xl font-semibold leading-none text-foreground">{row.points ?? "—"}</span>
         <span className="type-meta text-[11px]">pts</span>
       </div>
-      {href ? <ChevronRight aria-hidden className="size-4 shrink-0 text-subtle" /> : null}
+      {href ? (
+        <span className="type-meta flex shrink-0 items-center text-[11.5px] text-accent-text">
+          Fiche
+          <ChevronRight aria-hidden className="size-4" />
+        </span>
+      ) : null}
     </div>
   );
   return href ? (
