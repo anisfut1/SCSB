@@ -1,26 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowLeft, CheckCircle2, Mail, MailCheck, Search, UserRound } from "lucide-react";
+import { useState, type FormEvent, type ReactNode } from "react";
+import { ArrowLeft, Mail, MailCheck, Search, Send, UserRound, UserX } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, IconMedallion } from "@/components/ui/Card";
-import { StatusBadge } from "@/components/ui/Badge";
-import { Field, Input } from "@/components/ui/Field";
+import { Field, Input, Textarea } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { ListSkeleton } from "@/components/ui/Skeleton";
 import { PersonAvatar } from "@/components/ui/Avatar";
 import { cn } from "@/components/ui/cn";
-import { listPublicLicencies, requestPersonalLink, type PublicLicencieDto, type PublicLinkTarget } from "@/lib/api/publicTables";
+import { requestPersonalLink, searchPublicLicencies, sendAccessRequest, type PublicLicencieMatch, type PublicLinkTarget } from "@/lib/api/publicTables";
 import { ApiError } from "@/lib/api/client";
 
-type Step = { kind: "pick" } | { kind: "confirm"; licencie: PublicLicencieDto; needsEmail: boolean } | { kind: "sent"; licencie: PublicLicencieDto; maskedEmail: string };
+type Step =
+  | { kind: "pick" }
+  | { kind: "confirm"; licencie: PublicLicencieMatch; needsEmail: boolean }
+  | { kind: "sent"; licencie: PublicLicencieMatch; maskedEmail: string }
+  | { kind: "not-found" }
+  | { kind: "request-sent" };
 
 type Feedback = { tone: "danger" | "warning" | "info"; message: string } | null;
 
-/** Mode « connexion » : rien n'est listé avant 2 lettres, puis au plus 8 noms. */
-const SEARCH_MIN_CHARS = 2;
-const SEARCH_MAX_RESULTS = 8;
+const displayName = (l: PublicLicencieMatch) => `${l.firstName} ${l.lastInitial}.`;
+
+/** Prénom + nom : au moins 2 mots d'au moins 2 lettres (même règle que l'API). */
+function looksLikeFullName(value: string): boolean {
+  return value.split(/[\s\-']+/).filter((w) => w.replace(/[^\p{L}]/gu, "").length >= 2).length >= 2;
+}
 
 /**
  * Identification de l'espace public sans compte (retour du club,
@@ -30,9 +36,10 @@ const SEARCH_MAX_RESULTS = 8;
  * Un nom déjà inscrit reste sélectionnable — c'est le « lien perdu ? » :
  * le nouveau lien repart à l'adresse déjà enregistrée, jamais ailleurs.
  *
- * `searchFirst` (page de connexion, retour du club 2026-10-01 : « il va
- * commencer à taper son nom ou prénom pour se retrouver ») : aucune liste
- * affichée d'emblée, seulement les noms qui correspondent à la frappe.
+ * Recherche (retour du club, 2026-10-08) : la personne tape son prénom ET
+ * son nom, dans n'importe quel ordre, fautes tolérées ; l'API propose au plus
+ * 5 fiches (prénom + initiale), jamais la liste du club. Introuvable :
+ * « Prévenir le club » envoie une demande aux administrateurs.
  */
 export function IdentifyView({
   clubSlug,
@@ -54,38 +61,50 @@ export function IdentifyView({
   header?: ReactNode;
   searchFirst?: boolean;
 }) {
-  const [licencies, setLicencies] = useState<PublicLicencieDto[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [results, setResults] = useState<PublicLicencieMatch[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [step, setStep] = useState<Step>({ kind: "pick" });
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
+  const [requestEmail, setRequestEmail] = useState("");
+  const [requestMessage, setRequestMessage] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    listPublicLicencies(clubSlug)
-      .then((result) => {
-        if (!cancelled) setLicencies(result);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setLoadError(err instanceof ApiError ? err.message : "Impossible de charger la liste des licenciés.");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [clubSlug]);
+  async function runSearch(event: FormEvent) {
+    event.preventDefault();
+    setSearchError(null);
+    if (!looksLikeFullName(search)) {
+      setSearchError("Tape ton prénom et ton nom, par exemple « Léa Martin ».");
+      return;
+    }
+    setSearching(true);
+    try {
+      setResults(await searchPublicLicencies(clubSlug, search.trim()));
+    } catch (err) {
+      setResults(null);
+      setSearchError(err instanceof ApiError ? err.message : "La recherche n'a pas pu aboutir. Réessaie dans un instant.");
+    } finally {
+      setSearching(false);
+    }
+  }
 
-  const query = normalize(search.trim());
-  const waitingForInput = searchFirst && query.length < SEARCH_MIN_CHARS;
-  const matches = useMemo(() => {
-    if (!licencies) return [];
-    if (!query) return licencies;
-    return licencies.filter((l) => normalize(`${l.firstName} ${l.lastName}`).includes(query) || normalize(`${l.lastName} ${l.firstName}`).includes(query));
-  }, [licencies, query]);
-  const filtered = searchFirst ? matches.slice(0, SEARCH_MAX_RESULTS) : matches;
+  async function submitAccessRequest(event: FormEvent) {
+    event.preventDefault();
+    setSending(true);
+    setFeedback(null);
+    try {
+      await sendAccessRequest(clubSlug, { fullName: search.trim(), email: requestEmail.trim(), message: requestMessage.trim() || undefined });
+      setStep({ kind: "request-sent" });
+    } catch (err) {
+      setFeedback({ tone: "danger", message: err instanceof ApiError ? err.message : "La demande n'a pas pu partir. Réessaie dans un instant." });
+    } finally {
+      setSending(false);
+    }
+  }
 
-  function choose(licencie: PublicLicencieDto) {
+  function choose(licencie: PublicLicencieMatch) {
     setFeedback(null);
     setEmail("");
     setStep({ kind: "confirm", licencie, needsEmail: false });
@@ -161,12 +180,10 @@ export function IdentifyView({
         <Card variant="glow">
           <form onSubmit={send} className="flex flex-col gap-5">
             <div className="flex items-center gap-3">
-              <PersonAvatar name={`${licencie.firstName} ${licencie.lastName}`} />
+              <PersonAvatar name={displayName(licencie)} />
               <div className="text-reflow flex-1">
                 <p className="type-eyebrow">{clubName}</p>
-                <p className="type-title text-foreground">
-                  {licencie.firstName} {licencie.lastName}
-                </p>
+                <p className="type-title text-foreground">{displayName(licencie)}</p>
               </div>
             </div>
 
@@ -176,9 +193,7 @@ export function IdentifyView({
               </Field>
             ) : (
               <p className="text-[15px] leading-relaxed text-muted">
-                {licencie.claimed
-                  ? "Ce profil est déjà inscrit. Un nouveau lien sera envoyé à l'adresse email déjà enregistrée — l'ancien lien ne fonctionnera plus."
-                  : "On t'envoie ton lien personnel par email. Il te suffira de cliquer dessus pour accéder à ton espace, sans mot de passe."}
+                On t&apos;envoie ton lien personnel par email : il suffit de cliquer dessus pour accéder à ton espace, sans mot de passe. Si tu avais déjà un lien, le nouveau part à l&apos;adresse déjà enregistrée et remplace l&apos;ancien.
               </p>
             )}
 
@@ -197,72 +212,146 @@ export function IdentifyView({
     );
   }
 
+  if (step.kind === "request-sent") {
+    return (
+      <div className="mx-auto flex w-full max-w-lg flex-col gap-5 py-4">
+        <Card variant="glow">
+          <div className="flex flex-col items-start gap-4">
+            <IconMedallion tone="success" size="lg">
+              <Send />
+            </IconMedallion>
+            <div className="text-reflow">
+              <h1 className="type-title text-foreground">Demande envoyée</h1>
+              <p className="mt-2 text-[15px] leading-relaxed text-muted">
+                L&apos;administrateur de {clubName} a reçu ta demande. Il va vérifier ta fiche et te répondra à <span className="font-medium text-foreground">{requestEmail.trim()}</span>.
+              </p>
+            </div>
+            <Button variant="ghost" icon={<ArrowLeft />} onClick={backToList}>
+              Revenir à la recherche
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (step.kind === "not-found") {
+    return (
+      <div className="mx-auto flex w-full max-w-lg flex-col gap-4 py-4">
+        <Button variant="ghost" size="sm" icon={<ArrowLeft />} onClick={backToList} className="self-start">
+          Revenir à la recherche
+        </Button>
+        <Card variant="glow">
+          <form onSubmit={submitAccessRequest} className="flex flex-col gap-5">
+            <div className="text-reflow">
+              <p className="type-eyebrow">{clubName}</p>
+              <h1 className="type-title mt-1 text-foreground">Prévenir le club</h1>
+              <p className="mt-2 text-[15px] leading-relaxed text-muted">
+                L&apos;administrateur reçoit ta demande par email, ajoute ou corrige ta fiche, puis te répond.
+              </p>
+            </div>
+            <Field label="Ton prénom et ton nom" required>
+              {(props) => <Input {...props} value={search} onChange={(e) => setSearch(e.target.value)} autoComplete="name" />}
+            </Field>
+            <Field label="Ton adresse email" required hint="Pour que le club puisse te répondre.">
+              {(props) => <Input {...props} type="email" inputMode="email" autoComplete="email" value={requestEmail} onChange={(e) => setRequestEmail(e.target.value)} placeholder="prenom.nom@exemple.fr" />}
+            </Field>
+            <Field label="Message" optional hint="Ton équipe, ta catégorie… tout ce qui aide le club à te retrouver.">
+              {(props) => <Textarea {...props} rows={3} maxLength={500} value={requestMessage} onChange={(e) => setRequestMessage(e.target.value)} />}
+            </Field>
+            {feedback ? (
+              <Notice tone={feedback.tone} live>
+                {feedback.message}
+              </Notice>
+            ) : null}
+            <Button type="submit" variant="primary" size="lg" loading={sending} disabled={!looksLikeFullName(search) || !requestEmail.trim()} icon={<Send />}>
+              Envoyer la demande
+            </Button>
+          </form>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {header ?? <PageHeader eyebrow={clubName} title={title ?? ""} description={description} />}
 
       {notice}
-      {loadError ? (
-        <Notice tone="danger" live>
-          {loadError}
-        </Notice>
-      ) : null}
 
-      <div className="flex flex-col gap-3">
-        <label className="relative block">
-          <span className="sr-only">Rechercher ton nom</span>
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" aria-hidden />
-          <Input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={searchFirst ? "Tape ton nom ou ton prénom…" : "Rechercher ton nom…"}
-            className={cn("pl-10", searchFirst && "h-12 text-base")}
-            autoComplete="off"
-            autoFocus={searchFirst}
-          />
+      <form onSubmit={runSearch} className="flex flex-col gap-3">
+        <label htmlFor="identify-search" className="text-sm font-medium text-foreground">
+          Ton prénom et ton nom
         </label>
+        <div className="flex gap-2">
+          <span className="relative block flex-1">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" aria-hidden />
+            <Input
+              id="identify-search"
+              type="search"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setSearchError(null);
+              }}
+              placeholder="ex. Léa Martin"
+              className={cn("pl-10", searchFirst && "h-12 text-base")}
+              autoComplete="name"
+              autoFocus={searchFirst}
+            />
+          </span>
+          <Button type="submit" variant="primary" loading={searching} className={cn(searchFirst && "h-12")}>
+            Chercher
+          </Button>
+        </div>
+        <p className="type-meta px-1">Dans n&apos;importe quel ordre ; une petite faute de frappe n&apos;est pas grave.</p>
+        {searchError ? (
+          <Notice tone="warning" live>
+            {searchError}
+          </Notice>
+        ) : null}
+      </form>
 
-        {waitingForInput ? (
-          <p className="type-meta px-1">Tape au moins {SEARCH_MIN_CHARS} lettres pour te retrouver dans la liste du club.</p>
-        ) : licencies === null && !loadError ? (
-          <ListSkeleton rows={searchFirst ? 3 : 6} />
-        ) : (
-          <ul className={cn("grid grid-cols-1 gap-2", !searchFirst && "sm:grid-cols-2 xl:grid-cols-3")}>
-            {filtered.map((l) => (
-              <li key={l.id}>
-                <button
-                  type="button"
-                  onClick={() => choose(l)}
-                  className={cn(
-                    "flex min-h-14 w-full items-center gap-3 rounded-[var(--radius-md)] border border-border bg-surface-raised px-3 py-2 text-left text-sm shadow-1",
-                    "transition-[border-color,box-shadow,background-color] duration-150 hover:border-border-strong focus-visible:border-accent",
-                  )}
-                >
-                  <PersonAvatar name={`${l.firstName} ${l.lastName}`} size="sm" />
-                  <span className="min-w-0 flex-1 truncate font-medium text-foreground">
-                    {l.firstName} {l.lastName}
-                  </span>
-                  {l.claimed ? (
-                    <StatusBadge tone="success" size="sm" icon={<CheckCircle2 />}>
-                      Inscrit
-                    </StatusBadge>
-                  ) : (
+      {results !== null ? (
+        results.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium text-foreground">{results.length > 1 ? "Est-ce l'un de ces noms ?" : "Est-ce toi ?"}</p>
+            <ul className="grid grid-cols-1 gap-2">
+              {results.map((l) => (
+                <li key={l.id}>
+                  <button
+                    type="button"
+                    onClick={() => choose(l)}
+                    className={cn(
+                      "flex min-h-14 w-full items-center gap-3 rounded-[var(--radius-md)] border border-border bg-surface-raised px-3 py-2 text-left text-sm shadow-1",
+                      "transition-[border-color,box-shadow,background-color] duration-150 hover:border-border-strong focus-visible:border-accent",
+                    )}
+                  >
+                    <PersonAvatar name={displayName(l)} size="sm" />
+                    <span className="min-w-0 flex-1 truncate font-medium text-foreground">{displayName(l)}</span>
+                    <span className="text-[13px] font-medium text-accent-text">C&apos;est moi</span>
                     <UserRound aria-hidden className="size-4 text-subtle" />
-                  )}
-                </button>
-              </li>
-            ))}
-            {licencies !== null && filtered.length === 0 ? <p className="type-meta col-span-full py-4">Aucun licencié ne correspond à « {search.trim()} ».</p> : null}
-            {matches.length > filtered.length ? <p className="type-meta col-span-full px-1">Et {matches.length - filtered.length} autre(s) — précise ta recherche (nom + prénom).</p> : null}
-          </ul>
-        )}
-      </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <button type="button" onClick={() => setStep({ kind: "not-found" })} className="self-start px-1 text-[13px] font-medium text-muted underline-offset-4 hover:text-foreground hover:underline">
+              Ce n&apos;est aucun de ces noms
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-start gap-3 rounded-[var(--radius-lg)] border border-border bg-surface-raised p-4 shadow-1">
+            <span className="flex items-center gap-2 text-[15px] font-medium text-foreground">
+              <UserX aria-hidden className="size-4 text-muted" />
+              On ne te trouve pas dans la liste de {clubName}.
+            </span>
+            <p className="type-meta">Vérifie l&apos;orthographe ou essaie ton nom de licence. Sinon, préviens le club : il ajoutera ta fiche.</p>
+            <Button variant="secondary" icon={<Send />} onClick={() => setStep({ kind: "not-found" })}>
+              Prévenir le club
+            </Button>
+          </div>
+        )
+      ) : null}
     </div>
   );
-}
-
-/** Recherche insensible à la casse et aux accents (« lea » trouve « Léa »). */
-function normalize(value: string): string {
-  return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }

@@ -82,7 +82,7 @@ Chaque bloc : **ce que ça fait** → écrans → routes API principales (préfi
 - Réglages : nom, nom court, fuseau horaire, logo, couleur d'accent (branding du club, des emails et de l'espace public).
 - Équipes : créées par la synchro FFBB ou à la main, modifiables (nom, catégorie, sexe, numéro, active) ; le sexe désambiguïse les noms (« U15 (F) »).
 - Gymnases : salles de la saison en cours (nom, active, ordre d'affichage), utilisées par le planning et les dérogations.
-- Membres et rôles : API complète (lister, inviter, changer les rôles avec portée par équipe), **sans écran côté club pour l'instant** (voir §8).
+- Rôles du quotidien (coach, coordinateur, admin de l'espace public) : posés par l'admin directement dans la liste **Joueurs**. Comptes de connexion et rôles de l'espace club : API complète (lister, inviter, rôles avec portée par équipe), pilotée depuis la plateforme.
 - Écrans : `/admin/settings`, `/admin/teams`, `/admin/gymnases`.
 - API : `GET|PATCH /clubs/{id}`, `GET|POST /clubs/{id}/teams`, `PATCH …/teams/{teamId}`, `GET|PATCH …/venues…`, `GET|POST …/members`, `PUT …/members/{id}/roles`, `GET …/capabilities`.
 
@@ -137,9 +137,10 @@ Deux circuits distincts :
 
 ### 3.10 Espace public et accueil personnel
 - Sans compte : matchs, résultats, classements, fiches joueurs, classement des tables.
-- Identification : choisir son nom, recevoir son **lien personnel** par email (adresse masquée affichée, rappel « regarde dans tes indésirables »).
+- Identification : la personne tape son **prénom et son nom** (ordre libre, fautes tolérées : « ansi abde meriuam » retrouve Anis) ; l'API propose au plus 5 fiches au format « Anis A. », jamais la liste du club. Puis **lien personnel** par email (adresse masquée affichée, rappel « regarde dans tes indésirables »).
+- Introuvable : « **Prévenir le club** » (nom, email, message) envoie un email aux administrateurs du club, « Répondre » écrit directement à la personne.
 - Accueil personnel : ses équipes (jouées et coachées), prochains matchs, résultats, ses tables à venir.
-- API : `GET /public/clubs/{slug}`, `…/licencies`, `POST …/licencies/{lid}/request-link`, `GET …/me`, `GET …/home`.
+- API : `GET /public/clubs/{slug}`, `POST …/licencies/search`, `POST …/access-requests`, `POST …/licencies/{lid}/request-link`, `GET …/me`, `GET …/home`. L'ancien annuaire `GET …/licencies` répond `410` depuis le 2026-10-08.
 
 ---
 
@@ -255,13 +256,15 @@ Variables : `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_REPLY_TO` (facultative), `P
 | # | Constat | Gravité | Proposition |
 |---|---|---|---|
 | A-1 | Contrat OpenAPI annonçait `GET /clubs/{id}/sync-runs` alors que la route est `/integrations/sync-runs` | Faible | **Corrigé** le 2026-10-08 ; l'inventaire généré signale désormais tout écart |
-| A-2 | Gestion des membres et rôles côté club : API complète, aucun écran | Moyen | Écran « Membres » dans l'administration du club (inviter, rôles, portée par équipe) |
+| A-2 | Gestion des membres et rôles côté club : API sans écran dédié | Info | **Couvert** : les rôles du quotidien se posent dans la liste Joueurs (décision du 2026-10-08) |
 | A-3 | Routes sans appelant dans le site : `GET /clubs/{id}/emarque-imports`, `POST /clubs/{id}/matches/{mid}/derogation/respond` (doublon de `/derogations/{did}/respond`) | Faible | Garder (outil) ou retirer après vérification |
 | A-4 | Nom d'expéditeur des emails de compte affiché « noreply@… » dans Gmail malgré `Ball Manager <…>` dans le code | Moyen | En cours : relire l'en-tête `From:` d'un email reçu |
 | A-5 | Accès FBI dépendant du Mac du club (IP Vercel bloquée par FBI) | Élevé | Worker dédié toujours allumé (mini-PC / VPS dont l'IP est acceptée), supervision |
 | A-6 | Anti-rafale « mot de passe oublié » en mémoire, par instance | Faible | Limiteur partagé (table ou Redis) si abus constaté |
 | A-7 | Recherche d'un compte par email en parcourant les comptes (`listUsers`) | Faible | Fonction SQL dédiée quand le nombre de comptes grandira |
-| A-8 | Photos visibles publiquement, joueurs souvent mineurs | Moyen | Option « masquer la photo en public » par licencié ; vérifier le droit à l'image |
+| A-8 | Photos visibles publiquement, joueurs souvent mineurs | Info | **Couvert** : le club fait signer une autorisation de droit à l'image (décision du 2026-10-08) |
+| A-13 | Annuaire complet des licenciés lisible sans compte (`GET …/licencies`, risque R-013 de `docs/migration/`) | Élevé | **Corrigé** le 2026-10-08 : recherche prénom + nom (5 résultats max, initiale du nom), ancien endpoint fermé (`410`) |
+| A-14 | Revendication d'une fiche sans adresse connue : le lien part à l'adresse saisie sans validation (risque R-018 de `docs/migration/11` §7.9) | Moyen | À décider : validation par un admin (spec de `docs/migration/11` §7.9) |
 | A-9 | Tables de diagnostic encore présentes (`debug_image_captures`, `emarque_debug_cells`, `fbi_probe_*`, `fbi_session_traces`) | Faible | Purge planifiée ou suppression |
 | A-10 | `match_change_history` ~40 000 lignes et en croissance | Faible | Rétention (ex. saison en cours) |
 | A-11 | Vérification de chaque appel API par aller-retour Supabase Auth (`getUser`) | Faible | Vérification locale du JWT (clés asymétriques) si la latence le justifie |
@@ -275,12 +278,11 @@ Le chantier de migration front → back et ses lots (LOT-02 à LOT-13) sont suiv
 
 **Maintenant**
 - A-4 : nom d'expéditeur « Ball Manager » dans Gmail.
-- A-2 : écran Membres et rôles du club.
 - Valider en réel le parcours invitation → `/bienvenue` → connexion.
+- A-14 : décider de la validation des revendications sans adresse (R-018).
 
 **Ensuite**
-- A-5 : worker FBI hébergé et supervisé.
-- A-8 : option photo publique par licencié.
+- A-5 : supervision et redémarrage automatique du worker FBI, demande d'accès officiel à la FFBB.
 - Classement des tables : filtres par équipe / période.
 - Notifications (email ou push) : table à tenir, dérogation reçue.
 
@@ -296,6 +298,7 @@ Le chantier de migration front → back et ses lots (LOT-02 à LOT-13) sont suiv
 Les plus récentes d'abord. Historique complet : `git log` des deux dépôts et [`docs/migration/CHANGELOG.md`](migration/CHANGELOG.md).
 
 **2026-10-08**
+- Espace public : « retrouve ton nom » par prénom + nom (fautes et ordre tolérés), « Prévenir le club » si introuvable ; annuaire public fermé (R-013).
 - Comptes de A à Z : emails Ball Manager (invitation, nouvel accès, mot de passe oublié), pages `/bienvenue` et `/mot-de-passe-oublie`.
 - Plateforme : arrivée sur Clubs, page par club pour nommer/retirer les administrateurs.
 - Performance : fonctions Vercel à Dublin (à côté de la base), pages déjà vues gardées 30 s.

@@ -16,7 +16,6 @@ import type { RefereeStatusResultDto, TableSuggestionsDto } from "./tables";
  */
 
 export type PublicClubDto = components["schemas"]["PublicClubDto"];
-export type PublicLicencieDto = components["schemas"]["PublicLicencieDto"];
 export type RequestPersonalLinkResultDto = components["schemas"]["RequestPersonalLinkResultDto"];
 export type PublicLinkTarget = components["schemas"]["PublicLinkTarget"];
 export type PublicMeDto = components["schemas"]["PublicMeDto"];
@@ -46,12 +45,6 @@ export interface PublicTableAssignmentsListDto {
 /** GET /v1/public/clubs/:clubSlug — infos club minimales, aucune session requise. */
 export async function getPublicClub(clubSlug: string): Promise<PublicClubDto> {
   return apiFetch<PublicClubDto>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}`);
-}
-
-/** GET .../licencies — roster pour choisir son nom (`claimed` seulement, jamais qui). */
-export async function listPublicLicencies(clubSlug: string): Promise<PublicLicencieDto[]> {
-  const { licencies } = await apiFetch<{ licencies: PublicLicencieDto[] }>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/licencies`);
-  return licencies;
 }
 
 /**
@@ -159,4 +152,17 @@ export type TableLeaderboardEntryDto = components["schemas"]["TableLeaderboardEn
 /** GET .../table-leaderboard — classement des tables tenues cette saison, visible de tous (aucun jeton). */
 export async function getTableLeaderboard(clubSlug: string): Promise<TableLeaderboardDto> {
   return apiFetch<TableLeaderboardDto>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/table-leaderboard`);
+}
+
+export type PublicLicencieMatch = components["schemas"]["LicencieSearchResultDto"]["licencies"][number];
+
+/** POST …/licencies/search — prénom + nom, ordre libre, fautes tolérées ; au plus 5 fiches (prénom + initiale). */
+export async function searchPublicLicencies(clubSlug: string, q: string): Promise<PublicLicencieMatch[]> {
+  const { licencies } = await apiFetch<{ licencies: PublicLicencieMatch[] }>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/licencies/search`, { method: "POST", body: { q } });
+  return licencies;
+}
+
+/** POST …/access-requests — « je ne trouve pas mon nom » : prévient les administrateurs du club. */
+export async function sendAccessRequest(clubSlug: string, body: { fullName: string; email: string; message?: string }): Promise<void> {
+  await apiFetch(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/access-requests`, { method: "POST", body });
 }

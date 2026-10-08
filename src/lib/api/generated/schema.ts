@@ -2579,17 +2579,17 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Roster pour choisir son nom (`claimed` seulement, jamais qui) */
-                200: {
+                /** @description Introuvable */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["PublicLicenciesListDto"];
+                        "application/json": components["schemas"]["ErrorEnvelope"];
                     };
                 };
-                /** @description Introuvable */
-                404: {
+                /** @description Fermée : utiliser POST …/licencies/search */
+                410: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -3474,6 +3474,147 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/clubs/{clubSlug}/licencies/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Slug du club (flux public sans compte) */
+                    clubSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["LicencieSearchDto"];
+                };
+            };
+            responses: {
+                /** @description Au plus 5 fiches : prénom et initiale du nom */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LicencieSearchResultDto"];
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Trop de recherches */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/clubs/{clubSlug}/access-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Slug du club (flux public sans compte) */
+                    clubSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["AccessRequestDto"];
+                };
+            };
+            responses: {
+                /** @description Demande transmise au club */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            sent: true;
+                        };
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Demande déjà envoyée */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -8323,16 +8464,6 @@ export interface components {
             accentColor: string | null;
             timezone: string;
         };
-        PublicLicenciesListDto: {
-            licencies: components["schemas"]["PublicLicencieDto"][];
-        };
-        PublicLicencieDto: {
-            /** Format: uuid */
-            id: string;
-            firstName: string;
-            lastName: string;
-            claimed: boolean;
-        };
         RequestPersonalLinkResultDto: {
             /** @enum {boolean} */
             sent: true;
@@ -8422,6 +8553,23 @@ export interface components {
             difference: number | null;
             outOfRanking: boolean;
             isClub: boolean;
+        };
+        LicencieSearchResultDto: {
+            licencies: {
+                /** Format: uuid */
+                id: string;
+                firstName: string;
+                lastInitial: string;
+            }[];
+        };
+        LicencieSearchDto: {
+            q: string;
+        };
+        AccessRequestDto: {
+            fullName: string;
+            /** Format: email */
+            email: string;
+            message?: string;
         };
         PasswordResetDto: {
             /** Format: email */
