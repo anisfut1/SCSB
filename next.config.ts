@@ -9,6 +9,14 @@ const nextConfig: NextConfig = {
   // (présents normalement dans node_modules côté serveur/Vercel).
   serverExternalPackages: ["@napi-rs/canvas", "tesseract.js"],
 
+  // Navigation (retour du club, 2026-10-08 : « l'appli est lente pour passer
+  // d'une page à l'autre ») : une page déjà vue reste dans le cache du
+  // navigateur 30 s — revenir dessus est instantané. Chaque action qui
+  // modifie des données appelle `router.refresh()`, qui vide ce cache.
+  experimental: {
+    staleTimes: { dynamic: 30 },
+  },
+
   // Le modèle de langue Tesseract (fra.traineddata) n'est référencé qu'à
   // l'exécution (fs.readFileSync par tesseract.js), pas via un `import` —
   // sans cette déclaration, Next.js ne l'inclurait pas dans le bundle de
