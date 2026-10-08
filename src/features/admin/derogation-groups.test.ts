@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DerogationListItemDto } from "@/lib/api/derogations";
-import { changesKnown, derogationVerdict, describeRequestedChanges, etatTone, groupDerogationsByMatch, hasDerogationDetail, parisSlot, parseFbiDate, requestMatchesOfficial } from "./derogation-groups";
+import { changesKnown, derogationVerdict, isRetainedSchedule, supersededBy, describeRequestedChanges, etatTone, groupDerogationsByMatch, hasDerogationDetail, parisSlot, parseFbiDate, requestMatchesOfficial } from "./derogation-groups";
 
 function derogation(overrides: Partial<DerogationListItemDto>): DerogationListItemDto {
   return {
@@ -44,7 +44,7 @@ describe("groupDerogationsByMatch", () => {
 
     expect(groups).toHaveLength(2);
     const group9608 = groups.find((g) => g.key === "match:m-9608")!;
-    expect(group9608.derogations.map((d) => d.id)).toEqual(["c", "b", "a"]);
+    expect(group9608.derogations.map((d) => d.id)).toEqual(["a", "b", "c"]);
   });
 
   it("met en tête la dérogation qui attend une réponse du club, et le match concerné en premier", () => {
@@ -118,7 +118,7 @@ describe("horaire officiel et conclusion (retour du club, 2026-10-07 : rencontre
 describe("changements demandés (cases FBI, retour du club 2026-10-08)", () => {
   it("liste uniquement les cases cochées, avec la salle demandée", () => {
     const d = derogation({ modifierDate: false, modifierHoraire: false, modifierSalle: true, salleDemandee: "GYMNASE DE SERIGNAN", inverserRencontre: true, inverserEquipe: false });
-    expect(describeRequestedChanges(d)).toEqual(["Salle : GYMNASE DE SERIGNAN", "Inversion de la rencontre"]);
+    expect(describeRequestedChanges(d)).toEqual(["Salle → GYMNASE DE SERIGNAN", "Inversion de la rencontre"]);
     expect(changesKnown(d)).toBe(true);
   });
 
@@ -126,5 +126,27 @@ describe("changements demandés (cases FBI, retour du club 2026-10-08)", () => {
     const d = derogation({ modifierDate: null, modifierHoraire: null, modifierSalle: null, inverserRencontre: null, inverserEquipe: null });
     expect(describeRequestedChanges(d)).toEqual([]);
     expect(changesKnown(d)).toBe(false);
+  });
+});
+
+describe("chronologie réelle (retour du club, 2026-10-08, rencontre 2 vs Agde : le 11/09 calée à 16h30, le 21/09 remise à 17h30)", () => {
+  const base = { matchId: "m-2", etat: "Acceptée par l'organisme dirigeant", matchDatetime: "2026-09-26T15:30:00Z", modifierDate: false, modifierHoraire: true, modifierSalle: false, inverserRencontre: false, inverserEquipe: false, demandeur: "Domicile" };
+  const d1 = derogation({ ...base, id: "d1", dateDepot: "11/09/2026 16:38", heureDemandee: "16:30" });
+  const d2 = derogation({ ...base, id: "d2", dateDepot: "21/09/2026 13:49", heureDemandee: "17:30" });
+
+  it("ordonne par date de dépôt, la plus ancienne d'abord", () => {
+    expect(groupDerogationsByMatch([d2, d1])[0]!.derogations.map((d) => d.id)).toEqual(["d1", "d2"]);
+  });
+
+  it("dit ce qui a changé, jamais un faux « avant »", () => {
+    expect(describeRequestedChanges(d1)).toEqual(["Horaire → 16:30"]);
+    expect(describeRequestedChanges(d2)).toEqual(["Horaire → 17:30"]);
+  });
+
+  it("la plus récente est l'horaire retenu, la première est remplacée le 21/09", () => {
+    expect(isRetainedSchedule(d2)).toBe(true);
+    expect(isRetainedSchedule(d1)).toBe(false);
+    expect(supersededBy(d1, [d1, d2])).toBe("21/09/2026 13:49");
+    expect(supersededBy(d2, [d1, d2])).toBeNull();
   });
 });

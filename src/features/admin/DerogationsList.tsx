@@ -11,7 +11,7 @@ import { Notice } from "@/components/ui/Notice";
 import { cn } from "@/components/ui/cn";
 import type { DerogationListItemDto, RespondToDerogationDto, RespondToDerogationResultDto } from "@/lib/api/derogations";
 import { RespondToDerogationAction } from "@/features/derogations/RespondToDerogationAction";
-import { changesKnown, derogationVerdict, describeRequestedChanges, etatTone, groupDerogationsByMatch, hasDerogationDetail, isRetainedSchedule, type DerogationMatchGroup, type DerogationVerdict } from "./derogation-groups";
+import { changesKnown, derogationVerdict, describeRequestedChanges, etatTone, groupDerogationsByMatch, hasDerogationDetail, isRetainedSchedule, supersededBy, type DerogationMatchGroup, type DerogationVerdict } from "./derogation-groups";
 
 // `timeZone: "Europe/Paris"` explicite partout ci-dessous — jamais le
 // fuseau ambiant du runtime (UTC côté rendu serveur Vercel, potentiellement
@@ -233,6 +233,7 @@ function MatchDerogationsCard({
             <DerogationEntry
               derogation={derogation}
               isCurrentSchedule={isRetainedSchedule(derogation)}
+              replacedOn={isRetainedSchedule(derogation) ? null : supersededBy(derogation, derogations)}
               defaultOpen={derogation.actionRequired}
               clubId={clubId}
               readOnly={readOnly}
@@ -248,6 +249,7 @@ function MatchDerogationsCard({
 function DerogationEntry({
   derogation,
   isCurrentSchedule,
+  replacedOn,
   defaultOpen,
   clubId,
   readOnly,
@@ -255,21 +257,19 @@ function DerogationEntry({
 }: {
   derogation: DerogationListItemDto;
   isCurrentSchedule: boolean;
+  /** Date de dépôt de la dérogation acceptée plus récente qui l'a remplacée. */
+  replacedOn: string | null;
   defaultOpen: boolean;
   clubId?: string;
   readOnly: boolean;
   respond?: (derogationId: string, body: RespondToDerogationDto) => Promise<RespondToDerogationResultDto>;
 }) {
   const demandeurTeam = resolveDemandeurTeam(derogation);
-  const initial = `${derogation.dateRencontre ?? ""} ${derogation.heure ?? ""}`.trim();
-  const requestedDate = derogation.dateRencontreDemandee?.trim() || null;
-  const requestedTime = derogation.heureDemandee?.trim() || null;
-  // Date demandée absente : "date inchangée" seulement si FBI dit explicitement que la date n'est pas modifiée.
-  const sameDateLabel = derogation.modifierDate === false ? "date inchangée" : "date non précisée";
-  const requested = requestedDate || requestedTime ? `${requestedDate ?? sameDateLabel}${requestedTime ? ` à ${requestedTime}` : ""}` : null;
   const detailKnown = hasDerogationDetail(derogation);
   const changes = describeRequestedChanges(derogation);
-  const nonScheduleChanges = changes.filter((c) => c !== "Date" && c !== "Horaire");
+  const changesText =
+    changes.length > 0 ? changes.join(" · ") : detailKnown ? (changesKnown(derogation) ? "Aucun changement coché sur FBI" : "Changement non précisé") : "Détail non récupéré sur FBI";
+  const requester = derogation.demandeur ? `${demandeurTeam ?? derogation.demandeur}` : null;
   return (
     <details open={defaultOpen} className="group surface-panel overflow-hidden [&_summary::-webkit-details-marker]:hidden">
       <summary className="flex min-h-12 cursor-pointer list-none flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-3">
@@ -281,6 +281,10 @@ function DerogationEntry({
             <StatusBadge tone="accent" size="sm">
               Horaire retenu
             </StatusBadge>
+          ) : replacedOn ? (
+            <StatusBadge tone="neutral" size="sm">
+              Remplacée le {replacedOn.split(" ")[0]}
+            </StatusBadge>
           ) : null}
           {derogation.actionRequired ? (
             <StatusBadge tone="warning" size="sm" icon={<BellRing />}>
@@ -288,21 +292,13 @@ function DerogationEntry({
             </StatusBadge>
           ) : null}
         </span>
-        <span className="type-meta flex-1">
-          {/* Horaire avant la demande (tableau FBI) → horaire demandé (page de la dérogation). */}
-          {initial ? `Prévu le ${initial}` : "Horaire initial inconnu"}
-          {" → "}
-          {requested
-            ? `demandé : ${requested}`
-            : nonScheduleChanges.length > 0
-              ? "horaire inchangé"
-              : detailKnown
-                ? changesKnown(derogation)
-                  ? "aucun changement coché sur FBI"
-                  : "aucun changement d'horaire indiqué"
-                : "détail non récupéré sur FBI"}
-          {nonScheduleChanges.length > 0 ? ` · ${nonScheduleChanges.join(" · ")}` : ""}
-          {derogation.motif ? ` · « ${derogation.motif} »` : ""}
+        <span className="flex flex-1 flex-col gap-0.5">
+          <span className="text-sm font-medium text-foreground">{changesText}</span>
+          <span className="type-meta">
+            {derogation.dateDepot ? `Déposée le ${derogation.dateDepot}` : "Date de dépôt inconnue"}
+            {requester ? ` par ${requester}` : ""}
+            {derogation.motif ? ` · « ${derogation.motif} »` : ""}
+          </span>
         </span>
         <ChevronDown aria-hidden className="hidden size-4 shrink-0 text-subtle transition-transform duration-150 group-open:rotate-180 sm:block" />
       </summary>
@@ -333,10 +329,8 @@ function DerogationEntry({
             { label: "État", value: derogation.etat ?? "—" },
             { label: "Demandeur", value: `${derogation.demandeur ?? "—"}${demandeurTeam ? ` (${demandeurTeam})` : ""}` },
             { label: "Date de dépôt", value: derogation.dateDepot ?? "—" },
-            { label: "Horaire avant la demande", value: initial || "—" },
-            { label: "Horaire demandé", value: requested ?? "—" },
-            { label: "Changements demandés", value: changes.length > 0 ? changes.join(" · ") : changesKnown(derogation) ? "Aucune case cochée" : "Non lu sur FBI", span: 2 },
-            { label: "Date de dérogation", value: derogation.dateDerogation ?? "—" },
+            { label: "Changements demandés", value: changesText, span: 2 },
+            { label: "Rencontre du", value: derogation.dateRencontre ?? "—" },
             { label: "Motif de la demande", value: derogation.motif ?? "—", span: 2 },
             { label: "Dernière vérification", value: formatDateTime(derogation.checkedAt) },
           ]}

@@ -8,24 +8,24 @@ import type { DerogationListItemDto } from "@/lib/api/derogations";
  */
 export interface DerogationMatchGroup {
   key: string;
-  /** Dérogations de ce match : action requise d'abord, puis la plus récente en premier (dates FBI inconnues en dernier). */
+  /** Dérogations de ce match, dans l'ordre chronologique de dépôt (dates inconnues en dernier). */
   derogations: DerogationListItemDto[];
   /** Première ligne du groupe — porte les infos du match (numéro, équipe, adversaire, date FFBB). */
   match: DerogationListItemDto;
   actionRequired: boolean;
 }
 
-/** "jj/mm/aaaa" (format FBI) → horodatage, ou `null` si absent/illisible — jamais deviné. */
+/** "jj/mm/aaaa[ HH:MM]" (format FBI) → horodatage, ou `null` si absent/illisible — jamais deviné. */
 export function parseFbiDate(value: string | null | undefined): number | null {
-  const match = value?.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  const match = value?.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
   if (!match) return null;
-  const time = Date.UTC(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+  const time = Date.UTC(Number(match[3]), Number(match[2]) - 1, Number(match[1]), Number(match[4] ?? 0), Number(match[5] ?? 0));
   return Number.isNaN(time) ? null : time;
 }
 
-/** Date la plus parlante d'une dérogation pour l'ordre chronologique : dépôt, sinon date de dérogation. */
+/** Ordre chronologique d'une dérogation : sa date de dépôt sur FBI. */
 function derogationTime(derogation: DerogationListItemDto): number | null {
-  return parseFbiDate(derogation.dateDepot) ?? parseFbiDate(derogation.dateDerogation);
+  return parseFbiDate(derogation.dateDepot);
 }
 
 /** Dérogation acceptée dont l'horaire demandé est l'horaire officiel actuel du match. */
@@ -33,17 +33,35 @@ export function isRetainedSchedule(d: DerogationListItemDto): boolean {
   return etatTone(d.etat) === "success" && requestMatchesOfficial(d, parisSlot(d.matchDatetime));
 }
 
+/**
+ * Ordre CHRONOLOGIQUE (retour du club, 2026-10-08 : "le 11 on l'a calée à
+ * 16h30 et le 21 on l'a remise à 17h30") : la plus ancienne déposée en
+ * premier ; sans date de dépôt connue, en dernier, sans ordre inventé.
+ */
 function compareDerogations(a: DerogationListItemDto, b: DerogationListItemDto): number {
-  if (a.actionRequired !== b.actionRequired) return a.actionRequired ? -1 : 1;
-  const ra = isRetainedSchedule(a);
-  const rb = isRetainedSchedule(b);
-  if (ra !== rb) return ra ? -1 : 1;
   const ta = derogationTime(a);
   const tb = derogationTime(b);
-  if (ta !== null && tb !== null) return tb - ta;
+  if (ta !== null && tb !== null) return ta - tb;
   if (ta !== null) return -1;
   if (tb !== null) return 1;
   return 0;
+}
+
+/**
+ * Dérogation acceptée dont l'horaire demandé a été remplacé par une
+ * dérogation acceptée déposée PLUS TARD (dates de dépôt connues des deux
+ * côtés, sinon rien n'est affirmé). Renvoie la date de dépôt de la remplaçante.
+ */
+export function supersededBy(d: DerogationListItemDto, all: DerogationListItemDto[]): string | null {
+  if (etatTone(d.etat) !== "success" || !(d.heureDemandee || d.dateRencontreDemandee)) return null;
+  const t = derogationTime(d);
+  if (t === null) return null;
+  const later = all
+    .filter((o) => o !== d && etatTone(o.etat) === "success" && (o.heureDemandee || o.dateRencontreDemandee))
+    .map((o) => ({ o, t: derogationTime(o) }))
+    .filter((x): x is { o: DerogationListItemDto; t: number } => x.t !== null && x.t > t)
+    .sort((a, b) => a.t - b.t)[0];
+  return later ? later.o.dateDepot : null;
 }
 
 function groupKey(derogation: DerogationListItemDto): string {
@@ -134,18 +152,21 @@ export function derogationVerdict(group: DerogationMatchGroup): DerogationVerdic
 }
 
 /**
- * Changements demandés par la dérogation, cases du formulaire FBI
- * (libellés FBI : "Modifier la date / l'horaire / la salle", "Inverser la
- * rencontre / les équipes") — retour du club, 2026-10-08. Uniquement les
- * cases lues COCHÉES ; rien n'est déduit d'une case non lue.
+ * Ce que la dérogation demande de changer, avec la NOUVELLE valeur (retour
+ * du club, 2026-10-08 : "si y'a une dérog c'est que ça a changé"). Cases
+ * du formulaire FBI ("Modifier la date / l'horaire / la salle", "Inverser
+ * la rencontre / seulement les équipes") ; tant qu'elles n'ont pas été
+ * lues, repli sur les valeurs demandées présentes. Jamais d'"avant" :
+ * FBI ne le donne pas sur la dérogation.
  */
 export function describeRequestedChanges(d: DerogationListItemDto): string[] {
+  const known = changesKnown(d);
   const changes: string[] = [];
-  if (d.modifierDate) changes.push("Date");
-  if (d.modifierHoraire) changes.push("Horaire");
-  if (d.modifierSalle) changes.push(d.salleDemandee ? `Salle : ${d.salleDemandee}` : "Salle");
+  if (known ? d.modifierDate : d.dateRencontreDemandee) changes.push(`Date → ${d.dateRencontreDemandee ?? "non précisée"}`);
+  if (known ? d.modifierHoraire : d.heureDemandee) changes.push(`Horaire → ${d.heureDemandee ?? "non précisé"}`);
+  if (d.modifierSalle) changes.push(`Salle → ${d.salleDemandee ?? "non précisée"}`);
   if (d.inverserRencontre) changes.push("Inversion de la rencontre");
-  if (d.inverserEquipe) changes.push("Inversion des équipes");
+  if (d.inverserEquipe) changes.push("Inversion des équipes seulement");
   return changes;
 }
 
