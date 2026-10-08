@@ -4065,7 +4065,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/clubs/{clubId}/sync-runs": {
+    "/v1/clubs/{clubId}/integrations/sync-runs": {
         parameters: {
             query?: never;
             header?: never;
