@@ -11,7 +11,7 @@ type StatRow = MatchDetailsDto["stats"][number];
  * Stats d'une équipe, pensées mobile d'abord (retour du club, 2026-10-08 :
  * "plutôt des cartes avec la photo du joueur", puis "un truc UX friendly,
  * vue d'ensemble, natif mobile, simple") :
- *  - « À la une » : 3 cartes photo (meilleur marqueur, temps de jeu, 3 pts) ;
+ *  - top 3 marqueurs en cartes photo ;
  *  - toute l'équipe en liste, meilleur marqueur d'abord : photo, nom, points
  *    en grand, le reste en une ligne — lisible d'un coup d'œil, sans
  *    défilement horizontal.
@@ -20,13 +20,12 @@ type StatRow = MatchDetailsDto["stats"][number];
 export function PlayerStatCards({ rows, accent, playerBasePath }: { rows: StatRow[]; accent: boolean; playerBasePath?: string }) {
   const sorted = [...rows].sort((a, b) => (b.points ?? -1) - (a.points ?? -1) || (b.secondsPlayed ?? 0) - (a.secondsPlayed ?? 0));
   const total = (pick: (r: StatRow) => number | null) => rows.reduce((sum, r) => sum + (pick(r) ?? 0), 0);
-  const best = (pick: (r: StatRow) => number | null) => [...rows].sort((a, b) => (pick(b) ?? -1) - (pick(a) ?? -1))[0];
 
-  const highlights = [
-    { label: "Meilleur marqueur", row: best((r) => r.points), value: (r: StatRow) => `${r.points ?? "—"} pts` },
-    { label: "Temps de jeu", row: best((r) => r.secondsPlayed), value: (r: StatRow) => formatSecondsPlayed(r.secondsPlayed) },
-    { label: "Tirs à 3 pts", row: best((r) => r.threePointsMade), value: (r: StatRow) => `${r.threePointsMade ?? "—"} × 3 pts` },
-  ].filter((h): h is { label: string; row: StatRow; value: (r: StatRow) => string } => Boolean(h.row));
+  // Top 3 marqueurs uniquement (retour du club, 2026-10-08 : "juste le top 3 scoreurs, c'est tout").
+  const highlights = sorted
+    .filter((r) => (r.points ?? 0) > 0)
+    .slice(0, 3)
+    .map((row, index) => ({ label: `${index + 1}${index === 0 ? "er" : "e"} marqueur`, row, value: `${row.points} pts` }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -37,12 +36,12 @@ export function PlayerStatCards({ rows, accent, playerBasePath }: { rows: StatRo
       </dl>
 
       {highlights.length > 0 ? (
-        <section aria-label="À la une" className="flex flex-col gap-2">
-          <p className="type-eyebrow">À la une</p>
+        <section aria-label="Top 3 marqueurs" className="flex flex-col gap-2">
+          <p className="type-eyebrow">Top 3 marqueurs</p>
           <ul className="grid max-w-lg grid-cols-3 gap-2">
             {highlights.map((h) => (
               <li key={h.label}>
-                <Highlight label={h.label} row={h.row} value={h.value(h.row)} accent={accent} href={linkFor(h.row, playerBasePath)} />
+                <Highlight label={h.label} row={h.row} value={h.value} accent={accent} href={linkFor(h.row, playerBasePath)} />
               </li>
             ))}
           </ul>
