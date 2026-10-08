@@ -85,12 +85,19 @@ export function DerogationsList({
   /** Espace public, coordinateur / admin (2026-10-02) : accepter / refuser via le lien personnel. */
   respond?: (derogationId: string, body: RespondToDerogationDto) => Promise<RespondToDerogationResultDto>;
 }) {
+  const CONFLICTS = "__conflits__";
   const [selectedEtat, setSelectedEtat] = useState<string | null>(null);
+  // Matchs passés archivés (retour du club, 2026-10-08) : masqués par défaut.
+  const [showArchives, setShowArchives] = useState(false);
   // Instant de référence "match passé / à venir", figé au montage.
   const [now] = useState(() => Date.now());
 
   // Une carte par match, historique complet à l'intérieur (retour du club, 2026-10-07).
-  const groups = useMemo(() => groupDerogationsByMatch(derogations), [derogations]);
+  const allGroups = useMemo(() => groupDerogationsByMatch(derogations), [derogations]);
+  const isPast = (group: DerogationMatchGroup) => (group.match.matchDatetime ? Date.parse(group.match.matchDatetime) < now : false);
+  const archivedCount = allGroups.filter(isPast).length;
+  // Une dérogation qui attend la réponse du club n'est jamais archivée.
+  const groups = allGroups.filter((group) => (showArchives ? isPast(group) && !group.actionRequired : !isPast(group) || group.actionRequired));
 
   // Filtre par état : compte les MATCHS ayant au moins une dérogation dans cet état.
   const etatCounts = useMemo(() => {
@@ -104,7 +111,16 @@ export function DerogationsList({
     return Array.from(counts.entries()).sort(([a], [b]) => a.localeCompare(b, "fr"));
   }, [groups]);
 
-  const filtered = selectedEtat === null ? groups : groups.filter((group) => group.derogations.some((d) => d.etat === selectedEtat));
+  // Conflits de créneau (retour du club, 2026-10-08 : "un filtre conflits pour voir les conflits").
+  const hasConflict = (group: DerogationMatchGroup) => group.derogations.some((d) => d.scheduleConflict);
+  const conflictCount = groups.filter(hasConflict).length;
+
+  const filtered =
+    selectedEtat === null
+      ? groups
+      : selectedEtat === CONFLICTS
+        ? groups.filter(hasConflict)
+        : groups.filter((group) => group.derogations.some((d) => d.etat === selectedEtat));
 
   if (derogations.length === 0) {
     return (
@@ -122,9 +138,20 @@ export function DerogationsList({
 
   return (
     <div className="flex flex-col gap-5">
+      <div role="group" aria-label="Période" className="flex gap-1.5">
+        <FilterButton active={!showArchives} onClick={() => { setShowArchives(false); setSelectedEtat(null); }} count={allGroups.length - archivedCount}>
+          À venir
+        </FilterButton>
+        <FilterButton active={showArchives} onClick={() => { setShowArchives(true); setSelectedEtat(null); }} count={archivedCount}>
+          Archives (matchs passés)
+        </FilterButton>
+      </div>
       <div role="group" aria-label="Filtrer par état" className="scrollbar-none -mx-4 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
         <FilterButton active={selectedEtat === null} onClick={() => setSelectedEtat(null)} count={groups.length}>
           Tous les matchs
+        </FilterButton>
+        <FilterButton active={selectedEtat === CONFLICTS} onClick={() => setSelectedEtat(CONFLICTS)} count={conflictCount}>
+          Conflits
         </FilterButton>
         {etatCounts.map(([etat, count]) => (
           <FilterButton key={etat} active={selectedEtat === etat} onClick={() => setSelectedEtat(etat)} count={count}>
@@ -134,7 +161,11 @@ export function DerogationsList({
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState title="Aucun match pour cet état" description="Choisis un autre filtre ci-dessus." compact />
+        <EmptyState
+          title={selectedEtat === CONFLICTS ? "Aucun conflit de créneau" : showArchives ? "Aucun match passé pour ce filtre" : "Aucun match à venir pour ce filtre"}
+          description={showArchives ? "Choisis un autre filtre ci-dessus." : "Choisis un autre filtre, ou ouvre les archives (matchs passés)."}
+          compact
+        />
       ) : (
         <ul className="flex flex-col gap-4">
           {filtered.map((group) => (

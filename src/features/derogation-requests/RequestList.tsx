@@ -1,18 +1,48 @@
 import Link from "next/link";
-import { ArrowRight, CalendarClock, ChevronRight, MapPin, MessageSquare, UserRound } from "lucide-react";
+import { Archive, ArrowRight, CalendarClock, ChevronDown, ChevronRight, MapPin, MessageSquare, UserRound } from "lucide-react";
 import { SectionHeader } from "@/components/ui/PageHeader";
 import type { DerogationRequestSummaryDto } from "@/lib/api/derogationRequests";
 import { formatRelative, formatShortDateTime, groupRequests, teamLabel } from "./labels";
 import { RequestStatusBadge } from "./parts";
+import type { DerogationSource } from "./client";
+import { DeleteRequestButton } from "./DeleteRequestButton";
 
 /**
  * Liste des demandes, regroupées en sections (inbox du coordinateur ou
  * suivi du coach — voir `groupRequests`). Server Component : données déjà
  * filtrées par club-manager-api selon les droits.
  */
-export function RequestSections({ requests, manager, timezone, basePath }: { requests: DerogationRequestSummaryDto[]; manager: boolean; timezone: string; basePath: string }) {
-  const sections = groupRequests(requests, manager);
+/**
+ * Archivée : demande terminée / annulée, ou match passé (retour du club,
+ * 2026-10-08 : "les matchs passés on peut les archiver, idem les demandes
+ * terminées"). Repliée par défaut, jamais supprimée sans action explicite.
+ */
+export function isArchivedRequest(r: DerogationRequestSummaryDto, now: Date): boolean {
+  if (r.status === "COMPLETED" || r.status === "CANCELLED") return true;
+  const times = [r.originalScheduledAt, r.requestedStartAt].filter((v): v is string => Boolean(v)).map((v) => Date.parse(v)).filter(Number.isFinite);
+  return times.length > 0 && Math.max(...times) < now.getTime();
+}
+
+export function RequestSections({
+  requests,
+  manager,
+  timezone,
+  basePath,
+  source,
+  onDeleted,
+}: {
+  requests: DerogationRequestSummaryDto[];
+  manager: boolean;
+  timezone: string;
+  basePath: string;
+  /** Pour le bouton Supprimer des archives (coordinateur) ; absent : pas de suppression. */
+  source?: DerogationSource;
+  onDeleted?: (id: string) => void;
+}) {
   const now = new Date();
+  const active = requests.filter((r) => !isArchivedRequest(r, now));
+  const archived = requests.filter((r) => isArchivedRequest(r, now));
+  const sections = groupRequests(active, manager);
   return (
     <div className="flex flex-col gap-8">
       {sections.map((section) => (
@@ -36,6 +66,31 @@ export function RequestSections({ requests, manager, timezone, basePath }: { req
           </ul>
         </section>
       ))}
+      {sections.length === 0 ? <p className="type-meta">Aucune demande en cours.</p> : null}
+
+      {archived.length > 0 ? (
+        <details className="group flex flex-col gap-3 [&_summary::-webkit-details-marker]:hidden">
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-muted hover:text-foreground">
+            <Archive aria-hidden className="size-4" />
+            Archives
+            <span className="type-numeric rounded-full bg-surface-muted px-2 text-[12px] leading-6 text-muted">{archived.length}</span>
+            <span className="type-meta font-normal">— demandes terminées, annulées ou dont le match est passé</span>
+            <ChevronDown aria-hidden className="size-4 transition-transform duration-150 group-open:rotate-180" />
+          </summary>
+          <ul className="mt-3 grid grid-cols-1 gap-2.5 xl:grid-cols-2">
+            {archived.map((r) => (
+              <li key={r.id} className="flex flex-col gap-1.5">
+                <RequestCard request={r} manager={manager} timezone={timezone} href={`${basePath}/${r.id}`} now={now} />
+                {manager && source && (r.status === "COMPLETED" || r.status === "CANCELLED") ? (
+                  <div className="flex justify-end">
+                    <DeleteRequestButton source={source} requestId={r.id} onDeleted={onDeleted} />
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
     </div>
   );
 }

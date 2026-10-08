@@ -63,6 +63,7 @@ export function createApi(fetcher: ApiFetcher) {
       create: (clubId: string, body: derogationRequests.CreateDerogationRequestDto) => derogationRequests.createDerogationRequest(fetcher, clubId, body),
       message: (clubId: string, requestId: string, message: string) => derogationRequests.postDerogationMessage(fetcher, clubId, requestId, message),
       action: (clubId: string, requestId: string, action: derogationRequests.DerogationAction, message?: string | null) => derogationRequests.performDerogationAction(fetcher, clubId, requestId, action, message),
+      remove: (clubId: string, requestId: string) => derogationRequests.deleteDerogationRequest(fetcher, clubId, requestId),
       propose: (clubId: string, requestId: string, body: derogationRequests.ProposeDerogationSlotDto) => derogationRequests.proposeDerogationSlot(fetcher, clubId, requestId, body),
       official: (clubId: string, requestId: string, body: derogationRequests.OfficialDerogationDto) => derogationRequests.submitOfficialDerogation(fetcher, clubId, requestId, body),
       availability: (clubId: string, matchId: string, date: string) => derogationRequests.getDerogationAvailability(fetcher, clubId, matchId, date),

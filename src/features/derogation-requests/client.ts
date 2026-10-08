@@ -32,6 +32,7 @@ export interface DerogationRequestsClient {
   availability(matchId: string, date: string): Promise<DerogationAvailabilityDto>;
   checkSlot(matchId: string, startAt: string, venueId: string | null): Promise<DerogationSlotCheckDto>;
   official(requestId: string, body: OfficialDerogationDto): Promise<SubmitOfficialDerogationResultDto>;
+  remove(requestId: string): Promise<{ deleted: true; id: string }>;
 }
 
 export function derogationClient(source: DerogationSource): DerogationRequestsClient {
@@ -49,6 +50,7 @@ export function derogationClient(source: DerogationSource): DerogationRequestsCl
       availability: (matchId, date) => api.availability(id, matchId, date),
       checkSlot: (matchId, startAt, venueId) => api.checkSlot(id, matchId, startAt, venueId),
       official: (requestId, body) => api.official(id, requestId, body),
+      remove: (requestId) => api.remove(id, requestId),
     };
   }
   const { clubSlug: slug, token } = source;
@@ -63,5 +65,6 @@ export function derogationClient(source: DerogationSource): DerogationRequestsCl
     availability: (matchId, date) => pub.getPublicDerogationAvailability(slug, token, matchId, date),
     checkSlot: (matchId, startAt, venueId) => pub.checkPublicDerogationSlot(slug, token, matchId, startAt, venueId),
     official: (requestId, body) => pub.submitPublicOfficialDerogation(slug, token, requestId, body),
+    remove: (requestId) => pub.deletePublicDerogationRequest(slug, token, requestId),
   };
 }

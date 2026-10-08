@@ -59,6 +59,10 @@ export function performPublicDerogationAction(clubSlug: string, token: string, r
   return publicFetch<DerogationRequestDetailDto>(`${base(clubSlug)}/${requestId}/actions`, token, { method: "POST", body: { action, message: message ?? null } });
 }
 
+export function deletePublicDerogationRequest(clubSlug: string, token: string, requestId: string): Promise<{ deleted: true; id: string }> {
+  return publicFetch<{ deleted: true; id: string }>(`${base(clubSlug)}/${requestId}`, token, { method: "DELETE" });
+}
+
 export function proposePublicDerogationSlot(clubSlug: string, token: string, requestId: string, body: ProposeDerogationSlotDto): Promise<DerogationRequestDetailDto> {
   return publicFetch<DerogationRequestDetailDto>(`${base(clubSlug)}/${requestId}/proposals`, token, { method: "POST", body });
 }

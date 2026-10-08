@@ -136,7 +136,14 @@ function PublicRequestsHome({ clubSlug, clubName, identity, onForget }: { clubSl
               description={manager ? "Les demandes des coachs apparaîtront ici dès leur envoi." : "Besoin de déplacer un match ? Choisis le match, la date et le créneau : le coordinateur reçoit ta demande."}
             />
           ) : (
-            <RequestSections requests={data.requests} manager={manager} timezone={data.context.timezone} basePath={base} />
+            <RequestSections
+              requests={data.requests}
+              manager={manager}
+              timezone={data.context.timezone}
+              basePath={base}
+              source={source}
+              onDeleted={(id) => setData((current) => (current ? { ...current, requests: current.requests.filter((r) => r.id !== id) } : current))}
+            />
           )}
         </>
       )}

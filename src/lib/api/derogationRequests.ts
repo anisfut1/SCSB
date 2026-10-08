@@ -66,6 +66,11 @@ export function performDerogationAction(fetcher: ApiFetcher, clubId: string, req
   return fetcher<DerogationRequestDetailDto>(`${base(clubId)}/${requestId}/actions`, { method: "POST", body: { action, message: message ?? null } });
 }
 
+/** DELETE …/derogation-requests/:requestId — coordinateur / admin, demande terminée ou annulée uniquement (messages inclus). */
+export async function deleteDerogationRequest(fetcher: ApiFetcher, clubId: string, requestId: string): Promise<{ deleted: true; id: string }> {
+  return fetcher<{ deleted: true; id: string }>(`${base(clubId)}/${requestId}`, { method: "DELETE" });
+}
+
 export function proposeDerogationSlot(fetcher: ApiFetcher, clubId: string, requestId: string, body: ProposeDerogationSlotDto): Promise<DerogationRequestDetailDto> {
   return fetcher<DerogationRequestDetailDto>(`${base(clubId)}/${requestId}/proposals`, { method: "POST", body });
 }

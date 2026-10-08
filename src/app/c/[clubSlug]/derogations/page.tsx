@@ -70,7 +70,7 @@ export default async function DerogationRequestsPage({ params }: { params: Promi
           }
         />
       ) : (
-        <RequestSections requests={list.requests} manager={manager} timezone={context.timezone} basePath={base} />
+        <RequestSections requests={list.requests} manager={manager} timezone={context.timezone} basePath={base} source={{ kind: "club", clubId: club.id }} />
       )}
     </PageContainer>
   );
