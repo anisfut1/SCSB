@@ -52,6 +52,7 @@ export default async function PublicMatchDetailPage({
         derogationClubId={club.slug}
         mode="public"
         isAdmin={false}
+        playerBasePath={`/public/${clubSlug}/joueurs`}
       />
       {/* Coach reconnu par son lien personnel : demande de dérogation depuis la fiche (rien pour les autres visiteurs). */}
       {tab === "informations" ? <PublicMatchRequestBlock clubSlug={clubSlug} matchId={id} /> : null}

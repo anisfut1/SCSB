@@ -3,6 +3,7 @@ import type { TeamDto } from "./clubs";
 import type { DerogationStatusDto, MatchDetailsDto, MatchDocumentDto, MatchListItemDto } from "./matches";
 import { matchesFilterSearchParams, type ListMatchesParams } from "./matches";
 import type { PoolStandingsDto } from "./standings";
+import type { components } from "./generated/schema";
 
 export type { PoolStandingsDto, StandingRowDto } from "./standings";
 
@@ -85,4 +86,13 @@ export async function getPublicMatchDerogation(clubSlug: string, matchId: string
 export async function listPublicStandings(clubSlug: string): Promise<PoolStandingsDto[]> {
   const { standings } = await apiFetch<{ standings: PoolStandingsDto[] }>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/standings`);
   return standings;
+}
+
+/** Fiche joueur publique (nom, photo, équipes, saison, derniers matchs, tables) — jamais de coordonnées. */
+export type PublicPlayerProfileDto = components["schemas"]["PublicPlayerProfileDto"];
+export type PublicPlayerMatchDto = components["schemas"]["PublicPlayerMatchDto"];
+
+/** GET /v1/public/clubs/:clubSlug/players/:licencieId */
+export function getPublicPlayer(clubSlug: string, licencieId: string): Promise<PublicPlayerProfileDto> {
+  return apiFetch<PublicPlayerProfileDto>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/players/${encodeURIComponent(licencieId)}`);
 }

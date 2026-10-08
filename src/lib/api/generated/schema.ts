@@ -3480,6 +3480,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/public/clubs/{clubSlug}/players/{licencieId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    clubSlug: string;
+                    licencieId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Fiche joueur publique (saison en cours, matchs publiés uniquement) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublicPlayerProfileDto"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/public/clubs/{clubSlug}/teams": {
         parameters: {
             query?: never;
@@ -8052,6 +8099,75 @@ export interface components {
             difference: number | null;
             outOfRanking: boolean;
             isClub: boolean;
+        };
+        PublicPlayerProfileDto: {
+            player: {
+                /** Format: uuid */
+                id: string;
+                firstName: string;
+                lastName: string;
+                photoUrl: string | null;
+                categoryLabel: string | null;
+                /** @enum {string|null} */
+                sexe: "M" | "F" | null;
+            };
+            teams: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                /** @enum {string} */
+                relation: "PLAYER" | "COACH";
+            }[];
+            season: {
+                matchesPlayed: number;
+                matchesWithStats: number;
+                totalPoints: number;
+                pointsPerMatch: number | null;
+                bestPoints: number | null;
+                /** Format: uuid */
+                bestPointsMatchId: string | null;
+                threePointsMade: number;
+                freeThrowsMade: number;
+                secondsPlayed: number;
+                wins: number;
+                losses: number;
+            };
+            recentMatches: components["schemas"]["PublicPlayerMatchDto"][];
+            tables: {
+                done: number;
+                upcoming: number;
+                byRole: {
+                    role: components["schemas"]["TableAssignmentRole"];
+                    count: number;
+                }[];
+            };
+            nextMatch: {
+                /** Format: uuid */
+                matchId: string;
+                matchDatetime: string | null;
+                teamName: string | null;
+                opponentName: string | null;
+                isHome: boolean;
+            } | null;
+        };
+        PublicPlayerMatchDto: {
+            /** Format: uuid */
+            matchId: string;
+            matchDatetime: string | null;
+            teamName: string | null;
+            opponentName: string | null;
+            isHome: boolean;
+            scoreHome: number | null;
+            scoreAway: number | null;
+            /** @enum {string|null} */
+            result: "WIN" | "LOSS" | "DRAW" | null;
+            jerseyNumber: string | null;
+            isCaptain: boolean;
+            isStarter: boolean;
+            points: number | null;
+            threePointsMade: number | null;
+            freeThrowsMade: number | null;
+            secondsPlayed: number | null;
         };
         SyncRunDto: {
             /** Format: uuid */

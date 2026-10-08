@@ -85,7 +85,7 @@ export function MatchDetailView({
           )
         ) : null}
         {tab === "composition" ? <CompositionPanel match={match} home={home} away={away} /> : null}
-        {tab === "statistiques" ? <StatsPanel match={match} home={home} away={away} playerBasePath={mode === "club" ? playerBasePath : undefined} /> : null}
+        {tab === "statistiques" ? <StatsPanel match={match} home={home} away={away} playerBasePath={playerBasePath} /> : null}
         {tab === "officiels" ? <OfficialsPanel match={match} /> : null}
         {tab === "emarque" ? <EmarquePanel match={match} documents={documents ?? []} mode={mode} isAdmin={admin} /> : null}
       </div>
