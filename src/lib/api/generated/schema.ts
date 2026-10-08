@@ -7562,6 +7562,7 @@ export interface components {
             lastName: string | null;
             /** Format: uuid */
             licencieId: string | null;
+            photoUrl: string | null;
             secondsPlayed: number | null;
             points: number | null;
             threePointsMade: number | null;

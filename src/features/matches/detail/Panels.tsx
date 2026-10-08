@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, Download, FileText, Flag, Info, Scale, UserRound, Users } from "lucide-react";
+import { ClipboardList, Download, FileText, Flag, Info, Scale, Table2, UserRound, Users } from "lucide-react";
 import { Card, CardDivider, CardHeader } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
 import { DataList } from "@/components/ui/DataList";
@@ -11,6 +11,7 @@ import { buttonClasses } from "@/components/ui/Button";
 import type { MatchDetailsDto, MatchDocumentDto } from "@/lib/api/matches";
 import { DOCUMENT_TYPE_LABELS, EMARQUE_STATUS, MATCH_STATUS_LABELS, REFEREE_ROLE_LABELS, TABLE_OFFICIAL_ROLE_LABELS, formatSecondsPlayed, personName } from "./labels";
 import type { ScoreboardTeam } from "./Scoreboard";
+import { PlayerStatCards } from "./PlayerStatCards";
 
 export function InformationsPanel({ match, home, away }: { match: MatchDetailsDto; home: ScoreboardTeam; away: ScoreboardTeam }) {
   return (
@@ -104,6 +105,13 @@ function StatsTable({ team, rows, playerBasePath }: { team: ScoreboardTeam; rows
         <TeamLogo name={team.logoName} src={team.logoUrl} size="sm" accent={team.isClub} />
         <h3 className="type-card text-foreground">{team.name}</h3>
       </div>
+      <PlayerStatCards rows={rows} accent={team.isClub} playerBasePath={playerBasePath} />
+      <details className="group [&_summary::-webkit-details-marker]:hidden">
+        <summary className="type-meta flex cursor-pointer list-none items-center gap-1.5 hover:text-foreground">
+          <Table2 aria-hidden className="size-3.5" />
+          Tableau détaillé
+        </summary>
+        <div className="mt-3">
       <Table caption={`Statistiques — ${team.name}`}>
         <THead>
           <tr>
@@ -158,6 +166,8 @@ function StatsTable({ team, rows, playerBasePath }: { team: ScoreboardTeam; rows
           ))}
         </TBody>
       </Table>
+        </div>
+      </details>
     </section>
   );
 }
@@ -177,7 +187,7 @@ export function StatsPanel({ match, home, away, playerBasePath }: { match: Match
   const bySide = { home: stats.filter((row) => row.teamSide === "home"), away: stats.filter((row) => row.teamSide === "away") };
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
+      <div className="flex flex-col gap-8">
         <StatsTable team={home} rows={bySide.home} playerBasePath={playerBasePath} />
         <StatsTable team={away} rows={bySide.away} playerBasePath={playerBasePath} />
       </div>
