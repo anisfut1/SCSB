@@ -133,6 +133,27 @@ export function derogationVerdict(group: DerogationMatchGroup): DerogationVerdic
   return { kind: "settled" };
 }
 
+/**
+ * Changements demandés par la dérogation, cases du formulaire FBI
+ * (libellés FBI : "Modifier la date / l'horaire / la salle", "Inverser la
+ * rencontre / les équipes") — retour du club, 2026-10-08. Uniquement les
+ * cases lues COCHÉES ; rien n'est déduit d'une case non lue.
+ */
+export function describeRequestedChanges(d: DerogationListItemDto): string[] {
+  const changes: string[] = [];
+  if (d.modifierDate) changes.push("Date");
+  if (d.modifierHoraire) changes.push("Horaire");
+  if (d.modifierSalle) changes.push(d.salleDemandee ? `Salle : ${d.salleDemandee}` : "Salle");
+  if (d.inverserRencontre) changes.push("Inversion de la rencontre");
+  if (d.inverserEquipe) changes.push("Inversion des équipes");
+  return changes;
+}
+
+/** Les cases du formulaire ont-elles été lues pour cette dérogation ? */
+export function changesKnown(d: DerogationListItemDto): boolean {
+  return [d.modifierDate, d.modifierHoraire, d.modifierSalle, d.inverserRencontre, d.inverserEquipe].some((v) => v !== null && v !== undefined);
+}
+
 /** Couleur d'un état FBI — uniquement sur les mots présents dans le libellé, neutre sinon. */
 export function etatTone(etat: string | null | undefined): "success" | "danger" | "warning" | "neutral" {
   const value = (etat ?? "").toLowerCase();

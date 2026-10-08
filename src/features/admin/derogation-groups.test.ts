@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DerogationListItemDto } from "@/lib/api/derogations";
-import { derogationVerdict, etatTone, groupDerogationsByMatch, hasDerogationDetail, parisSlot, parseFbiDate, requestMatchesOfficial } from "./derogation-groups";
+import { changesKnown, derogationVerdict, describeRequestedChanges, etatTone, groupDerogationsByMatch, hasDerogationDetail, parisSlot, parseFbiDate, requestMatchesOfficial } from "./derogation-groups";
 
 function derogation(overrides: Partial<DerogationListItemDto>): DerogationListItemDto {
   return {
@@ -112,5 +112,19 @@ describe("horaire officiel et conclusion (retour du club, 2026-10-07 : rencontre
     expect(
       derogationVerdict(groupDerogationsByMatch([derogation({ etat: "Acceptée par l'organisme dirigeant", heureDemandee: "17:30", matchDatetime: "2026-09-26T15:30:00Z" }), derogation({ id: "r", etat: "Refusée" })])[0]!).kind,
     ).toBe("accepted_current");
+  });
+});
+
+describe("changements demandés (cases FBI, retour du club 2026-10-08)", () => {
+  it("liste uniquement les cases cochées, avec la salle demandée", () => {
+    const d = derogation({ modifierDate: false, modifierHoraire: false, modifierSalle: true, salleDemandee: "GYMNASE DE SERIGNAN", inverserRencontre: true, inverserEquipe: false });
+    expect(describeRequestedChanges(d)).toEqual(["Salle : GYMNASE DE SERIGNAN", "Inversion de la rencontre"]);
+    expect(changesKnown(d)).toBe(true);
+  });
+
+  it("ne déduit rien quand les cases n'ont pas été lues", () => {
+    const d = derogation({ modifierDate: null, modifierHoraire: null, modifierSalle: null, inverserRencontre: null, inverserEquipe: null });
+    expect(describeRequestedChanges(d)).toEqual([]);
+    expect(changesKnown(d)).toBe(false);
   });
 });

@@ -7492,6 +7492,12 @@ export interface components {
             dateReponse: string | null;
             acceptation: string | null;
             motifRefus: string | null;
+            modifierDate: boolean | null;
+            modifierHoraire: boolean | null;
+            modifierSalle: boolean | null;
+            salleDemandee: string | null;
+            inverserRencontre: boolean | null;
+            inverserEquipe: boolean | null;
             checkedAt: string;
             actionRequired: boolean;
         } | null;

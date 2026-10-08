@@ -11,7 +11,7 @@ import { Notice } from "@/components/ui/Notice";
 import { cn } from "@/components/ui/cn";
 import type { DerogationListItemDto, RespondToDerogationDto, RespondToDerogationResultDto } from "@/lib/api/derogations";
 import { RespondToDerogationAction } from "@/features/derogations/RespondToDerogationAction";
-import { derogationVerdict, etatTone, groupDerogationsByMatch, hasDerogationDetail, isRetainedSchedule, type DerogationMatchGroup, type DerogationVerdict } from "./derogation-groups";
+import { changesKnown, derogationVerdict, describeRequestedChanges, etatTone, groupDerogationsByMatch, hasDerogationDetail, isRetainedSchedule, type DerogationMatchGroup, type DerogationVerdict } from "./derogation-groups";
 
 // `timeZone: "Europe/Paris"` explicite partout ci-dessous — jamais le
 // fuseau ambiant du runtime (UTC côté rendu serveur Vercel, potentiellement
@@ -264,8 +264,12 @@ function DerogationEntry({
   const initial = `${derogation.dateRencontre ?? ""} ${derogation.heure ?? ""}`.trim();
   const requestedDate = derogation.dateRencontreDemandee?.trim() || null;
   const requestedTime = derogation.heureDemandee?.trim() || null;
-  const requested = requestedDate || requestedTime ? `${requestedDate ?? "même date"}${requestedTime ? ` à ${requestedTime}` : ""}` : null;
+  // Date demandée absente : "date inchangée" seulement si FBI dit explicitement que la date n'est pas modifiée.
+  const sameDateLabel = derogation.modifierDate === false ? "date inchangée" : "date non précisée";
+  const requested = requestedDate || requestedTime ? `${requestedDate ?? sameDateLabel}${requestedTime ? ` à ${requestedTime}` : ""}` : null;
   const detailKnown = hasDerogationDetail(derogation);
+  const changes = describeRequestedChanges(derogation);
+  const nonScheduleChanges = changes.filter((c) => c !== "Date" && c !== "Horaire");
   return (
     <details open={defaultOpen} className="group surface-panel overflow-hidden [&_summary::-webkit-details-marker]:hidden">
       <summary className="flex min-h-12 cursor-pointer list-none flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-3">
@@ -288,7 +292,16 @@ function DerogationEntry({
           {/* Horaire avant la demande (tableau FBI) → horaire demandé (page de la dérogation). */}
           {initial ? `Prévu le ${initial}` : "Horaire initial inconnu"}
           {" → "}
-          {requested ? `demandé : ${requested}` : detailKnown ? "aucun changement d'horaire indiqué" : "détail non récupéré sur FBI"}
+          {requested
+            ? `demandé : ${requested}`
+            : nonScheduleChanges.length > 0
+              ? "horaire inchangé"
+              : detailKnown
+                ? changesKnown(derogation)
+                  ? "aucun changement coché sur FBI"
+                  : "aucun changement d'horaire indiqué"
+                : "détail non récupéré sur FBI"}
+          {nonScheduleChanges.length > 0 ? ` · ${nonScheduleChanges.join(" · ")}` : ""}
           {derogation.motif ? ` · « ${derogation.motif} »` : ""}
         </span>
         <ChevronDown aria-hidden className="hidden size-4 shrink-0 text-subtle transition-transform duration-150 group-open:rotate-180 sm:block" />
@@ -322,6 +335,7 @@ function DerogationEntry({
             { label: "Date de dépôt", value: derogation.dateDepot ?? "—" },
             { label: "Horaire avant la demande", value: initial || "—" },
             { label: "Horaire demandé", value: requested ?? "—" },
+            { label: "Changements demandés", value: changes.length > 0 ? changes.join(" · ") : changesKnown(derogation) ? "Aucune case cochée" : "Non lu sur FBI", span: 2 },
             { label: "Date de dérogation", value: derogation.dateDerogation ?? "—" },
             { label: "Motif de la demande", value: derogation.motif ?? "—", span: 2 },
             { label: "Dernière vérification", value: formatDateTime(derogation.checkedAt) },
