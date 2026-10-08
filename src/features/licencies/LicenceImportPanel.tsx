@@ -134,6 +134,9 @@ export function LicenceImportPanel({ clubId, clubSlug, initialStatus }: { clubId
 
   const lastRun = status?.lastRun ?? null;
   const notInExport = lastRun?.notInExport ?? 0;
+  // Tentative ratée, nouvel essai programmé : on le dit plutôt qu'un « en cours » sans fin.
+  const retrying = jobActive && status?.job?.status === "pending" && (status.job.attempts ?? 0) > 0 && Boolean(status.job.error);
+  const nextAttempt = status?.job?.nextAttemptAt ? timeFormat.format(new Date(status.job.nextAttemptAt)) : null;
 
   return (
     <Card className="flex flex-col gap-4">
@@ -143,7 +146,9 @@ export function LicenceImportPanel({ clubId, clubSlug, initialStatus }: { clubId
           <p className="text-[15px] font-semibold text-foreground">Licenciés FBI</p>
           <p className="type-meta mt-0.5">
             {jobActive
-              ? "Mise à jour en cours dans FBI…"
+              ? retrying
+                ? `Nouvel essai${nextAttempt ? ` vers ${nextAttempt}` : " bientôt"}`
+                : "Mise à jour en cours dans FBI…"
               : lastRun
                 ? `Mis à jour ${whenLabel(lastRun.at)} · ${plural(lastRun.total, "licence validée", "licences validées")}`
                 : "Jamais mis à jour depuis FBI"}
@@ -152,12 +157,16 @@ export function LicenceImportPanel({ clubId, clubSlug, initialStatus }: { clubId
         </div>
         {fbiConfigured ? (
           <Button variant="primary" size="sm" icon={<RefreshCw />} loading={requesting} disabled={jobActive || uploading} onClick={updateFromFbi} className="ml-auto">
-            {jobActive ? "En cours…" : "Mettre à jour depuis FBI"}
+            {jobActive ? (retrying ? "Nouvel essai prévu" : "En cours…") : "Mettre à jour depuis FBI"}
           </Button>
         ) : null}
       </div>
 
-      {jobActive ? (
+      {jobActive && retrying ? (
+        <Notice tone="warning" title={`FBI n'a pas répondu, nouvel essai automatique${nextAttempt ? ` vers ${nextAttempt}` : ""}`} live>
+          {status?.job?.error} Rien à faire de ton côté. Si c&apos;est urgent, dépose le fichier Excel ci-dessous.
+        </Notice>
+      ) : jobActive ? (
         <Notice tone="info" title="Récupération des licences validées dans FBI" live>
           Ça prend en général quelques minutes. Tu peux quitter cette page : la liste des joueurs se mettra à jour toute seule.
         </Notice>

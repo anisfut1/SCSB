@@ -9287,6 +9287,8 @@ export interface components {
                 createdAt: string;
                 finishedAt: string | null;
                 error: string | null;
+                attempts: number;
+                nextAttemptAt: string | null;
             } | null;
         };
         AutoAssignTeamsResultDto: {
