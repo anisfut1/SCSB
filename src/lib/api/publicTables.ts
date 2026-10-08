@@ -97,10 +97,19 @@ export async function listPublicTableAssignments(clubSlug: string, token: string
  * d'un autre licencié, que le serveur réserve aux coachs / admins du club
  * (403 `TABLES_MANAGER_REQUIRED` sinon — retour du club, 2026-10-02).
  */
-export async function putPublicTableAssignment(clubSlug: string, token: string, matchId: string, role: TableAssignmentRole, licencieId?: string): Promise<PublicAssignResultDto> {
+export async function putPublicTableAssignment(
+  clubSlug: string,
+  token: string,
+  matchId: string,
+  role: TableAssignmentRole,
+  licencieId?: string,
+  /** Se positionner quand même alors que son équipe joue sur ce créneau (seul MATCH_CONFLICT est levé côté serveur). */
+  ignoreMatchConflict?: boolean,
+): Promise<PublicAssignResultDto> {
+  const body = { ...(licencieId ? { licencieId } : {}), ...(ignoreMatchConflict ? { ignoreMatchConflict: true } : {}) };
   return publicFetch<PublicAssignResultDto>(`/v1/public/clubs/${encodeURIComponent(clubSlug)}/matches/${matchId}/table-assignments/${role}`, token, {
     method: "PUT",
-    ...(licencieId ? { body: { licencieId } } : {}),
+    ...(Object.keys(body).length > 0 ? { body } : {}),
   });
 }
 

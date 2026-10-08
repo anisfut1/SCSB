@@ -7758,6 +7758,7 @@ export interface components {
         PutTableAssignmentDto: {
             /** Format: uuid */
             licencieId: string;
+            ignoreMatchConflict?: boolean;
         };
         TableAssignmentsListDto: {
             matches: components["schemas"]["TableAssignmentsForMatchDto"][];
@@ -7880,6 +7881,7 @@ export interface components {
         };
         PublicAssignTableBodyDto: {
             licencieId?: string;
+            ignoreMatchConflict?: boolean;
         };
         PoolStandingsListDto: {
             standings: components["schemas"]["PoolStandingsDto"][];

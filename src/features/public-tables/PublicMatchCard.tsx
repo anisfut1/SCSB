@@ -36,7 +36,7 @@ export function PublicMatchCard({
   onChanged: (message: string) => void;
 }) {
   const [pendingRole, setPendingRole] = useState<TableAssignmentRole | null>(null);
-  const [roleError, setRoleError] = useState<{ role: TableAssignmentRole; message: string } | null>(null);
+  const [roleError, setRoleError] = useState<{ role: TableAssignmentRole; message: string; canForce?: boolean } | null>(null);
   const [confirm, confirmDialog] = useConfirm();
 
   const slotByRole = {
@@ -46,14 +46,16 @@ export function PublicMatchCard({
     REFEREE: match.assignments.referee,
   } as const;
 
-  async function choose(role: TableAssignmentRole) {
+  async function choose(role: TableAssignmentRole, ignoreMatchConflict = false) {
     setPendingRole(role);
     setRoleError(null);
     try {
-      await putPublicTableAssignment(clubSlug, token, match.match.id, role);
+      await putPublicTableAssignment(clubSlug, token, match.match.id, role, undefined, ignoreMatchConflict);
       onChanged(`Tu es positionné·e comme ${TABLE_ROLE_LABELS[role].toLowerCase()}.`);
     } catch (err) {
-      setRoleError({ role, message: err instanceof ApiError ? err.message : "Impossible de te positionner." });
+      // Son équipe joue sur ce créneau (retour du club, 2026-10-08) : avertissement, mais il peut ne pas jouer et faire la table.
+      const canForce = err instanceof ApiError && err.code === "MATCH_CONFLICT";
+      setRoleError({ role, message: err instanceof ApiError ? err.message : "Impossible de te positionner.", canForce });
     } finally {
       setPendingRole(null);
     }
@@ -165,7 +167,23 @@ export function PublicMatchCard({
                 </div>
               )}
 
-              {roleError?.role === role ? <FormMessage tone="danger">{roleError.message}</FormMessage> : null}
+              {roleError?.role === role ? (
+                roleError.canForce ? (
+                  <div className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[color-mix(in_oklab,var(--warning)_28%,transparent)] bg-warning-soft p-2.5">
+                    <p className="flex items-start gap-1.5 text-[13px] text-warning">
+                      <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                      <span>
+                        {roleError.message} — ton équipe joue sur ce créneau. Si tu ne joues pas ce match, tu peux quand même faire la table.
+                      </span>
+                    </p>
+                    <Button variant="secondary" size="sm" loading={busy} onClick={() => choose(role, true)}>
+                      Me positionner quand même
+                    </Button>
+                  </div>
+                ) : (
+                  <FormMessage tone="danger">{roleError.message}</FormMessage>
+                )
+              ) : null}
             </div>
           );
         })}
