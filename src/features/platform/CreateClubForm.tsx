@@ -8,7 +8,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, FormMessage, Input } from "@/components/ui/Field";
 
-/** §24 de la demande : `POST /v1/platform/clubs` — l'invitation du premier club_admin est gérée par le backend (`inviteUserByEmail`), jamais depuis ce frontend avec une clé service role. */
+/** §24 de la demande : `POST /v1/platform/clubs` — l'invitation du premier club_admin (email Ball Manager, voir club-manager-api `auth/account-invites.ts`) est gérée par le backend, jamais depuis ce frontend avec une clé service role. */
 export function CreateClubForm() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -70,7 +70,7 @@ export function CreateClubForm() {
           label="Email du premier administrateur"
           optional
           className="sm:col-span-2"
-          hint="Si renseigné, une invitation Supabase est envoyée automatiquement par club-manager-api et le rôle club_admin lui est attribué."
+          hint="Cette personne devient administrateur du club et reçoit un email Ball Manager pour créer son mot de passe."
         >
           {(props) => <Input {...props} name="admin_email" type="email" placeholder="admin@club-b.example" autoComplete="off" />}
         </Field>

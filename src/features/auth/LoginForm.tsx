@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
 import { signInAction } from "@/server/actions/auth";
 import type { AuthActionResult } from "@/lib/auth/service";
@@ -36,6 +37,10 @@ export function LoginForm() {
           </span>
         )}
       </Field>
+
+      <Link href="/mot-de-passe-oublie" className="-mt-2 self-end text-[13px] font-medium text-accent-text underline-offset-4 hover:underline">
+        Mot de passe oublié ?
+      </Link>
 
       {state.error ? (
         <Notice tone="danger" live>

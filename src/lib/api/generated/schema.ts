@@ -3480,6 +3480,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/account/password-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PasswordResetDto"];
+                };
+            };
+            responses: {
+                /** @description Demande prise en compte */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            sent: true;
+                        };
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/public/clubs/{clubSlug}/table-leaderboard": {
         parameters: {
             query?: never;
@@ -8362,6 +8422,10 @@ export interface components {
             difference: number | null;
             outOfRanking: boolean;
             isClub: boolean;
+        };
+        PasswordResetDto: {
+            /** Format: email */
+            email: string;
         };
         TableLeaderboardDto: {
             seasonStart: string;

@@ -17,4 +17,4 @@ export const PLATFORM_NAME = "Ball Manager";
  * marque, voir club-manager-api/docs/PUBLIC_TABLE_ACCESS.md — l'identité
  * vient d'un jeton personnel, jamais d'une session Supabase.
  */
-export const PUBLIC_PATHS = ["/login", "/public"];
+export const PUBLIC_PATHS = ["/login", "/public", "/bienvenue", "/mot-de-passe-oublie"];
