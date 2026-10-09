@@ -86,3 +86,38 @@ export function teamDisplayName(team: { name: string; sexe: "M" | "F" | null }):
   if (new RegExp(`(^|\\s)${team.sexe}$`).test(team.name.trim())) return team.name;
   return `${team.name} (${team.sexe})`;
 }
+
+/** « U15 (F) contre Agde » (adversaire inconnu : l'équipe seule). */
+export function matchTitle(match: { team: { name: string }; opponent: string | null }): string {
+  return match.opponent ? `${match.team.name} contre ${match.opponent}` : match.team.name;
+}
+
+/** « Sam. 10 oct. · 18:00 » ; date inconnue : « Date à confirmer ». */
+export function shortDateTime(iso: string | null, timezone: string): string {
+  if (!iso) return "Date à confirmer";
+  const day = new Date(iso).toLocaleDateString("fr-FR", { timeZone: timezone, weekday: "short", day: "numeric", month: "short" });
+  return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${timeOf(iso, timezone)}`;
+}
+
+/** « 11 disponibles · 1 indisponible · 2 sans réponse » (zéros omis). */
+export function availabilitySummary(c: { available: number; unavailable: number; uncertain: number; noResponse: number }): string {
+  const parts = [
+    c.available ? `${c.available} disponible${c.available > 1 ? "s" : ""}` : null,
+    c.unavailable ? `${c.unavailable} indisponible${c.unavailable > 1 ? "s" : ""}` : null,
+    c.uncertain ? `${c.uncertain} incertain${c.uncertain > 1 ? "s" : ""}` : null,
+    c.noResponse ? `${c.noResponse} sans réponse` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "Aucun joueur dans l'effectif";
+}
+
+/** « 10 convoqués · 7 confirmés · 1 refus · 2 en attente ». */
+export function convocationSummary(c: { convoked: number; confirmed: number; declined: number; pending: number }): string {
+  return [
+    `${c.convoked} convoqué${c.convoked > 1 ? "s" : ""}`,
+    c.confirmed ? `${c.confirmed} confirmé${c.confirmed > 1 ? "s" : ""}` : null,
+    c.declined ? `${c.declined} refus` : null,
+    c.pending ? `${c.pending} en attente` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}

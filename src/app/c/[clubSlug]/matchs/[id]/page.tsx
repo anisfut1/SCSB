@@ -9,6 +9,8 @@ import { MatchDetailView } from "@/features/matches/detail/MatchDetailView";
 import { parseMatchTab } from "@/features/matches/detail/labels";
 import { MatchRequestCard } from "@/features/derogation-requests/MatchRequestCard";
 import type { DerogationStatusDto, MatchDetailsDto } from "@/lib/api/matches";
+import { ClubMatchTeamLifeBlock } from "@/features/team-life/MatchTeamLifeBlocks";
+import { TEAM_LIFE_MANAGER_ROLES } from "@/features/team-life/roles";
 
 /**
  * §15 de la demande : toutes les données viennent de
@@ -80,6 +82,8 @@ export default async function MatchDetailPage({
           ) : null
         }
       />
+      {/* Vie d'équipe (Lot 2) : disponibilités et convocation, coach de l'équipe / admin. */}
+      {tab === "informations" && hasAnyRole(club.roles, TEAM_LIFE_MANAGER_ROLES) ? <ClubMatchTeamLifeBlock clubId={club.id} matchId={id} timezone={club.timezone} /> : null}
     </PageContainer>
   );
 }

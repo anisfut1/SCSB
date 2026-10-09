@@ -11,7 +11,16 @@ function Home() {
 
 const actionCenter = vi.fn();
 const respond = vi.fn();
-vi.mock("@/lib/api/teamLife", () => ({ publicTeamLife: { actionCenter: (...a: unknown[]) => actionCenter(...a), respond: (...a: unknown[]) => respond(...a) } }));
+const respondAvailability = vi.fn();
+const respondConvocation = vi.fn();
+vi.mock("@/lib/api/teamLife", () => ({
+  publicTeamLife: {
+    actionCenter: (...a: unknown[]) => actionCenter(...a),
+    respond: (...a: unknown[]) => respond(...a),
+    respondAvailability: (...a: unknown[]) => respondAvailability(...a),
+    respondConvocation: (...a: unknown[]) => respondConvocation(...a),
+  },
+}));
 
 const training = (id: string, teamId: string, startsAt: string) => ({
   id,
@@ -85,5 +94,66 @@ describe("Home « À faire »", () => {
     render(<Home />);
     await screen.findByText(/Lina — entraînement/);
     expect(screen.queryByRole("button", { name: "Ajouter un enfant" })).toBeNull();
+  });
+});
+
+const MATCH = { id: "m1", team: { id: "u11", name: "U11 (M)" }, startsAt: "2099-10-17T14:00:00.000Z", isHome: false, opponent: "Agde", venueName: "Gymnase Agde Basket", venueAddress: "12 rue du Sport, Agde", status: "scheduled" };
+
+describe("Home « À faire » — matchs (Lot 2)", () => {
+  it("disponibilité de Tom avec SON lien ; convocation de Lina : rendez-vous, lieu du match, confirmation en un clic", async () => {
+    respondAvailability.mockResolvedValue({});
+    respondConvocation.mockResolvedValue({});
+    actionCenter.mockResolvedValue({
+      ...DTO,
+      actions: [
+        { type: "MATCH_AVAILABILITY", licencieId: "tom", firstName: "Tom", match: MATCH, currentResponse: null },
+        {
+          type: "CONVOCATION_RESPONSE",
+          licencieId: "lina",
+          firstName: "Lina",
+          match: { ...MATCH, team: { id: "u15", name: "U15 (F)" } },
+          convocation: {
+            revision: 1,
+            meetingAt: "2099-10-17T12:15:00.000Z",
+            meetingPoint: "Parking Maurice Clavel",
+            coachMessage: "Tenue complète.",
+            matchSnapshot: { startsAt: MATCH.startsAt, isHome: false, opponent: "Agde", venueName: "Gymnase Agde Basket", venueAddress: "12 rue du Sport, Agde", teamName: "U15 (F)" },
+            message: "Bonjour,\n\nConvocation pour Lina avec les U15 (F).",
+          },
+          currentResponse: "PENDING",
+          matchClosed: false,
+        },
+      ],
+    });
+    render(<Home />);
+    expect(await screen.findByText("Tom est disponible pour ce match ?")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Disponible$/ }));
+    await waitFor(() => expect(respondAvailability).toHaveBeenCalledWith("sete", "lien-tom", "m1", "AVAILABLE"));
+
+    expect(screen.getByText("Parking Maurice Clavel")).toBeTruthy();
+    expect(screen.getByText("Lieu du match")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Lina ne pourra pas venir/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Je confirme/ }));
+    await waitFor(() => expect(respondConvocation).toHaveBeenCalledWith("sete", "lien-lina", "m1", "CONFIRMED"));
+  });
+
+  it("match annulé : la convocation reste visible, sans bouton de confirmation", async () => {
+    actionCenter.mockResolvedValue({
+      ...DTO,
+      actions: [
+        {
+          type: "CONVOCATION_RESPONSE",
+          licencieId: "lina",
+          firstName: "Lina",
+          match: { ...MATCH, status: "cancelled" },
+          convocation: { revision: 1, meetingAt: null, meetingPoint: "Parking", coachMessage: null, matchSnapshot: { startsAt: MATCH.startsAt, isHome: false, opponent: "Agde", venueName: "G", venueAddress: null, teamName: "U15 (F)" }, message: "Bonjour," },
+          currentResponse: "PENDING",
+          matchClosed: true,
+        },
+      ],
+    });
+    render(<Home />);
+    expect(await screen.findByText("Match annulé ou indisponible")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Je confirme/ })).toBeNull();
   });
 });

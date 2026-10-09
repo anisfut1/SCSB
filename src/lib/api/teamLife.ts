@@ -24,6 +24,13 @@ export type PlanningEventDto = components["schemas"]["PlanningEventDto"];
 export type PlanningDto = components["schemas"]["PlanningDto"];
 export type ActionCenterDto = components["schemas"]["ActionCenterDto"];
 export type ActionCenterActionDto = components["schemas"]["ActionCenterActionDto"];
+// Lot 2 : disponibilités des matchs et convocations.
+export type MatchAvailabilityValue = NonNullable<components["schemas"]["MatchAvailabilityValue"]>;
+export type ConvocationResponseValue = NonNullable<components["schemas"]["ConvocationResponseValue"]>;
+export type TeamLifeMatchDto = components["schemas"]["TeamLifeMatchDto"];
+export type MatchTeamLifeDto = components["schemas"]["MatchTeamLifeDto"];
+export type PutConvocationDraftDto = components["schemas"]["PutConvocationDraftDto"];
+export type ConvocationPreviewDto = components["schemas"]["ConvocationPreviewDto"];
 
 export interface PeriodQuery {
   from?: string;
@@ -53,6 +60,11 @@ export const clubTeamLife = {
   cancel: (f: ApiFetcher, clubId: string, occurrenceId: string, reason: string | null) => f<TrainingOccurrenceDto>(`${clubBase(clubId)}/trainings/${occurrenceId}/cancel`, { method: "POST", body: { reason } }),
   restore: (f: ApiFetcher, clubId: string, occurrenceId: string) => f<TrainingOccurrenceDto>(`${clubBase(clubId)}/trainings/${occurrenceId}/restore`, { method: "POST" }),
   planning: (f: ApiFetcher, clubId: string, params: PeriodQuery & { teamId?: string; kind?: "MATCH" | "TRAINING" } = {}) => f<PlanningDto>(`${clubBase(clubId)}/planning${qs({ ...params })}`),
+  match: (f: ApiFetcher, clubId: string, matchId: string) => f<MatchTeamLifeDto>(`${clubBase(clubId)}/matches/${matchId}`),
+  openAvailability: (f: ApiFetcher, clubId: string, matchId: string) => f<MatchTeamLifeDto>(`${clubBase(clubId)}/matches/${matchId}/availability/open`, { method: "POST" }),
+  saveDraft: (f: ApiFetcher, clubId: string, matchId: string, body: PutConvocationDraftDto) => f<MatchTeamLifeDto>(`${clubBase(clubId)}/matches/${matchId}/convocation/draft`, { method: "PUT", body }),
+  preview: (f: ApiFetcher, clubId: string, matchId: string) => f<ConvocationPreviewDto>(`${clubBase(clubId)}/matches/${matchId}/convocation/preview`, { method: "POST" }),
+  send: (f: ApiFetcher, clubId: string, matchId: string) => f<MatchTeamLifeDto>(`${clubBase(clubId)}/matches/${matchId}/convocation/send`, { method: "POST" }),
 };
 
 // ── Espace public (lien personnel, jamais de jeton Supabase) ───────────
@@ -69,6 +81,14 @@ export const publicTeamLife = {
   restore: (clubSlug: string, token: string, occurrenceId: string) => publicFetch<TrainingOccurrenceDto>(`${publicBase(clubSlug)}/trainings/${occurrenceId}/restore`, token, { method: "POST" }),
   /** Réponse du licencié DU LIEN (un lien par enfant : on envoie celui de l'enfant concerné). */
   respond: (clubSlug: string, token: string, occurrenceId: string, response: TrainingResponseValue) => publicFetch<TrainingResponseResultDto>(`${publicBase(clubSlug)}/trainings/${occurrenceId}/response`, token, { method: "PUT", body: { response } }),
+  match: (clubSlug: string, token: string, matchId: string) => publicFetch<MatchTeamLifeDto>(`${publicBase(clubSlug)}/matches/${matchId}`, token),
+  openAvailability: (clubSlug: string, token: string, matchId: string) => publicFetch<MatchTeamLifeDto>(`${publicBase(clubSlug)}/matches/${matchId}/availability/open`, token, { method: "POST" }),
+  saveDraft: (clubSlug: string, token: string, matchId: string, body: PutConvocationDraftDto) => publicFetch<MatchTeamLifeDto>(`${publicBase(clubSlug)}/matches/${matchId}/convocation/draft`, token, { method: "PUT", body }),
+  preview: (clubSlug: string, token: string, matchId: string) => publicFetch<ConvocationPreviewDto>(`${publicBase(clubSlug)}/matches/${matchId}/convocation/preview`, token, { method: "POST" }),
+  send: (clubSlug: string, token: string, matchId: string) => publicFetch<MatchTeamLifeDto>(`${publicBase(clubSlug)}/matches/${matchId}/convocation/send`, token, { method: "POST" }),
+  /** Disponibilité / confirmation du licencié DU LIEN (celui de l'enfant concerné). */
+  respondAvailability: (clubSlug: string, token: string, matchId: string, response: MatchAvailabilityValue) => publicFetch<unknown>(`${publicBase(clubSlug)}/matches/${matchId}/availability/response`, token, { method: "PUT", body: { response } }),
+  respondConvocation: (clubSlug: string, token: string, matchId: string, response: "CONFIRMED" | "DECLINED") => publicFetch<unknown>(`${publicBase(clubSlug)}/matches/${matchId}/convocation/response`, token, { method: "PUT", body: { response } }),
   /** Home « À faire » : les liens de l'appareil voyagent dans le corps, jamais dans l'URL. */
   actionCenter: (clubSlug: string, tokens: string[]) => apiFetch<ActionCenterDto>(`${publicBase(clubSlug)}/action-center`, { method: "POST", body: { tokens } }),
   planning: (clubSlug: string, tokens: string[], period: PeriodQuery = {}) => apiFetch<PlanningDto>(`${publicBase(clubSlug)}/planning${qs({ ...period })}`, { method: "POST", body: { tokens } }),

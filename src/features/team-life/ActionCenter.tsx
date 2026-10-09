@@ -9,9 +9,10 @@ import { Card } from "@/components/ui/Card";
 import { SectionHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Toast } from "@/components/ui/Toast";
-import { publicTeamLife, type ActionCenterActionDto, type ActionCenterDto, type TrainingResponseValue } from "@/lib/api/teamLife";
+import { publicTeamLife, type ActionCenterActionDto, type ActionCenterDto, type ConvocationResponseValue, type MatchAvailabilityValue, type TrainingResponseValue } from "@/lib/api/teamLife";
 import { getDeviceTokens, removeDeviceTokens } from "@/lib/publicToken";
 import { countsSummary, locationLabel, relativeDay, timeOf } from "./labels";
+import { AvailabilityCard, CoachMatchCard, ConvocationCard, type AvailabilityAction, type ConvocationAction } from "./MatchActionCards";
 import { ResponseButtons } from "./ResponseButtons";
 
 type ResponseAction = Extract<ActionCenterActionDto, { type: "TRAINING_RESPONSE" }>;
@@ -59,7 +60,7 @@ export function useActionCenter(clubSlug: string, activeToken: string): { data: 
  * plausible (homonyme de nom de famille au club, ou déjà plusieurs enfants).
  */
 export function ActionCenter({ clubSlug, timezone, data, tokens, failed, onAddPerson }: { clubSlug: string; timezone: string; data: ActionCenterDto | null; tokens: string[]; failed: boolean; onAddPerson: () => void }) {
-  const [answers, setAnswers] = useState<Record<string, TrainingResponseValue | null>>({});
+  const [answers, setAnswers] = useState<Record<string, string | null>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<{ tone: "success" | "danger"; message: string } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -74,10 +75,11 @@ export function ActionCenter({ clubSlug, timezone, data, tokens, failed, onAddPe
     toastTimer.current = setTimeout(() => setToast(null), 3500);
   }, []);
 
+  /** Réponse optimiste avec le lien de l'enfant concerné ; retour en arrière + message si l'envoi échoue. */
   const respond = useCallback(
-    async (action: ResponseAction, value: TrainingResponseValue) => {
+    async (action: AnswerableAction, value: string, send: (token: string) => Promise<unknown>) => {
       if (!data) return;
-      const key = `${action.training.id}:${action.licencieId}`;
+      const key = keyOf(action);
       const person = data.people.find((p) => p.licencieId === action.licencieId);
       const token = person ? tokens[person.tokenIndex] : undefined;
       if (!token) return;
@@ -85,7 +87,7 @@ export function ActionCenter({ clubSlug, timezone, data, tokens, failed, onAddPe
       setAnswers((a) => ({ ...a, [key]: value }));
       setSaving((s) => ({ ...s, [key]: true }));
       try {
-        await publicTeamLife.respond(clubSlug, token, action.training.id, value);
+        await send(token);
       } catch {
         setAnswers((a) => ({ ...a, [key]: previous }));
         showToast({ tone: "danger", message: "Impossible d'enregistrer la réponse." });
@@ -93,7 +95,7 @@ export function ActionCenter({ clubSlug, timezone, data, tokens, failed, onAddPe
         setSaving((s) => ({ ...s, [key]: false }));
       }
     },
-    [answers, clubSlug, data, showToast, tokens],
+    [answers, data, showToast, tokens],
   );
 
   if (failed) return null; // La Home reste utilisable : le reste de l'accueil s'affiche normalement.
@@ -106,17 +108,30 @@ export function ActionCenter({ clubSlug, timezone, data, tokens, failed, onAddPe
     );
   }
 
-  const responseActions = data.actions.filter((a): a is ResponseAction => a.type === "TRAINING_RESPONSE");
-  const coachActions = data.actions.filter((a): a is CoachAction => a.type === "COACH_TRAINING_SUMMARY");
-  const current = (a: ResponseAction) => {
-    const key = `${a.training.id}:${a.licencieId}`;
+  const current = (a: AnswerableAction): string | null => {
+    const key = keyOf(a);
     return key in answers ? answers[key]! : a.currentResponse;
   };
-  // « À faire » = sans réponse au chargement (une réponse donnée ici reste en place, cochée, jusqu'au prochain passage).
-  const todo = responseActions.filter((a) => a.currentResponse === null);
-  const answered = responseActions.filter((a) => a.currentResponse !== null);
-  const remaining = todo.filter((a) => current(a) === null).length;
+  // Ordre de l'API (réponses attendues, convocations, coach, le reste). « À faire » = sans réponse au
+  // chargement : une réponse donnée ici reste en place, cochée, jusqu'au prochain passage.
+  const answerable = data.actions.filter(isAnswerable);
+  const todo = answerable.filter(isTodo);
+  const answered = answerable.filter((a) => !isTodo(a));
+  const coach = data.actions.filter((a) => a.type === "COACH_TRAINING_SUMMARY" || a.type === "COACH_MATCH");
+  const remaining = todo.filter((a) => current(a) === null || current(a) === "PENDING").length;
   const several = data.people.length > 1;
+
+  const renderAction = (a: AnswerableAction, compact = false) => {
+    const key = keyOf(a);
+    const busy = saving[key] === true;
+    if (a.type === "TRAINING_RESPONSE") {
+      return <TrainingResponseCard action={a} timezone={timezone} value={current(a) as TrainingResponseValue | null} saving={busy} showTeam={several} compact={compact} onRespond={(v) => void respond(a, v, (token) => publicTeamLife.respond(clubSlug, token, a.training.id, v))} />;
+    }
+    if (a.type === "MATCH_AVAILABILITY") {
+      return <AvailabilityCard action={a} timezone={timezone} value={current(a) as MatchAvailabilityValue | null} saving={busy} compact={compact} onRespond={(v) => void respond(a, v, (token) => publicTeamLife.respondAvailability(clubSlug, token, a.match.id, v))} />;
+    }
+    return <ConvocationCard action={a} timezone={timezone} value={(current(a) ?? "PENDING") as ConvocationResponseValue} saving={busy} onRespond={(v) => void respond(a, v, (token) => publicTeamLife.respondConvocation(clubSlug, token, a.match.id, v))} />;
+  };
 
   return (
     <section aria-labelledby="todo-title" className="flex flex-col gap-4">
@@ -133,14 +148,14 @@ export function ActionCenter({ clubSlug, timezone, data, tokens, failed, onAddPe
         }
       />
 
-      {todo.length === 0 && coachActions.length === 0 ? (
+      {todo.length === 0 && coach.length === 0 ? (
         <Card className="flex items-center gap-3">
           <span aria-hidden className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-success-soft text-success [&_svg]:size-5">
             <CheckCircle2 />
           </span>
           <div className="min-w-0">
             <p className="text-[15px] font-semibold text-foreground">Tout est à jour</p>
-            <p className="type-meta">{responseActions.length ? "Tu as répondu pour tous les prochains entraînements." : "Aucun entraînement à venir dans les 14 prochains jours."}</p>
+            <p className="type-meta">{answerable.length ? "Tu as répondu à tout ce qui était demandé." : "Aucune réponse attendue pour le moment."}</p>
           </div>
         </Card>
       ) : null}
@@ -148,9 +163,7 @@ export function ActionCenter({ clubSlug, timezone, data, tokens, failed, onAddPe
       {todo.length ? (
         <ul className="flex flex-col gap-3">
           {todo.map((a) => (
-            <li key={`${a.training.id}:${a.licencieId}`}>
-              <TrainingResponseCard action={a} timezone={timezone} value={current(a)} saving={saving[`${a.training.id}:${a.licencieId}`] === true} showTeam={several} onRespond={(v) => void respond(a, v)} />
-            </li>
+            <li key={keyOf(a)}>{renderAction(a)}</li>
           ))}
         </ul>
       ) : null}
@@ -160,13 +173,19 @@ export function ActionCenter({ clubSlug, timezone, data, tokens, failed, onAddPe
         </p>
       ) : null}
 
-      {coachActions.length ? (
+      {coach.length ? (
         <ul className="flex flex-col gap-3">
-          {coachActions.map((a) => (
-            <li key={`coach-${a.training.id}`}>
-              <CoachSummaryCard action={a} timezone={timezone} href={`/public/${clubSlug}/entrainements?equipe=${a.training.team.id}&seance=${a.training.id}`} />
-            </li>
-          ))}
+          {coach.map((a) =>
+            a.type === "COACH_TRAINING_SUMMARY" ? (
+              <li key={`coach-${a.training.id}`}>
+                <CoachSummaryCard action={a} timezone={timezone} href={`/public/${clubSlug}/entrainements?equipe=${a.training.team.id}&seance=${a.training.id}`} />
+              </li>
+            ) : a.type === "COACH_MATCH" ? (
+              <li key={`coach-m-${a.match.id}`}>
+                <CoachMatchCard action={a} timezone={timezone} href={`/public/${clubSlug}/matchs/${a.match.id}#vie-equipe`} />
+              </li>
+            ) : null,
+          )}
         </ul>
       ) : null}
 
@@ -181,9 +200,7 @@ export function ActionCenter({ clubSlug, timezone, data, tokens, failed, onAddPe
           </summary>
           <ul className="flex flex-col gap-3 border-t border-border p-3">
             {answered.map((a) => (
-              <li key={`${a.training.id}:${a.licencieId}`}>
-                <TrainingResponseCard action={a} timezone={timezone} value={current(a)} saving={saving[`${a.training.id}:${a.licencieId}`] === true} showTeam={several} onRespond={(v) => void respond(a, v)} compact />
-              </li>
+              <li key={keyOf(a)}>{renderAction(a, true)}</li>
             ))}
           </ul>
         </details>
@@ -192,6 +209,22 @@ export function ActionCenter({ clubSlug, timezone, data, tokens, failed, onAddPe
       {toast ? <Toast tone={toast.tone} message={toast.message} /> : null}
     </section>
   );
+}
+
+type AnswerableAction = ResponseAction | AvailabilityAction | ConvocationAction;
+
+function isAnswerable(a: ActionCenterActionDto): a is AnswerableAction {
+  return a.type === "TRAINING_RESPONSE" || a.type === "MATCH_AVAILABILITY" || a.type === "CONVOCATION_RESPONSE";
+}
+
+function isTodo(a: AnswerableAction): boolean {
+  if (a.type === "CONVOCATION_RESPONSE") return a.currentResponse === "PENDING" && !a.matchClosed;
+  return a.currentResponse === null;
+}
+
+function keyOf(a: AnswerableAction): string {
+  if (a.type === "TRAINING_RESPONSE") return `T:${a.training.id}:${a.licencieId}`;
+  return `${a.type === "MATCH_AVAILABILITY" ? "A" : "C"}:${a.match.id}:${a.licencieId}`;
 }
 
 function TrainingResponseCard({ action, timezone, value, saving, showTeam, onRespond, compact }: { action: ResponseAction; timezone: string; value: TrainingResponseValue | null; saving: boolean; showTeam: boolean; onRespond: (v: TrainingResponseValue) => void; compact?: boolean }) {

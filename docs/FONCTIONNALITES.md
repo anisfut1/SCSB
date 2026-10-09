@@ -146,6 +146,17 @@ Deux circuits distincts :
 - Écrans : `/c/{club}/planning`, `/c/{club}/entrainements`, `/public/{club}/planning`, `/public/{club}/entrainements` (coach / admin), bloc « À faire » de `/public/{club}/accueil`.
 - API (préfixe `…/team-life`) : `GET|POST /teams/{teamId}/training-series`, `PATCH|DELETE /training-series/{id}`, `GET /trainings`, `GET|PATCH /trainings/{id}`, `POST /trainings/{id}/cancel|restore`, `GET /planning` ; public : mêmes routes `?token=`, `GET /teams/{teamId}/trainings`, `PUT /trainings/{id}/response`, `POST /action-center`, `POST /planning`. Détail : `club-manager-api/docs/TEAM_LIFE.md`.
 
+### 3.12 Vie d'équipe — disponibilités des matchs et convocations (Lot 2)
+- Trois étapes distinctes : **disponible** (« je peux venir »), **convoqué** (« le coach m'a choisi »), **confirmé** (« je confirme »).
+- **Demander les disponibilités** (coach de l'équipe / admin, depuis la fiche match) : les familles répondent Disponible / Indisponible / Incertain·e depuis leur accueil. Aucune convocation n'est créée.
+- **Préparer la convocation** (3 écrans) : sélection (disponibles présélectionnés et en tête, statut visible, alerte si un indisponible est choisi), rendez-vous (heure avec raccourcis 45 min / 1h / 1h15 avant, lieu obligatoire à l'extérieur, gymnase du match par défaut à domicile, message du coach), **aperçu réel** du message parent / joueur majeur, puis « Envoyer la convocation ».
+- **Message personnalisé** : « Convocation pour Lina avec les U15 (F) » pour un parent, « Bonjour Anis » pour un joueur majeur ; à l'extérieur, rendez-vous et lieu du match toujours séparés ; aucune tournure genrée.
+- **Accueil des familles** : la convocation telle qu'envoyée, « Je confirme » / « Lina ne pourra pas venir » en un clic.
+- **Suivi coach** : convoqués / confirmés / refus / en attente, qui a décliné ; étape suivante de chaque match sur l'accueil (demander, préparer, suivre).
+- **Après envoi** : une modification n'est visible qu'après « Envoyer la mise à jour » (heure ou lieu changés → reconfirmation). Match modifié par la FFBB → alerte « Le match a été modifié depuis l'envoi », les familles gardent la version envoyée ; match annulé → plus de confirmation. Envoi dans l'application seulement (pas d'email / SMS en V1).
+- Écrans : bloc « Disponibilités et convocation » des fiches match `/c/{club}/matchs/{id}` et `/public/{club}/matchs/{id}` (coach / admin) ; accueil public.
+- API (préfixe `…/team-life`) : `GET /matches/{id}`, `POST …/availability/open`, `PUT …/convocation/draft`, `POST …/convocation/preview|send` (deux espaces) ; public : `PUT …/availability/response`, `PUT …/convocation/response`.
+
 ### 3.10 Espace public et accueil personnel
 - Sans compte : matchs, résultats, classements, fiches joueurs, classement des tables.
 - Identification : la personne tape son **prénom et son nom** (ordre libre, fautes tolérées : « ansi abde meriuam » retrouve Anis) ; l'API propose au plus 5 fiches au format « Anis A. », jamais la liste du club. Puis **lien personnel** par email (adresse masquée affichée, rappel « regarde dans tes indésirables »).
@@ -308,6 +319,9 @@ Le chantier de migration front → back et ses lots (LOT-02 à LOT-13) sont suiv
 ## 10. Journal des évolutions
 
 Les plus récentes d'abord. Historique complet : `git log` des deux dépôts et [`docs/migration/CHANGELOG.md`](migration/CHANGELOG.md).
+
+**2026-10-10**
+- Vie d'équipe, Lot 2 : disponibilités des matchs, convocations personnalisées (aperçu, envoi dans l'application, confirmations en un clic, mise à jour explicite, alerte si la FFBB modifie le match).
 
 **2026-10-09**
 - Vie d'équipe, Lot 1 : entraînements (créneaux de la semaine, séances, annuler / modifier), réponses Présent / Absent / Incertain, accueil public « À faire » (plusieurs enfants sur le même téléphone), planning matchs + entraînements dans les deux espaces.

@@ -8,6 +8,7 @@ import { parseMatchTab } from "@/features/matches/detail/labels";
 import type { MatchDetailsDto } from "@/lib/api/matches";
 import { PublicMatchRequestBlock } from "@/features/public-derogations/PublicMatchRequestBlock";
 import { PublicOfficialDerogationBlock } from "@/features/public-derogations/PublicOfficialDerogationBlock";
+import { PublicMatchTeamLifeBlock } from "@/features/team-life/MatchTeamLifeBlocks";
 
 /**
  * Fiche match PUBLIQUE (retour du club, 2026-09-29 : "toutes les infos en
@@ -54,6 +55,8 @@ export default async function PublicMatchDetailPage({
         isAdmin={false}
         playerBasePath={`/public/${clubSlug}/joueurs`}
       />
+      {/* Vie d'équipe (Lot 2) : disponibilités et convocation, coach de l'équipe / admin reconnu par son lien. */}
+      {tab === "informations" ? <PublicMatchTeamLifeBlock clubSlug={clubSlug} matchId={id} timezone={club.timezone} /> : null}
       {/* Coach reconnu par son lien personnel : demande de dérogation depuis la fiche (rien pour les autres visiteurs). */}
       {tab === "informations" ? <PublicMatchRequestBlock clubSlug={clubSlug} matchId={id} /> : null}
       {/* Admin du club ou coordinateur : dérogation officielle FBI directement depuis la fiche (2026-10-02). */}
