@@ -81,9 +81,18 @@ function CandidateRow({ candidate, onChoose, choosing }: { candidate: TableSugge
   );
 }
 
-function UnavailableRow({ candidate }: { candidate: TableUnavailableCandidateDto }) {
+/**
+ * Indisponible : seul « son équipe joue sur ce créneau » peut être passé
+ * outre (retour du club, 2026-10-09 : « en tant que coach je peux pas mettre
+ * quelqu'un qui joue en même temps » — il peut ne pas jouer ce match), avec
+ * une confirmation. Déjà sur ce match ou sur une autre table au même moment :
+ * toujours bloqué.
+ */
+function UnavailableRow({ candidate, onForce, choosing }: { candidate: TableUnavailableCandidateDto; onForce: () => void; choosing: boolean }) {
   const name = `${candidate.licencie.firstName} ${candidate.licencie.lastName}`;
   const Icon = UNAVAILABLE_ICON[candidate.reasonCode];
+  const [confirming, setConfirming] = useState(false);
+  const canForce = candidate.reasonCode === "MATCH_CONFLICT";
   return (
     <li className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-border bg-surface p-3">
       <div className="flex items-start gap-3">
@@ -100,6 +109,25 @@ function UnavailableRow({ candidate }: { candidate: TableUnavailableCandidateDto
         <Icon className="size-3.5 shrink-0 text-subtle" aria-hidden />
         {candidate.reason}
       </span>
+      {canForce ? (
+        <div className="flex flex-wrap items-center gap-2 pl-12">
+          {confirming ? (
+            <>
+              <span className="text-xs text-foreground">Il ne joue pas ce match ? Le désigner quand même :</span>
+              <Button variant="primary" size="sm" loading={choosing} onClick={onForce}>
+                Confirmer
+              </Button>
+              <Button variant="ghost" size="sm" disabled={choosing} onClick={() => setConfirming(false)}>
+                Annuler
+              </Button>
+            </>
+          ) : (
+            <Button variant="secondary" size="sm" onClick={() => setConfirming(true)}>
+              Choisir quand même
+            </Button>
+          )}
+        </div>
+      ) : null}
     </li>
   );
 }
@@ -184,11 +212,11 @@ export function TableSuggestionsSheet({
     };
   }, [data, search]);
 
-  async function choose(licencieId: string) {
+  async function choose(licencieId: string, options?: { ignoreMatchConflict?: boolean }) {
     setChoosingId(licencieId);
     setError(null);
     try {
-      const result = await client.assign(matchId, role, licencieId);
+      const result = await client.assign(matchId, role, licencieId, options);
       onAssigned(result);
       onClose();
     } catch (err) {
@@ -270,7 +298,7 @@ export function TableSuggestionsSheet({
                 <SectionTitle count={filtered.unavailable.length}>Indisponibles</SectionTitle>
                 <ul className="flex flex-col gap-2">
                   {filtered.unavailable.map((c) => (
-                    <UnavailableRow key={c.licencie.id} candidate={c} />
+                    <UnavailableRow key={c.licencie.id} candidate={c} onForce={() => choose(c.licencie.id, { ignoreMatchConflict: true })} choosing={choosingId === c.licencie.id} />
                   ))}
                 </ul>
               </section>

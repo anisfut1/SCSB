@@ -11,7 +11,8 @@ import type { TableAssignmentResultDto, TableAssignmentRole, TableSuggestionsDto
  */
 export interface TablesClient {
   suggestions(matchId: string, role: TableAssignmentRole): Promise<TableSuggestionsDto>;
-  assign(matchId: string, role: TableAssignmentRole, licencieId: string): Promise<TableAssignmentResultDto>;
+  /** `ignoreMatchConflict` : désigner quand même quelqu'un dont l'équipe joue sur ce créneau (seul MATCH_CONFLICT est levé côté serveur). */
+  assign(matchId: string, role: TableAssignmentRole, licencieId: string, options?: { ignoreMatchConflict?: boolean }): Promise<TableAssignmentResultDto>;
   unassign(matchId: string, role: TableAssignmentRole): Promise<void>;
   setRefereeStatus(matchId: string, noRefereeNeeded: boolean): Promise<unknown>;
 }
@@ -19,7 +20,7 @@ export interface TablesClient {
 export function clubTablesClient(clubId: string): TablesClient {
   return {
     suggestions: (matchId, role) => browserApi.tables.suggestions(clubId, matchId, role),
-    assign: (matchId, role, licencieId) => browserApi.tables.assign(clubId, matchId, role, { licencieId }),
+    assign: (matchId, role, licencieId, options) => browserApi.tables.assign(clubId, matchId, role, { licencieId, ...(options?.ignoreMatchConflict ? { ignoreMatchConflict: true } : {}) }),
     unassign: (matchId, role) => browserApi.tables.unassign(clubId, matchId, role),
     setRefereeStatus: (matchId, noRefereeNeeded) => browserApi.tables.setRefereeStatus(clubId, matchId, noRefereeNeeded),
   };
@@ -28,7 +29,7 @@ export function clubTablesClient(clubId: string): TablesClient {
 export function publicTablesClient(clubSlug: string, token: string): TablesClient {
   return {
     suggestions: (matchId, role) => getPublicTableSuggestions(clubSlug, token, matchId, role),
-    assign: (matchId, role, licencieId) => putPublicTableAssignment(clubSlug, token, matchId, role, licencieId),
+    assign: (matchId, role, licencieId, options) => putPublicTableAssignment(clubSlug, token, matchId, role, licencieId, options?.ignoreMatchConflict),
     unassign: (matchId, role) => deletePublicTableAssignment(clubSlug, token, matchId, role),
     setRefereeStatus: (matchId, noRefereeNeeded) => setPublicRefereeStatus(clubSlug, token, matchId, noRefereeNeeded),
   };
