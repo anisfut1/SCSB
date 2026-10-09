@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CalendarClock, CalendarDays, CalendarPlus, CalendarRange, ClipboardList, Dumbbell, Megaphone, Shirt, Trophy, UserRound } from "lucide-react";
+import { ArrowRight, CalendarClock, CalendarDays, CalendarPlus, CalendarRange, ClipboardList, Dumbbell, Megaphone, Shirt, Trophy, UserRound, Users } from "lucide-react";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -88,6 +88,8 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
   const severalPeople = (center.data?.people.length ?? 0) > 1;
   const coachTeams = home.teams.filter((t) => t.relation === "COACH");
   const playerTeams = home.teams.filter((t) => t.relation === "PLAYER");
+  // Une entrée par équipe (coach d'abord) : coacher et jouer dans la même équipe ne donne qu'un bouton.
+  const myTeams = [...coachTeams.map((t) => ({ id: t.id, name: t.name, coach: true })), ...playerTeams.map((t) => ({ id: t.id, name: t.name, coach: false }))].filter((t, i, all) => all.findIndex((o) => o.id === t.id) === i);
 
   return (
     <div className="flex flex-col gap-10">
@@ -117,6 +119,12 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
         }
         actions={
           <>
+            {/* Retour du club, 2026-10-10 : « j'ai pas la fiche équipe, aucun bouton pour y accéder ». */}
+            {myTeams.map((t) => (
+              <ButtonLink key={`team-${t.id}`} href={`${base}/equipes/${t.id}`} variant="primary" icon={<Users />} iconRight={<ArrowRight />}>
+                {t.coach ? "Fiche équipe" : "Mon équipe"} {t.name}
+              </ButtonLink>
+            ))}
             {home.roles.coach || home.roles.admin ? (
               <ButtonLink href={`${base}/entrainements`} variant="secondary" icon={<Dumbbell />}>
                 Entraînements
