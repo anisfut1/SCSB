@@ -22,6 +22,7 @@ import { buildAgenda, type AgendaItem } from "@/features/team-life/agenda";
 import { PlanningEventCard } from "@/features/team-life/PlanningView";
 import { ApiError } from "@/lib/api/client";
 import { getPublicHome, type HomeRelation, type PublicHomeDto } from "@/lib/api/publicHome";
+import { getTableLeaderboard } from "@/lib/api/publicTables";
 import { groupByDay } from "./group-by-day";
 
 interface HomeClub {
@@ -51,7 +52,19 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
   const [error, setError] = useState<Error | null>(null);
   const [addingPerson, setAddingPerson] = useState(false);
   const center = useActionCenter(clubSlug, identity.token);
+  // Tables tenues cette saison (classement public) — bloc secondaire : une panne n'empêche pas l'accueil.
+  const [tablesDone, setTablesDone] = useState<number | null>(null);
   const base = `/public/${clubSlug}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    getTableLeaderboard(clubSlug)
+      .then((board) => !cancelled && setTablesDone(board.entries.find((e) => e.licencie.id === identity.licencie.id)?.done ?? 0))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [clubSlug, identity.licencie.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -203,22 +216,34 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
           )}
         </section>
 
-        <aside className="flex flex-col gap-8">
+        {/* Retour du club, 2026-10-10 : tables et derniers résultats remontés (avant l'agenda sur mobile, à droite sur grand écran). */}
+        <aside className="order-first flex flex-col gap-8 xl:order-none">
           <section aria-labelledby="duties-title" className="flex flex-col gap-3">
             <SectionHeader id="duties-title" title="Mes tables de marque" as="h2" />
-            {home.tableDuties.length === 0 ? (
-              <p className="type-meta">
-                Aucune table de marque prévue.{" "}
-                <Link href={`${base}/tables`} className="font-medium text-accent-text underline-offset-2 hover:underline">
-                  Se positionner
-                </Link>
-              </p>
-            ) : (
+            <Link href={`${base}/tables`} className="block rounded-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40">
+              <Card variant="interactive" className="flex items-center gap-3">
+                <span aria-hidden className="inline-flex size-11 shrink-0 items-center justify-center rounded-[12px] bg-accent-soft text-accent-text [&_svg]:size-5">
+                  <ClipboardList />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[15.5px] font-semibold text-foreground">
+                    {tablesDone === null ? "Tables de marque" : (
+                      <>
+                        <span className="type-numeric">{tablesDone}</span> table{tablesDone > 1 ? "s" : ""} réalisée{tablesDone > 1 ? "s" : ""} cette saison
+                      </>
+                    )}
+                  </p>
+                  <p className="type-meta">{home.tableDuties.length ? `${home.tableDuties.length} prévue${home.tableDuties.length > 1 ? "s" : ""} · ` : ""}Clique pour te positionner sur un match.</p>
+                </div>
+                <ArrowRight aria-hidden className="size-5 shrink-0 text-accent-text" />
+              </Card>
+            </Link>
+            {home.tableDuties.length ? (
               <ul className="flex flex-col gap-2">
                 {home.tableDuties.map((d) => (
                   <li key={`${d.matchId}-${d.role}`}>
                     <Card padded={false} className="flex items-start gap-3 p-3.5">
-                      <span aria-hidden className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-text [&_svg]:size-4">
+                      <span aria-hidden className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-success-soft text-success [&_svg]:size-4">
                         <ClipboardList />
                       </span>
                       <div className="min-w-0 flex-1">
@@ -232,13 +257,13 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
                     </Card>
                   </li>
                 ))}
-                <li>
-                  <Link href={`${base}/tables`} className="type-meta font-medium text-accent-text underline-offset-2 hover:underline">
-                    Voir les tables de marque
-                  </Link>
-                </li>
               </ul>
-            )}
+            ) : null}
+            {home.tableDuties.length ? (
+              <ButtonLink href={`${base}/tables`} variant="secondary" icon={<ClipboardList />} iconRight={<ArrowRight />} className="w-full sm:w-auto sm:self-start">
+                Se positionner sur une autre table
+              </ButtonLink>
+            ) : null}
           </section>
 
           <section aria-labelledby="results-title" className="flex flex-col gap-3">
@@ -248,7 +273,14 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
             ) : (
               <DayGroups
                 groups={groupByDay(home.recentResults, (e) => e.match.matchDatetime, club.timezone)}
-                render={({ match }) => <MatchCard match={match} href={`${base}/matchs/${match.id}`} club={cardClub} hideDate />}
+                render={({ match }) => (
+                  <div className="flex flex-col gap-1.5">
+                    <MatchCard match={match} href={`${base}/matchs/${match.id}`} club={cardClub} hideDate />
+                    <ButtonLink href={`${base}/matchs/${match.id}`} variant="secondary" size="sm" iconRight={<ArrowRight />} className="w-full sm:w-auto sm:self-end">
+                      Voir le détail du match
+                    </ButtonLink>
+                  </div>
+                )}
                 itemKey={(e) => e.match.id}
                 compact
               />
