@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CalendarClock, CalendarDays, CalendarPlus, ClipboardList, Dumbbell, Megaphone, Shirt, Trophy, UserRound } from "lucide-react";
+import { ArrowRight, CalendarClock, CalendarDays, CalendarPlus, CalendarRange, ClipboardList, Dumbbell, Megaphone, Shirt, Trophy, UserRound } from "lucide-react";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -144,12 +144,11 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
             id="agenda-title"
             title="Mon agenda"
             description={coachTeams.length ? "Tes matchs à coacher et tes entraînements." : "Tes matchs et tes entraînements."}
-            action={
-              <ButtonLink href={`${base}/planning`} variant="ghost" size="sm" iconRight={<ArrowRight />}>
-                Planning complet
-              </ButtonLink>
-            }
           />
+          {/* Retour du club, 2026-10-10 : « un plus gros bouton, mieux visible, ce sera beaucoup cliqué ». */}
+          <ButtonLink href={`${base}/planning`} variant="primary" size="lg" icon={<CalendarRange />} iconRight={<ArrowRight />} className="w-full sm:w-auto sm:self-start">
+            Voir mon planning
+          </ButtonLink>
           {agenda.length === 0 ? (
             <EmptyState compact icon={<CalendarDays />} title="Rien de prévu" description={home.teams.length ? "Les prochains matchs (publiés par la FFBB) et les entraînements de tes équipes apparaîtront ici." : "Ton agenda s'affichera dès qu'une équipe sera associée à ton profil."} />
           ) : (
