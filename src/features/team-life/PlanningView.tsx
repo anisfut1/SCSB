@@ -162,7 +162,7 @@ export function PlanningView({
   );
 }
 
-function PlanningEventCard({ event, timezone, interactive }: { event: PlanningEventDto; timezone: string; interactive: boolean }) {
+export function PlanningEventCard({ event, timezone, interactive }: { event: PlanningEventDto; timezone: string; interactive: boolean }) {
   const cancelled = event.status === "cancelled";
   const isMatch = event.kind === "MATCH";
   return (

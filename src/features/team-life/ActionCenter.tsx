@@ -25,15 +25,12 @@ type CoachAction = Extract<ActionCenterActionDto, { type: "COACH_TRAINING_SUMMAR
  * change tout de suite, et revient en arrière avec un message si l'envoi
  * échoue.
  */
-export function ActionCenter({ clubSlug, timezone, activeToken, onAddPerson }: { clubSlug: string; timezone: string; activeToken: string; onAddPerson: () => void }) {
-  const [data, setData] = useState<ActionCenterDto | null>(null);
-  const [tokens, setTokens] = useState<string[]>([]);
-  const [failed, setFailed] = useState(false);
-  const [answers, setAnswers] = useState<Record<string, TrainingResponseValue | null>>({});
-  const [saving, setSaving] = useState<Record<string, boolean>>({});
-  const [toast, setToast] = useState<{ tone: "success" | "danger"; message: string } | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+/**
+ * Chargement de la Home « À faire » : tous les liens de l'appareil (un par
+ * enfant). Partagé par le bloc « À faire » et « Mon agenda » de l'accueil.
+ */
+export function useActionCenter(clubSlug: string, activeToken: string): { data: ActionCenterDto | null; tokens: string[]; failed: boolean } {
+  const [state, setState] = useState<{ data: ActionCenterDto | null; tokens: string[]; failed: boolean }>({ data: null, tokens: [], failed: false });
   useEffect(() => {
     let cancelled = false;
     const deviceTokens = [...new Set([activeToken, ...getDeviceTokens(clubSlug)])];
@@ -43,14 +40,29 @@ export function ActionCenter({ clubSlug, timezone, activeToken, onAddPerson }: {
         if (cancelled) return;
         // Liens révoqués : oubliés sur cet appareil, sans bloquer les autres.
         if (result.invalidTokenIndexes.length) removeDeviceTokens(clubSlug, result.invalidTokenIndexes.map((i) => deviceTokens[i]!).filter(Boolean));
-        setTokens(deviceTokens);
-        setData(result);
+        setState({ data: result, tokens: deviceTokens, failed: false });
       })
-      .catch(() => !cancelled && setFailed(true));
+      .catch(() => !cancelled && setState({ data: null, tokens: [], failed: true }));
     return () => {
       cancelled = true;
     };
   }, [clubSlug, activeToken]);
+  return state;
+}
+
+/**
+ * Home « À faire » (Vie d'équipe, Lot 1) : ce que le parent / joueur / coach
+ * doit faire MAINTENANT, avant tout le reste — « Lina — entraînement mardi
+ * 19h [Présente] [Absente] [Incertaine] », un clic, terminé. Réponse
+ * optimiste : l'état change tout de suite, et revient en arrière avec un
+ * message si l'envoi échoue. « Ajouter un enfant » seulement quand c'est
+ * plausible (homonyme de nom de famille au club, ou déjà plusieurs enfants).
+ */
+export function ActionCenter({ clubSlug, timezone, data, tokens, failed, onAddPerson }: { clubSlug: string; timezone: string; data: ActionCenterDto | null; tokens: string[]; failed: boolean; onAddPerson: () => void }) {
+  const [answers, setAnswers] = useState<Record<string, TrainingResponseValue | null>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [toast, setToast] = useState<{ tone: "success" | "danger"; message: string } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => () => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -113,9 +125,11 @@ export function ActionCenter({ clubSlug, timezone, activeToken, onAddPerson }: {
         title="À faire"
         description={several ? `Pour ${data.people.map((p) => p.firstName).join(", ")}.` : undefined}
         action={
-          <Button variant="ghost" size="sm" icon={<UserPlus />} onClick={onAddPerson}>
-            Ajouter un enfant
-          </Button>
+          data.canAddRelative ? (
+            <Button variant="ghost" size="sm" icon={<UserPlus />} onClick={onAddPerson}>
+              Ajouter un enfant
+            </Button>
+          ) : null
         }
       />
 

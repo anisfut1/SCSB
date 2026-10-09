@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CalendarClock, CalendarDays, CalendarPlus, CalendarRange, ClipboardList, Dumbbell, Megaphone, Shirt, Trophy } from "lucide-react";
+import { ArrowRight, CalendarClock, CalendarDays, CalendarPlus, ClipboardList, Dumbbell, Megaphone, Shirt, Trophy, UserRound } from "lucide-react";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -17,7 +17,9 @@ import { IdentifyView } from "@/features/public/IdentifyView";
 import { PublicLoginPanel } from "@/features/public/PublicLoginApp";
 import { usePublicIdentity, type PublicIdentity } from "@/features/public/PublicIdentityProvider";
 import { TABLE_ROLE_LABELS } from "@/features/tables/role-labels";
-import { ActionCenter } from "@/features/team-life/ActionCenter";
+import { ActionCenter, useActionCenter } from "@/features/team-life/ActionCenter";
+import { buildAgenda, type AgendaItem } from "@/features/team-life/agenda";
+import { PlanningEventCard } from "@/features/team-life/PlanningView";
 import { ApiError } from "@/lib/api/client";
 import { getPublicHome, type HomeRelation, type PublicHomeDto } from "@/lib/api/publicHome";
 import { groupByDay } from "./group-by-day";
@@ -48,6 +50,7 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
   const [home, setHome] = useState<PublicHomeDto | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [addingPerson, setAddingPerson] = useState(false);
+  const center = useActionCenter(clubSlug, identity.token);
   const base = `/public/${clubSlug}`;
 
   useEffect(() => {
@@ -67,6 +70,9 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
   if (!home) return <ListSkeleton rows={5} />;
 
   const cardClub = { name: club.name, logoUrl: club.logoUrl };
+  // Matchs de l'accueil + entraînements (et matchs des autres enfants de l'appareil), retour du club 2026-10-09.
+  const agenda = buildAgenda(home, center.data);
+  const severalPeople = (center.data?.people.length ?? 0) > 1;
   const coachTeams = home.teams.filter((t) => t.relation === "COACH");
   const playerTeams = home.teams.filter((t) => t.relation === "PLAYER");
 
@@ -94,9 +100,6 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
         }
         actions={
           <>
-            <ButtonLink href={`${base}/planning`} variant="secondary" icon={<CalendarRange />}>
-              Planning
-            </ButtonLink>
             {home.roles.coach || home.roles.admin ? (
               <ButtonLink href={`${base}/entrainements`} variant="secondary" icon={<Dumbbell />}>
                 Entraînements
@@ -118,7 +121,7 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
         }
       />
 
-      <ActionCenter clubSlug={clubSlug} timezone={club.timezone} activeToken={identity.token} onAddPerson={() => setAddingPerson(true)} />
+      <ActionCenter clubSlug={clubSlug} timezone={club.timezone} {...center} onAddPerson={() => setAddingPerson(true)} />
       <Sheet
         open={addingPerson}
         onClose={() => setAddingPerson(false)}
@@ -139,34 +142,64 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
         <section aria-labelledby="agenda-title" className="flex flex-col gap-4">
           <SectionHeader
             id="agenda-title"
-            title={coachTeams.length ? "Mon agenda" : "Prochains matchs"}
-            description={coachTeams.length ? "Les matchs de tes équipes : où et quand tu coaches." : undefined}
+            title="Mon agenda"
+            description={coachTeams.length ? "Tes matchs à coacher et tes entraînements." : "Tes matchs et tes entraînements."}
             action={
-              <ButtonLink href={`${base}/matchs`} variant="ghost" size="sm" iconRight={<ArrowRight />}>
-                Tous les matchs
+              <ButtonLink href={`${base}/planning`} variant="ghost" size="sm" iconRight={<ArrowRight />}>
+                Planning complet
               </ButtonLink>
             }
           />
-          {home.upcoming.length === 0 ? (
-            <EmptyState compact icon={<CalendarDays />} title="Aucun match à venir" description={home.teams.length ? "Les prochains matchs de tes équipes apparaîtront ici dès leur publication par la FFBB." : "Ton agenda s'affichera dès qu'une équipe sera associée à ton profil."} />
+          {agenda.length === 0 ? (
+            <EmptyState compact icon={<CalendarDays />} title="Rien de prévu" description={home.teams.length ? "Les prochains matchs (publiés par la FFBB) et les entraînements de tes équipes apparaîtront ici." : "Ton agenda s'affichera dès qu'une équipe sera associée à ton profil."} />
           ) : (
             <DayGroups
-              groups={groupByDay(home.upcoming, (e) => e.match.matchDatetime, club.timezone)}
-              render={({ match, relations }) => (
-                <div className="flex flex-col gap-1.5">
-                  {home.teams.length > 1 || relations.includes("COACH") ? (
+              groups={groupByDay(agenda, (item) => item.at, club.timezone)}
+              render={(item: AgendaItem) => {
+                const relations = item.kind === "MATCH" ? item.entry.relations : item.relations;
+                const forNames = item.kind === "EVENT" && severalPeople ? item.forFirstNames : [];
+                const badges =
+                  home.teams.length > 1 || severalPeople || relations.includes("COACH") ? (
                     <p className="flex flex-wrap gap-1.5">
                       {relations.map((r) => (
                         <StatusBadge key={r} size="sm" tone={r === "COACH" ? "info" : "accent"} icon={r === "COACH" ? <Megaphone /> : <Shirt />}>
                           {RELATION_LABEL[r]}
                         </StatusBadge>
                       ))}
+                      {forNames.length ? (
+                        <StatusBadge size="sm" tone="neutral" icon={<UserRound />}>
+                          {forNames.join(", ")}
+                        </StatusBadge>
+                      ) : null}
                     </p>
-                  ) : null}
-                  <MatchCard match={match} href={`${base}/matchs/${match.id}`} club={cardClub} hideDate />
-                </div>
-              )}
-              itemKey={(e) => e.match.id}
+                  ) : null;
+                if (item.kind === "MATCH") {
+                  const { match } = item.entry;
+                  return (
+                    <div className="flex flex-col gap-1.5">
+                      {badges}
+                      <MatchCard match={match} href={`${base}/matchs/${match.id}`} club={cardClub} hideDate />
+                    </div>
+                  );
+                }
+                const e = item.event;
+                const href = e.kind === "MATCH" ? `${base}/matchs/${e.id}` : relations.includes("COACH") && e.team ? `${base}/entrainements?equipe=${e.team.id}&seance=${e.id}` : null;
+                const card = <PlanningEventCard event={e} timezone={club.timezone} interactive={Boolean(href)} />;
+                return (
+                  <div className="flex flex-col gap-1.5">
+                    {badges}
+                    {href ? (
+                      <Link href={href} className="block rounded-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40">
+                        {card}
+                      </Link>
+                    ) : (
+                      card
+                    )}
+                  </div>
+                );
+              }}
+              itemKey={(item) => item.key}
+              unit="rendez-vous"
             />
           )}
         </section>
@@ -229,14 +262,14 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
 }
 
 /** Un en-tête de date par jour, puis les matchs de ce jour (jamais la même date répétée sur chaque carte). */
-function DayGroups<T>({ groups, render, itemKey, compact }: { groups: ReturnType<typeof groupByDay<T>>; render: (item: T) => React.ReactNode; itemKey: (item: T) => string; compact?: boolean }) {
+function DayGroups<T>({ groups, render, itemKey, compact, unit = "matchs" }: { groups: ReturnType<typeof groupByDay<T>>; render: (item: T) => React.ReactNode; itemKey: (item: T) => string; compact?: boolean; unit?: string }) {
   return (
     <ol className={compact ? "flex flex-col gap-5" : "flex flex-col gap-7"}>
       {groups.map((g) => (
         <li key={g.key} className="flex flex-col gap-2.5">
           <h3 className="flex items-baseline gap-2 border-b border-border pb-1.5">
             <span className={compact ? "text-[14px] font-semibold text-foreground" : "text-[15.5px] font-semibold text-foreground"}>{g.label}</span>
-            {g.items.length > 1 ? <span className="type-meta">{g.items.length} matchs</span> : null}
+            {g.items.length > 1 ? <span className="type-meta">{g.items.length} {unit}</span> : null}
           </h3>
           <ul className="flex flex-col gap-3">
             {g.items.map((item) => (

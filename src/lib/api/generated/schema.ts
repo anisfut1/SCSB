@@ -11408,6 +11408,7 @@ export interface components {
         };
         ActionCenterDto: {
             people: components["schemas"]["ActionCenterPersonDto"][];
+            canAddRelative: boolean;
             invalidTokenIndexes: number[];
             actions: components["schemas"]["ActionCenterActionDto"][];
             upcoming: (components["schemas"]["PlanningEventDto"] & {

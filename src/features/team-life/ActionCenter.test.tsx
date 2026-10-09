@@ -2,7 +2,12 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { addDeviceToken, setStoredPublicToken } from "@/lib/publicToken";
-import { ActionCenter } from "./ActionCenter";
+import { ActionCenter, useActionCenter } from "./ActionCenter";
+
+function Home() {
+  const state = useActionCenter("sete", "lien-lina");
+  return <ActionCenter clubSlug="sete" timezone="Europe/Paris" {...state} onAddPerson={() => undefined} />;
+}
 
 const actionCenter = vi.fn();
 const respond = vi.fn();
@@ -27,6 +32,7 @@ const DTO = {
     { tokenIndex: 0, licencieId: "lina", firstName: "Lina", lastName: "M", team: { id: "u15", name: "U15 (F)" }, coachTeams: [] },
     { tokenIndex: 1, licencieId: "tom", firstName: "Tom", lastName: "M", team: { id: "u11", name: "U11 (M)" }, coachTeams: [] },
   ],
+  canAddRelative: true,
   invalidTokenIndexes: [],
   actions: [
     { type: "TRAINING_RESPONSE", licencieId: "lina", firstName: "Lina", training: training("t1", "u15", "2099-10-13T17:00:00.000Z"), currentResponse: null },
@@ -49,7 +55,7 @@ afterEach(cleanup);
 describe("Home « À faire »", () => {
   it("fusionne les liens de l'appareil et répond avec le lien de l'enfant concerné", async () => {
     respond.mockResolvedValue({});
-    render(<ActionCenter clubSlug="sete" timezone="Europe/Paris" activeToken="lien-lina" onAddPerson={() => undefined} />);
+    render(<Home />);
     expect(await screen.findByText(/Tom — entraînement/)).toBeTruthy();
     expect(actionCenter).toHaveBeenCalledWith("sete", ["lien-lina", "lien-tom"]);
 
@@ -61,7 +67,7 @@ describe("Home « À faire »", () => {
 
   it("échec : la réponse revient en arrière avec un message", async () => {
     respond.mockRejectedValue(new Error("réseau"));
-    render(<ActionCenter clubSlug="sete" timezone="Europe/Paris" activeToken="lien-lina" onAddPerson={() => undefined} />);
+    render(<Home />);
     const group = await screen.findByRole("group", { name: "Réponse pour Lina" });
     fireEvent.click(group.querySelectorAll("button")[1]!); // Absent·e
     expect(await screen.findByText("Impossible d'enregistrer la réponse.")).toBeTruthy();
@@ -70,7 +76,14 @@ describe("Home « À faire »", () => {
 
   it("rien à répondre : « Tout est à jour »", async () => {
     actionCenter.mockResolvedValue({ ...DTO, actions: [] });
-    render(<ActionCenter clubSlug="sete" timezone="Europe/Paris" activeToken="lien-lina" onAddPerson={() => undefined} />);
+    render(<Home />);
     expect(await screen.findByText("Tout est à jour")).toBeTruthy();
+  });
+
+  it("« Ajouter un enfant » seulement quand c'est plausible (homonyme au club)", async () => {
+    actionCenter.mockResolvedValue({ ...DTO, canAddRelative: false });
+    render(<Home />);
+    await screen.findByText(/Lina — entraînement/);
+    expect(screen.queryByRole("button", { name: "Ajouter un enfant" })).toBeNull();
   });
 });
