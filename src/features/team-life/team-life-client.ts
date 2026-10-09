@@ -1,5 +1,5 @@
 import { browserApi } from "@/lib/api/browserClient";
-import { publicTeamLife, type ConvocationPreviewDto, type MatchTeamLifeDto, type PutConvocationDraftDto, type CreateTrainingSeriesDto, type PeriodQuery, type TrainingOccurrenceDetailDto, type TrainingOccurrenceDto, type TrainingSeriesDto, type UpdateTrainingOccurrenceDto, type UpdateTrainingSeriesDto } from "@/lib/api/teamLife";
+import { publicTeamLife, type TrainingAttendanceValue, type ConvocationPreviewDto, type MatchTeamLifeDto, type PutConvocationDraftDto, type CreateTrainingSeriesDto, type PeriodQuery, type TrainingOccurrenceDetailDto, type TrainingOccurrenceDto, type TrainingSeriesDto, type UpdateTrainingOccurrenceDto, type UpdateTrainingSeriesDto } from "@/lib/api/teamLife";
 
 /**
  * Gestion des entraînements d'une équipe, quel que soit le point d'entrée :
@@ -17,6 +17,8 @@ export interface TeamLifeClient {
   updateOccurrence(occurrenceId: string, body: UpdateTrainingOccurrenceDto): Promise<TrainingOccurrenceDto>;
   cancel(occurrenceId: string, reason: string | null): Promise<TrainingOccurrenceDto>;
   restore(occurrenceId: string): Promise<TrainingOccurrenceDto>;
+  /** Présence réelle (séance commencée) : présent / retard / absent. */
+  markAttendance(occurrenceId: string, licencieId: string, status: TrainingAttendanceValue): Promise<unknown>;
   // Lot 2 : disponibilités et convocation d'un match.
   match(matchId: string): Promise<MatchTeamLifeDto>;
   openAvailability(matchId: string): Promise<MatchTeamLifeDto>;
@@ -37,6 +39,7 @@ export function clubTeamLifeClient(clubId: string): TeamLifeClient {
     updateOccurrence: (occurrenceId, body) => api.updateOccurrence(clubId, occurrenceId, body),
     cancel: (occurrenceId, reason) => api.cancel(clubId, occurrenceId, reason),
     restore: (occurrenceId) => api.restore(clubId, occurrenceId),
+    markAttendance: (occurrenceId, licencieId, status) => api.markAttendance(clubId, occurrenceId, licencieId, status),
     match: (matchId) => api.match(clubId, matchId),
     openAvailability: (matchId) => api.openAvailability(clubId, matchId),
     saveDraft: (matchId, body) => api.saveDraft(clubId, matchId, body),
@@ -57,6 +60,7 @@ export function publicTeamLifeClient(clubSlug: string, token: string): TeamLifeC
     updateOccurrence: (occurrenceId, body) => api.updateOccurrence(clubSlug, token, occurrenceId, body),
     cancel: (occurrenceId, reason) => api.cancel(clubSlug, token, occurrenceId, reason),
     restore: (occurrenceId) => api.restore(clubSlug, token, occurrenceId),
+    markAttendance: (occurrenceId, licencieId, status) => api.markAttendance(clubSlug, token, occurrenceId, licencieId, status),
     match: (matchId) => api.match(clubSlug, token, matchId),
     openAvailability: (matchId) => api.openAvailability(clubSlug, token, matchId),
     saveDraft: (matchId, body) => api.saveDraft(clubSlug, token, matchId, body),

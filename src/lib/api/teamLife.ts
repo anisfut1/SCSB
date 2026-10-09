@@ -24,6 +24,8 @@ export type PlanningEventDto = components["schemas"]["PlanningEventDto"];
 export type PlanningDto = components["schemas"]["PlanningDto"];
 export type ActionCenterDto = components["schemas"]["ActionCenterDto"];
 export type ActionCenterActionDto = components["schemas"]["ActionCenterActionDto"];
+/** Présence réelle relevée par le coach (≠ réponse prévue). */
+export type TrainingAttendanceValue = NonNullable<components["schemas"]["TrainingAttendanceValue"]>;
 // Lot 2 : disponibilités des matchs et convocations.
 export type MatchAvailabilityValue = NonNullable<components["schemas"]["MatchAvailabilityValue"]>;
 export type ConvocationResponseValue = NonNullable<components["schemas"]["ConvocationResponseValue"]>;
@@ -60,6 +62,7 @@ export const clubTeamLife = {
   cancel: (f: ApiFetcher, clubId: string, occurrenceId: string, reason: string | null) => f<TrainingOccurrenceDto>(`${clubBase(clubId)}/trainings/${occurrenceId}/cancel`, { method: "POST", body: { reason } }),
   restore: (f: ApiFetcher, clubId: string, occurrenceId: string) => f<TrainingOccurrenceDto>(`${clubBase(clubId)}/trainings/${occurrenceId}/restore`, { method: "POST" }),
   planning: (f: ApiFetcher, clubId: string, params: PeriodQuery & { teamId?: string; kind?: "MATCH" | "TRAINING" } = {}) => f<PlanningDto>(`${clubBase(clubId)}/planning${qs({ ...params })}`),
+  markAttendance: (f: ApiFetcher, clubId: string, occurrenceId: string, licencieId: string, status: TrainingAttendanceValue) => f<unknown>(`${clubBase(clubId)}/trainings/${occurrenceId}/attendance/${licencieId}`, { method: "PUT", body: { status } }),
   match: (f: ApiFetcher, clubId: string, matchId: string) => f<MatchTeamLifeDto>(`${clubBase(clubId)}/matches/${matchId}`),
   openAvailability: (f: ApiFetcher, clubId: string, matchId: string) => f<MatchTeamLifeDto>(`${clubBase(clubId)}/matches/${matchId}/availability/open`, { method: "POST" }),
   saveDraft: (f: ApiFetcher, clubId: string, matchId: string, body: PutConvocationDraftDto) => f<MatchTeamLifeDto>(`${clubBase(clubId)}/matches/${matchId}/convocation/draft`, { method: "PUT", body }),
@@ -81,6 +84,7 @@ export const publicTeamLife = {
   restore: (clubSlug: string, token: string, occurrenceId: string) => publicFetch<TrainingOccurrenceDto>(`${publicBase(clubSlug)}/trainings/${occurrenceId}/restore`, token, { method: "POST" }),
   /** Réponse du licencié DU LIEN (un lien par enfant : on envoie celui de l'enfant concerné). */
   respond: (clubSlug: string, token: string, occurrenceId: string, response: TrainingResponseValue) => publicFetch<TrainingResponseResultDto>(`${publicBase(clubSlug)}/trainings/${occurrenceId}/response`, token, { method: "PUT", body: { response } }),
+  markAttendance: (clubSlug: string, token: string, occurrenceId: string, licencieId: string, status: TrainingAttendanceValue) => publicFetch<unknown>(`${publicBase(clubSlug)}/trainings/${occurrenceId}/attendance/${licencieId}`, token, { method: "PUT", body: { status } }),
   match: (clubSlug: string, token: string, matchId: string) => publicFetch<MatchTeamLifeDto>(`${publicBase(clubSlug)}/matches/${matchId}`, token),
   openAvailability: (clubSlug: string, token: string, matchId: string) => publicFetch<MatchTeamLifeDto>(`${publicBase(clubSlug)}/matches/${matchId}/availability/open`, token, { method: "POST" }),
   saveDraft: (clubSlug: string, token: string, matchId: string, body: PutConvocationDraftDto) => publicFetch<MatchTeamLifeDto>(`${publicBase(clubSlug)}/matches/${matchId}/convocation/draft`, token, { method: "PUT", body }),

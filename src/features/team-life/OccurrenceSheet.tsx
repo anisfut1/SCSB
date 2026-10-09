@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Ban, Check, HelpCircle, MapPin, Pencil, RotateCcw, X } from "lucide-react";
+import { Ban, Check, Clock, HelpCircle, MapPin, Pencil, RotateCcw, X } from "lucide-react";
 import { PersonAvatar } from "@/components/ui/Avatar";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -10,9 +10,10 @@ import { Sheet } from "@/components/ui/Sheet";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/States";
 import { cn } from "@/components/ui/cn";
-import type { TrainingOccurrenceDetailDto, TrainingOccurrenceDto } from "@/lib/api/teamLife";
+import type { TrainingAttendanceValue, TrainingOccurrenceDetailDto, TrainingOccurrenceDto } from "@/lib/api/teamLife";
 import { LocationPicker, locationBody, type LocationValue, type VenueOption } from "./LocationPicker";
 import { dateKeyOf, dayOf, locationLabel, responseLabel, timeOf } from "./labels";
+import { ChoiceButtons, type Choice } from "./ResponseButtons";
 import type { TeamLifeClient } from "./team-life-client";
 
 type Mode = "view" | "edit" | "cancel";
@@ -22,10 +23,13 @@ type Mode = "view" | "edit" | "cancel";
  * pas répondu ; annuler (la séance reste visible « annulée »), rétablir, ou
  * modifier CETTE séance seulement (le créneau ne change pas).
  */
-export function OccurrenceSheet({ occurrenceId, onClose, client, venues, timezone, onChanged }: { occurrenceId: string; onClose: () => void; client: TeamLifeClient; venues: VenueOption[]; timezone: string; onChanged: (training: TrainingOccurrenceDto) => void }) {
+export function OccurrenceSheet({ occurrenceId, onClose, client, venues, timezone, onChanged }: { occurrenceId: string; onClose: () => void; client: TeamLifeClient; venues: VenueOption[]; timezone: string; onChanged: (training: TrainingOccurrenceDto, silent?: boolean) => void }) {
   const [detail, setDetail] = useState<TrainingOccurrenceDetailDto | null>(null);
   // Séance terminée : figé au chargement (jamais `Date.now()` pendant le rendu).
   const [past, setPast] = useState(false);
+  // Séance commencée : relevé des absents / retards (présence réelle, ≠ réponse prévue).
+  const [started, setStarted] = useState(false);
+  const [marks, setMarks] = useState<Record<string, TrainingAttendanceValue | null>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("view");
   const [busy, setBusy] = useState(false);
@@ -40,6 +44,8 @@ export function OccurrenceSheet({ occurrenceId, onClose, client, venues, timezon
       .then((d) => {
         if (cancelled) return;
         setPast(new Date(d.training.endsAt).getTime() < Date.now());
+        setStarted(new Date(d.training.startsAt).getTime() <= Date.now());
+        setMarks(Object.fromEntries(d.roster.map((r) => [r.licencie.id, r.attendance])));
         setDetail(d);
       })
       .catch((err: unknown) => !cancelled && setLoadError(err instanceof Error ? err.message : "Chargement impossible."));
@@ -69,6 +75,23 @@ export function OccurrenceSheet({ occurrenceId, onClose, client, venues, timezon
     if (!t) return;
     setEdit({ date: dateKeyOf(t.startsAt, timezone), startTime: timeOf(t.startsAt, timezone), endTime: timeOf(t.endsAt, timezone), location: { clubVenueId: t.location.clubVenueId, locationLabel: t.location.clubVenueId ? null : t.location.label } });
     setMode("edit");
+  }
+
+  /** Présent / Retard / Absent : enregistré tout de suite, retour en arrière si l'envoi échoue. */
+  async function mark(licencieId: string, status: TrainingAttendanceValue) {
+    if (!t) return;
+    const previous = marks[licencieId] ?? null;
+    const next = { ...marks, [licencieId]: status };
+    setMarks(next);
+    setError(null);
+    try {
+      await client.markAttendance(t.id, licencieId, status);
+      const values = Object.values(next);
+      onChanged({ ...t, attendance: { late: values.filter((v) => v === "LATE").length, absent: values.filter((v) => v === "ABSENT").length, recorded: true } }, true);
+    } catch {
+      setMarks((m) => ({ ...m, [licencieId]: previous }));
+      setError("Impossible d'enregistrer la présence.");
+    }
   }
 
   const title = t ? `Entraînement ${dayOf(t.startsAt, timezone)}` : "Séance";
@@ -153,6 +176,7 @@ export function OccurrenceSheet({ occurrenceId, onClose, client, venues, timezon
             ) : null}
           </div>
 
+          {t.counts && started ? <p className="type-meta -mb-3">Réponses données avant la séance :</p> : null}
           {t.counts ? (
             <dl className="grid grid-cols-4 gap-2">
               {(
@@ -171,17 +195,30 @@ export function OccurrenceSheet({ occurrenceId, onClose, client, venues, timezon
             </dl>
           ) : null}
 
+          {started && t.status === "scheduled" && detail.roster.length ? (
+            <p className="type-meta">Présence réelle : tout le monde est « Présent » par défaut, marque seulement les retards et les absents. La pastille à droite rappelle la réponse donnée avant la séance.</p>
+          ) : null}
           {detail.roster.length === 0 ? (
             <p className="type-meta">Aucun joueur n&apos;est rattaché à cette équipe pour l&apos;instant (liste des joueurs).</p>
           ) : (
             <ul className="flex flex-col divide-y divide-border rounded-[14px] border border-border bg-surface-raised">
               {detail.roster.map((r) => (
-                <li key={r.licencie.id} className="flex items-center gap-3 px-3 py-2.5">
-                  <PersonAvatar name={`${r.licencie.firstName} ${r.licencie.lastName}`} src={r.licencie.photoUrl} size="sm" />
-                  <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">
-                    {r.licencie.firstName} {r.licencie.lastName}
-                  </span>
-                  <ResponsePill response={r.response} />
+                <li key={r.licencie.id} className="flex flex-col gap-2 px-3 py-2.5">
+                  <div className="flex items-center gap-3">
+                    <PersonAvatar name={`${r.licencie.firstName} ${r.licencie.lastName}`} src={r.licencie.photoUrl} size="sm" />
+                    <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">
+                      {r.licencie.firstName} {r.licencie.lastName}
+                    </span>
+                    <ResponsePill response={r.response} />
+                  </div>
+                  {started && t.status === "scheduled" ? (
+                    <ChoiceButtons
+                      choices={ATTENDANCE_CHOICES}
+                      value={marks[r.licencie.id] ?? "PRESENT"}
+                      onChange={(v) => void mark(r.licencie.id, v)}
+                      label={`Présence de ${r.licencie.firstName}`}
+                    />
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -192,6 +229,12 @@ export function OccurrenceSheet({ occurrenceId, onClose, client, venues, timezon
     </Sheet>
   );
 }
+
+const ATTENDANCE_CHOICES: Choice<TrainingAttendanceValue>[] = [
+  { value: "PRESENT", label: "Présent·e", icon: <Check />, tone: "success" },
+  { value: "LATE", label: "Retard", icon: <Clock />, tone: "warning" },
+  { value: "ABSENT", label: "Absent·e", icon: <X />, tone: "danger" },
+];
 
 function ResponsePill({ response }: { response: TrainingOccurrenceDetailDto["roster"][number]["response"] }) {
   if (!response) return <StatusBadge size="sm" tone="neutral">Sans réponse</StatusBadge>;

@@ -9041,6 +9041,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/clubs/{clubId}/team-life/trainings/{occurrenceId}/attendance/{licencieId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                    occurrenceId: string;
+                    licencieId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PutTrainingAttendanceDto"];
+                };
+            };
+            responses: {
+                /** @description Présence réelle relevée (présent / retard / absent) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            occurrenceId: string;
+                            licencieId: string;
+                            status: string;
+                        };
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/public/clubs/{clubSlug}/team-life/teams/{teamId}/training-series": {
         parameters: {
             query?: never;
@@ -9602,6 +9695,101 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/clubs/{clubSlug}/team-life/trainings/{occurrenceId}/attendance/{licencieId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query: {
+                    token: string;
+                };
+                header?: never;
+                path: {
+                    /** @description Slug du club (flux public sans compte) */
+                    clubSlug: string;
+                    occurrenceId: string;
+                    licencieId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PutTrainingAttendanceDto"];
+                };
+            };
+            responses: {
+                /** @description Présence réelle relevée (présent / retard / absent) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            occurrenceId: string;
+                            licencieId: string;
+                            status: string;
+                        };
+                    };
+                };
+                /** @description Requête invalide */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflit métier */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -12308,6 +12496,11 @@ export interface components {
             isModified: boolean;
             counts: components["schemas"]["TrainingCountsDto"];
             canManage: boolean;
+            attendance: {
+                late: number;
+                absent: number;
+                recorded: boolean;
+            } | null;
         };
         TrainingCountsDto: {
             present: number;
@@ -12325,9 +12518,12 @@ export interface components {
             };
             response: components["schemas"]["TrainingResponseValue"];
             respondedAt: string | null;
+            attendance: components["schemas"]["TrainingAttendanceValue"];
         };
         /** @enum {string|null} */
         TrainingResponseValue: "PRESENT" | "ABSENT" | "UNCERTAIN" | null;
+        /** @enum {string|null} */
+        TrainingAttendanceValue: "PRESENT" | "LATE" | "ABSENT" | null;
         UpdateTrainingOccurrenceDto: {
             /** Format: date */
             date: string;
@@ -12339,6 +12535,9 @@ export interface components {
         };
         CancelTrainingOccurrenceDto: {
             reason?: string | null;
+        };
+        PutTrainingAttendanceDto: {
+            status: components["schemas"]["TrainingAttendanceValue"];
         };
         MatchTeamLifeDto: {
             match: components["schemas"]["TeamLifeMatchDto"];

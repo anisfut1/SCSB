@@ -19,12 +19,15 @@ import type { VenueOption } from "./LocationPicker";
 import { OccurrenceSheet } from "./OccurrenceSheet";
 import { SeriesEditSheet } from "./SeriesEditSheet";
 import { TrainingPlannerSheet } from "./TrainingPlannerSheet";
-import { countsSummary, formatDateKey, locationLabel, seasonEndKey, seriesLabel, timeOf } from "./labels";
+import { countsSummary, dayOf, formatDateKey, locationLabel, seasonEndKey, seriesLabel, timeOf } from "./labels";
 import type { TeamLifeClient } from "./team-life-client";
 import { zonedIso } from "@/features/derogation-requests/labels";
 
 /** Séances affichées : les 4 prochaines semaines. */
 const UPCOMING_DAYS = 28;
+/** Séances passées : les 2 dernières (sur 30 jours), pour relever absents et retards. */
+const PAST_DAYS = 30;
+const PAST_SHOWN = 2;
 
 /**
  * Entraînements d'une équipe (coach / admin), mêmes écrans dans l'espace
@@ -49,7 +52,7 @@ export function TeamTrainingsManager({
 }) {
   const [teamId, setTeamId] = useState(() => (initialTeamId && teams.some((t) => t.id === initialTeamId) ? initialTeamId : (teams[0]?.id ?? "")));
   const [venues, setVenues] = useState<VenueOption[]>([]);
-  const [data, setData] = useState<{ teamId: string; series: TrainingSeriesDto[]; trainings: TrainingOccurrenceDto[]; error: string | null } | null>(null);
+  const [data, setData] = useState<{ teamId: string; series: TrainingSeriesDto[]; trainings: TrainingOccurrenceDto[]; past: TrainingOccurrenceDto[]; error: string | null } | null>(null);
   const [reloadCount, setReloadCount] = useState(0);
   const [planning, setPlanning] = useState(false);
   const [editing, setEditing] = useState<TrainingSeriesDto | null>(null);
@@ -76,9 +79,15 @@ export function TeamTrainingsManager({
     let cancelled = false;
     const from = new Date().toISOString();
     const to = zonedIso(addDaysToDateString(todayInTimezone(timezone), UPCOMING_DAYS), "00:00", timezone);
-    Promise.all([client.listSeries(teamId), client.listTrainings(teamId, { from, to })])
-      .then(([s, t]) => !cancelled && setData({ teamId, series: s.series, trainings: t.trainings, error: null }))
-      .catch((err: unknown) => !cancelled && setData({ teamId, series: [], trainings: [], error: err instanceof Error ? err.message : "Chargement impossible." }));
+    // Les 2 dernières séances (retour du club, 2026-10-10 : relever les absents et les retards).
+    const pastFrom = new Date(Date.now() - PAST_DAYS * 86_400_000).toISOString();
+    Promise.all([client.listSeries(teamId), client.listTrainings(teamId, { from, to }), client.listTrainings(teamId, { from: pastFrom, to: from })])
+      .then(([s, t, p]) => {
+        if (cancelled) return;
+        const past = p.trainings.filter((x) => x.status === "scheduled").sort((a, b) => b.startsAt.localeCompare(a.startsAt)).slice(0, PAST_SHOWN);
+        setData({ teamId, series: s.series, trainings: t.trainings, past, error: null });
+      })
+      .catch((err: unknown) => !cancelled && setData({ teamId, series: [], trainings: [], past: [], error: err instanceof Error ? err.message : "Chargement impossible." }));
     return () => {
       cancelled = true;
     };
@@ -186,6 +195,33 @@ export function TeamTrainingsManager({
             {actionError ? <FormMessage tone="danger">{actionError}</FormMessage> : null}
           </section>
 
+          {data.past.length ? (
+            <section aria-labelledby="past-title" className="flex flex-col gap-3">
+              <SectionHeader id="past-title" title="Dernières séances" description="Touchez une séance pour noter les retards et les absents." />
+              <ul className="flex flex-col gap-2">
+                {data.past.map((t) => (
+                  <li key={t.id}>
+                    <button type="button" onClick={() => setOpenOccurrence(t.id)} className="block w-full rounded-[18px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40">
+                      <Card variant="interactive" padded={false} className="flex items-center gap-3 p-3.5">
+                        <div className="w-24 shrink-0">
+                          <p className="text-[13.5px] font-semibold text-foreground">{capitalize(dayOf(t.startsAt, timezone))}</p>
+                          <p className="type-meta type-numeric">{timeOf(t.startsAt, timezone)}</p>
+                        </div>
+                        <p className="min-w-0 flex-1 text-[14px] font-medium text-foreground">{attendanceText(t.attendance)}</p>
+                        {t.attendance?.recorded ? null : (
+                          <StatusBadge size="sm" tone="warning">
+                            À relever
+                          </StatusBadge>
+                        )}
+                        <ChevronRight aria-hidden className="size-4 shrink-0 text-subtle" />
+                      </Card>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
           <section aria-labelledby="sessions-title" className="flex flex-col gap-3">
             <SectionHeader id="sessions-title" title="Prochaines séances" description="Réponses reçues des joueurs. Touchez une séance pour voir qui vient, l'annuler ou la modifier." />
             {upcoming.length === 0 ? (
@@ -272,9 +308,9 @@ export function TeamTrainingsManager({
           client={client}
           venues={venues}
           timezone={timezone}
-          onChanged={(updated) => {
-            setData((d) => (d ? { ...d, trainings: d.trainings.map((t) => (t.id === updated.id ? updated : t)) } : d));
-            flash(updated.status === "cancelled" ? "Séance annulée." : "Séance mise à jour.");
+          onChanged={(updated, silent) => {
+            setData((d) => (d ? { ...d, trainings: d.trainings.map((t) => (t.id === updated.id ? updated : t)), past: d.past.map((t) => (t.id === updated.id ? updated : t)) } : d));
+            if (!silent) flash(updated.status === "cancelled" ? "Séance annulée." : "Séance mise à jour.");
           }}
         />
       ) : null}
@@ -283,3 +319,12 @@ export function TeamTrainingsManager({
     </div>
   );
 }
+
+/** « 2 absents · 1 retard », « Tout le monde présent » ou « Présence non relevée ». */
+function attendanceText(a: TrainingOccurrenceDto["attendance"]): string {
+  if (!a || !a.recorded) return "Présence non relevée";
+  const parts = [a.absent ? `${a.absent} absent${a.absent > 1 ? "s" : ""}` : null, a.late ? `${a.late} retard${a.late > 1 ? "s" : ""}` : null].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "Tout le monde présent";
+}
+
+const capitalize = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);

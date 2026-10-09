@@ -321,6 +321,8 @@ Le chantier de migration front → back et ses lots (LOT-02 à LOT-13) sont suiv
 Les plus récentes d'abord. Historique complet : `git log` des deux dépôts et [`docs/migration/CHANGELOG.md`](migration/CHANGELOG.md).
 
 **2026-10-10**
+- Vie d'équipe : le coach qui joue dans l'équipe qu'il coache n'est plus interrogé (ni entraînement, ni disponibilité / convocation de match) et ne compte plus dans les « sans réponse ».
+- Entraînements : « Dernières séances » (les 2 dernières) pour noter les retards et les absents (présence réelle, distincte de la réponse prévue).
 - Vie d'équipe, Lot 2 : disponibilités des matchs, convocations personnalisées (aperçu, envoi dans l'application, confirmations en un clic, mise à jour explicite, alerte si la FFBB modifie le match).
 
 **2026-10-09**
