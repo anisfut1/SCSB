@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getPublicMe } from "@/lib/api/publicTables";
-import { addDeviceToken, clearDeviceTokens, clearStoredPublicToken, consumePublicTokenFromUrl, getDeviceTokens, removeDeviceTokens, resetConsumedPublicToken, setStoredPublicToken } from "@/lib/publicToken";
+import { addDeviceToken, clearDeviceTokens, clearStoredPublicToken, consumePublicTokenFromUrl, getDeviceTokens, removeDeviceTokens, resetConsumedPublicToken, setSessionDeviceTokens, setStoredPublicToken } from "@/lib/publicToken";
+import { dropSessionTokens, fetchSessionTokens, saveSessionTokens } from "@/lib/public-session/client";
 import { KNOWN_COOKIE } from "./known-cookie";
 
 export interface PublicIdentity {
@@ -64,29 +65,45 @@ const PublicIdentityContext = createContext<PublicIdentityContextValue | null>(n
 export function PublicIdentityProvider({ clubSlug, club, children }: { clubSlug: string; club: PublicClubInfo; children: ReactNode }) {
   const [identity, setIdentity] = useState<PublicIdentityState>(undefined);
   const [resolveCount, setResolveCount] = useState(0);
+  // `true` quand la session serveur (cookie HttpOnly, /public/{slug}/session) est disponible :
+  // elle remplace alors le localStorage comme mémoire longue durée.
+  const serverSession = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     const fromUrl = consumePublicTokenFromUrl();
-    // Lien de l'email d'abord, puis le lien actif, puis les autres liens de l'appareil (un lien révoqué ne bloque pas les autres).
-    const candidates = [...new Set([...(fromUrl ? [fromUrl] : []), ...getDeviceTokens(clubSlug)])];
-    if (candidates.length === 0) {
-      // Résolu en microtâche : jamais de setState synchrone dans un effet.
-      void Promise.resolve().then(() => {
-        if (!cancelled) setIdentity(null);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }
 
     void (async () => {
+      // Session serveur d'abord (survit à la fermeture du navigateur et, sur iOS ≥ 17.2, est copiée dans la PWA) ;
+      // `null` = indisponible → comportement localStorage d'avant.
+      const sessionTokens = await fetchSessionTokens(clubSlug);
+      if (cancelled) return;
+      serverSession.current = sessionTokens !== null;
+      const local = getDeviceTokens(clubSlug);
+      // Lien de l'email d'abord, puis le lien actif, puis les autres liens de l'appareil (un lien révoqué ne bloque pas les autres).
+      const candidates = [...new Set([...(fromUrl ? [fromUrl] : []), ...(sessionTokens ?? []), ...local])];
+
       for (const candidate of candidates) {
         try {
           const result = await getPublicMe(clubSlug, candidate);
           if (cancelled) return;
-          setStoredPublicToken(clubSlug, candidate);
-          addDeviceToken(clubSlug, candidate);
+          let persisted = false;
+          if (serverSession.current) {
+            const toStore = [candidate, ...local.filter((t) => t !== candidate), ...(sessionTokens ?? []).filter((t) => t !== candidate)];
+            const alreadyStored = sessionTokens !== null && sessionTokens[0] === candidate && local.length === 0 && !fromUrl;
+            persisted = alreadyStored || (await saveSessionTokens(clubSlug, toStore, candidate));
+            if (cancelled) return;
+          }
+          if (persisted) {
+            // Migration : plus aucun jeton longue durée dans le localStorage (liens gardés en mémoire pour la page).
+            clearStoredPublicToken(clubSlug);
+            clearDeviceTokens(clubSlug);
+            setSessionDeviceTokens(clubSlug, [candidate, ...local.filter((t) => t !== candidate), ...(sessionTokens ?? []).filter((t) => t !== candidate)]);
+          } else {
+            serverSession.current = false;
+            setStoredPublicToken(clubSlug, candidate);
+            addDeviceToken(clubSlug, candidate);
+          }
           setKnownCookie(clubSlug, true);
           setIdentity({ token: candidate, licencie: result.licencie, isClubAdmin: result.isClubAdmin, derogationRequests: result.derogationRequests, tables: result.tables });
           return;
@@ -95,6 +112,7 @@ export function PublicIdentityProvider({ clubSlug, club, children }: { clubSlug:
           if (candidate === fromUrl) resetConsumedPublicToken();
           removeDeviceTokens(clubSlug, [candidate]);
           clearStoredPublicToken(clubSlug);
+          if (sessionTokens?.includes(candidate)) void dropSessionTokens(clubSlug, [candidate]);
         }
       }
       if (cancelled) return;
@@ -112,12 +130,20 @@ export function PublicIdentityProvider({ clubSlug, club, children }: { clubSlug:
     clearDeviceTokens(clubSlug);
     resetConsumedPublicToken();
     setKnownCookie(clubSlug, false);
+    void dropSessionTokens(clubSlug);
     setIdentity(null);
   }, [clubSlug]);
 
   const switchTo = useCallback(
     (token: string) => {
       resetConsumedPublicToken();
+      if (serverSession.current) {
+        void saveSessionTokens(clubSlug, [token], token).then(() => {
+          setIdentity(undefined);
+          setResolveCount((n) => n + 1);
+        });
+        return;
+      }
       setStoredPublicToken(clubSlug, token);
       setIdentity(undefined);
       setResolveCount((n) => n + 1);
@@ -128,6 +154,7 @@ export function PublicIdentityProvider({ clubSlug, club, children }: { clubSlug:
   const forgetToken = useCallback(
     (token: string) => {
       removeDeviceTokens(clubSlug, [token]);
+      void dropSessionTokens(clubSlug, [token]);
       if (identity && identity.token === token) {
         clearStoredPublicToken(clubSlug);
         resetConsumedPublicToken();

@@ -61,3 +61,69 @@ describe("PublicIdentityProvider — double montage StrictMode (jsdom)", () => {
     expect(window.localStorage.getItem("scsb:public-token:sete")).toBeNull();
   });
 });
+
+describe("PublicIdentityProvider — session persistante (cookie HttpOnly côté serveur)", () => {
+  const ME = { licencie: { id: "l1", firstName: "Camille", lastName: "Test" }, isClubAdmin: false, derogationRequests: { canCreate: false, canManage: false }, tables: { canManage: false } };
+  const calls: Array<{ method: string; body?: string }> = [];
+  let sessionTokens: string[];
+
+  beforeEach(() => {
+    calls.length = 0;
+    sessionTokens = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        const method = init?.method ?? "GET";
+        calls.push({ method, body: init?.body as string | undefined });
+        if (method === "POST") sessionTokens = (JSON.parse(init!.body as string) as { tokens: string[] }).tokens;
+        return new Response(JSON.stringify({ tokens: sessionTokens }), { status: 200 });
+      }),
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("lien de l'email : session enregistrée côté serveur, aucun jeton dans le localStorage", async () => {
+    window.history.replaceState(null, "", `${PATH}?token=${T}`);
+    getPublicMe.mockResolvedValue(ME);
+    mount();
+    await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("Camille"));
+    expect(calls.some((c) => c.method === "POST" && c.body?.includes(T))).toBe(true);
+    expect(window.localStorage.getItem("scsb:public-token:sete")).toBeNull();
+    expect(window.localStorage.getItem("scsb:public-tokens:sete")).toBeNull();
+    expect(window.location.href).not.toContain(T);
+  });
+
+  it("retour SANS token : reconnu grâce à la session serveur", async () => {
+    sessionTokens = [T];
+    getPublicMe.mockResolvedValue(ME);
+    mount();
+    await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("Camille"));
+    expect(getPublicMe).toHaveBeenCalledWith("sete", T);
+  });
+
+  it("migration : un jeton déjà dans le localStorage passe dans la session puis disparaît du localStorage", async () => {
+    window.localStorage.setItem("scsb:public-token:sete", T);
+    getPublicMe.mockResolvedValue(ME);
+    mount();
+    await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("Camille"));
+    await waitFor(() => expect(window.localStorage.getItem("scsb:public-token:sete")).toBeNull());
+    expect(sessionTokens).toContain(T);
+  });
+
+  it("jeton de session révoqué : identité absente et jeton retiré de la session (DELETE)", async () => {
+    sessionTokens = [T];
+    getPublicMe.mockRejectedValue(new Error("401"));
+    mount();
+    await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("none"));
+    await waitFor(() => expect(calls.some((c) => c.method === "DELETE" && c.body?.includes(T))).toBe(true));
+  });
+
+  it("session serveur indisponible (503) : repli sur le localStorage d'avant", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 503 })));
+    window.history.replaceState(null, "", `${PATH}?token=${T}`);
+    getPublicMe.mockResolvedValue(ME);
+    mount();
+    await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("Camille"));
+    expect(window.localStorage.getItem("scsb:public-token:sete")).toBe(T);
+  });
+});

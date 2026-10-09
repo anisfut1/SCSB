@@ -134,10 +134,23 @@ function writeDeviceList(clubSlug: string, tokens: string[]): void {
   }
 }
 
+/**
+ * Liens de la session serveur (cookie HttpOnly, voir `public-session/`), gardés
+ * EN MÉMOIRE seulement pour les écrans qui fusionnent plusieurs liens
+ * (planning, « À faire ») : rien n'est écrit dans un stockage JavaScript.
+ */
+const memoryTokens = new Map<string, string[]>();
+
+export function setSessionDeviceTokens(clubSlug: string, tokens: readonly string[]): void {
+  if (tokens.length) memoryTokens.set(clubSlug, [...tokens].slice(0, MAX_DEVICE_TOKENS));
+  else memoryTokens.delete(clubSlug);
+}
+
 /** Liens de l'appareil, le lien actif en premier (sans doublon). */
 export function getDeviceTokens(clubSlug: string): string[] {
   const active = getStoredPublicToken(clubSlug);
-  const all = active ? [active, ...readDeviceList(clubSlug)] : readDeviceList(clubSlug);
+  const stored = [...(memoryTokens.get(clubSlug) ?? []), ...readDeviceList(clubSlug)];
+  const all = active ? [active, ...stored] : stored;
   return [...new Set(all)].slice(0, MAX_DEVICE_TOKENS);
 }
 
@@ -149,9 +162,12 @@ export function addDeviceToken(clubSlug: string, token: string): void {
 /** Oublie certains liens (révoqués, ou retirés par la personne). */
 export function removeDeviceTokens(clubSlug: string, tokens: readonly string[]): void {
   const drop = new Set(tokens);
+  const inMemory = memoryTokens.get(clubSlug);
+  if (inMemory) setSessionDeviceTokens(clubSlug, inMemory.filter((t) => !drop.has(t)));
   writeDeviceList(clubSlug, readDeviceList(clubSlug).filter((t) => !drop.has(t)));
 }
 
 export function clearDeviceTokens(clubSlug: string): void {
+  memoryTokens.delete(clubSlug);
   writeDeviceList(clubSlug, []);
 }
