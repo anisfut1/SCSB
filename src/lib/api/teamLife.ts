@@ -33,6 +33,12 @@ export type TeamLifeMatchDto = components["schemas"]["TeamLifeMatchDto"];
 export type MatchTeamLifeDto = components["schemas"]["MatchTeamLifeDto"];
 export type PutConvocationDraftDto = components["schemas"]["PutConvocationDraftDto"];
 export type ConvocationPreviewDto = components["schemas"]["ConvocationPreviewDto"];
+/**
+ * Lot 4 : page Équipe. `nextTraining` est une référence nullable : le
+ * générateur la rend en `TrainingOccurrenceDto & unknown` (le `| null` est
+ * perdu, même cas que `tables.ts`) — on rétablit le type réel de l'API.
+ */
+export type TeamOverviewDto = Omit<components["schemas"]["TeamOverviewDto"], "nextTraining"> & { nextTraining: components["schemas"]["TrainingOccurrenceDto"] | null };
 // Lot 3 : lavage des maillots.
 export type LaundryDto = components["schemas"]["LaundryDto"];
 export type LaundryCandidateDto = components["schemas"]["LaundryCandidateDto"];
@@ -66,6 +72,7 @@ export const clubTeamLife = {
   restore: (f: ApiFetcher, clubId: string, occurrenceId: string) => f<TrainingOccurrenceDto>(`${clubBase(clubId)}/trainings/${occurrenceId}/restore`, { method: "POST" }),
   planning: (f: ApiFetcher, clubId: string, params: PeriodQuery & { teamId?: string; kind?: "MATCH" | "TRAINING" } = {}) => f<PlanningDto>(`${clubBase(clubId)}/planning${qs({ ...params })}`),
   markAttendance: (f: ApiFetcher, clubId: string, occurrenceId: string, licencieId: string, status: TrainingAttendanceValue) => f<unknown>(`${clubBase(clubId)}/trainings/${occurrenceId}/attendance/${licencieId}`, { method: "PUT", body: { status } }),
+  teamOverview: (f: ApiFetcher, clubId: string, teamId: string) => f<TeamOverviewDto>(`${clubBase(clubId)}/teams/${teamId}/overview`),
   laundrySuggestions: (f: ApiFetcher, clubId: string, matchId: string) => f<{ candidates: LaundryCandidateDto[] }>(`${clubBase(clubId)}/matches/${matchId}/laundry/suggestions`),
   assignLaundry: (f: ApiFetcher, clubId: string, matchId: string, licencieId: string) => f<LaundryDto>(`${clubBase(clubId)}/matches/${matchId}/laundry`, { method: "PUT", body: { licencieId } }),
   removeLaundry: (f: ApiFetcher, clubId: string, matchId: string) => f<LaundryDto>(`${clubBase(clubId)}/matches/${matchId}/laundry`, { method: "DELETE" }),
@@ -91,6 +98,7 @@ export const publicTeamLife = {
   /** Réponse du licencié DU LIEN (un lien par enfant : on envoie celui de l'enfant concerné). */
   respond: (clubSlug: string, token: string, occurrenceId: string, response: TrainingResponseValue) => publicFetch<TrainingResponseResultDto>(`${publicBase(clubSlug)}/trainings/${occurrenceId}/response`, token, { method: "PUT", body: { response } }),
   markAttendance: (clubSlug: string, token: string, occurrenceId: string, licencieId: string, status: TrainingAttendanceValue) => publicFetch<unknown>(`${publicBase(clubSlug)}/trainings/${occurrenceId}/attendance/${licencieId}`, token, { method: "PUT", body: { status } }),
+  teamOverview: (clubSlug: string, token: string, teamId: string) => publicFetch<TeamOverviewDto>(`${publicBase(clubSlug)}/teams/${teamId}/overview`, token),
   laundrySuggestions: (clubSlug: string, token: string, matchId: string) => publicFetch<{ candidates: LaundryCandidateDto[] }>(`${publicBase(clubSlug)}/matches/${matchId}/laundry/suggestions`, token),
   assignLaundry: (clubSlug: string, token: string, matchId: string, licencieId: string) => publicFetch<LaundryDto>(`${publicBase(clubSlug)}/matches/${matchId}/laundry`, token, { method: "PUT", body: { licencieId } }),
   removeLaundry: (clubSlug: string, token: string, matchId: string) => publicFetch<LaundryDto>(`${publicBase(clubSlug)}/matches/${matchId}/laundry`, token, { method: "DELETE" }),
@@ -106,5 +114,5 @@ export const publicTeamLife = {
   respondConvocation: (clubSlug: string, token: string, matchId: string, response: "CONFIRMED" | "DECLINED") => publicFetch<unknown>(`${publicBase(clubSlug)}/matches/${matchId}/convocation/response`, token, { method: "PUT", body: { response } }),
   /** Home « À faire » : les liens de l'appareil voyagent dans le corps, jamais dans l'URL. */
   actionCenter: (clubSlug: string, tokens: string[]) => apiFetch<ActionCenterDto>(`${publicBase(clubSlug)}/action-center`, { method: "POST", body: { tokens } }),
-  planning: (clubSlug: string, tokens: string[], period: PeriodQuery = {}) => apiFetch<PlanningDto>(`${publicBase(clubSlug)}/planning${qs({ ...period })}`, { method: "POST", body: { tokens } }),
+  planning: (clubSlug: string, tokens: string[], period: PeriodQuery & { teamId?: string } = {}) => apiFetch<PlanningDto>(`${publicBase(clubSlug)}/planning${qs({ ...period })}`, { method: "POST", body: { tokens } }),
 };

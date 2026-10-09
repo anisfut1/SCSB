@@ -32,4 +32,9 @@ describe("Vie d'équipe", () => {
     expect(hrefs(["coach"])).toContain("/c/demo/entrainements");
     expect(hrefs(["club_admin"])).toContain("/c/demo/entrainements");
   });
+
+  it("Équipes (Lot 4) pour tous les membres", () => {
+    expect(hrefs(["joueur"])).toContain("/c/demo/equipes");
+    expect(hrefs(["coach"])).toContain("/c/demo/equipes");
+  });
 });

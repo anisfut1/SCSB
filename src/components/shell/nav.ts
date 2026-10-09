@@ -51,6 +51,8 @@ export function buildClubNav(slug: string, roles: readonly ClubRole[]): NavSecti
     { href: `${base}/joueurs`, label: "Joueurs", icon: "players", prefix: true },
     // Vie d'équipe (Lot 1, 2026-10-09) : matchs + entraînements de toutes les équipes.
     { href: `${base}/planning`, label: "Planning", icon: "planning" },
+    // Lot 4 : page de chaque équipe (vue d'ensemble, planning, effectif).
+    { href: `${base}/equipes`, label: "Équipes", icon: "teams", prefix: true },
   ];
   if (hasAnyRole(roles, TEAM_LIFE_MANAGER_ROLES)) {
     main.push({ href: `${base}/entrainements`, label: "Entraînements", icon: "trainings", prefix: true });

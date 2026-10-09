@@ -83,6 +83,7 @@ export function createApi(fetcher: ApiFetcher) {
       restore: (clubId: string, occurrenceId: string) => clubTeamLife.restore(fetcher, clubId, occurrenceId),
       planning: (clubId: string, params?: teamLife.PeriodQuery & { teamId?: string; kind?: "MATCH" | "TRAINING" }) => clubTeamLife.planning(fetcher, clubId, params),
       markAttendance: (clubId: string, occurrenceId: string, licencieId: string, status: teamLife.TrainingAttendanceValue) => clubTeamLife.markAttendance(fetcher, clubId, occurrenceId, licencieId, status),
+      teamOverview: (clubId: string, teamId: string) => clubTeamLife.teamOverview(fetcher, clubId, teamId),
       laundrySuggestions: (clubId: string, matchId: string) => clubTeamLife.laundrySuggestions(fetcher, clubId, matchId),
       assignLaundry: (clubId: string, matchId: string, licencieId: string) => clubTeamLife.assignLaundry(fetcher, clubId, matchId, licencieId),
       removeLaundry: (clubId: string, matchId: string) => clubTeamLife.removeLaundry(fetcher, clubId, matchId),

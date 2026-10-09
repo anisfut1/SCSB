@@ -98,14 +98,18 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
         meta={
           <>
             {playerTeams.map((t) => (
-              <StatusBadge key={`p-${t.id}`} tone="accent" icon={<Shirt />}>
-                Joue en {t.name}
-              </StatusBadge>
+              <Link key={`p-${t.id}`} href={`${base}/equipes/${t.id}`} className="rounded-full hover:opacity-80" aria-label={`Page de l'équipe ${t.name}`}>
+                <StatusBadge tone="accent" icon={<Shirt />}>
+                  Joue en {t.name} →
+                </StatusBadge>
+              </Link>
             ))}
             {coachTeams.map((t) => (
-              <StatusBadge key={`c-${t.id}`} tone="info" icon={<Megaphone />}>
-                Coach {t.name}
-              </StatusBadge>
+              <Link key={`c-${t.id}`} href={`${base}/equipes/${t.id}`} className="rounded-full hover:opacity-80" aria-label={`Page de l'équipe ${t.name}`}>
+                <StatusBadge tone="info" icon={<Megaphone />}>
+                  Coach {t.name} →
+                </StatusBadge>
+              </Link>
             ))}
             {home.roles.coordinator ? <StatusBadge tone="neutral">Coordinateur</StatusBadge> : null}
             {home.roles.admin ? <StatusBadge tone="neutral">Admin</StatusBadge> : null}

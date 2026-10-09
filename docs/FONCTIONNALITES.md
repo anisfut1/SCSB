@@ -165,6 +165,12 @@ Deux circuits distincts :
 - Coach : « Maillots à attribuer » dans « À faire » pour chaque match des 14 prochains jours (« Fait » une fois attribué).
 - API (préfixe `…/team-life`) : `GET /matches/{id}/laundry/suggestions` (lecture seule), `PUT|DELETE /matches/{id}/laundry`, public `POST /matches/{id}/laundry/seen`.
 
+### 3.14 Vie d'équipe — page Équipe (Lot 4)
+- Espace club : menu « Équipes » (tout membre) → liste des équipes → page de l'équipe. Espace public : badges « Joue en … » / « Coach … » de l'accueil → page de l'équipe (joueurs de l'équipe et ceux qui la gèrent seulement).
+- Onglets : **Vue d'ensemble** (prochain match — coach / admin : état de la convocation, « Gérer le match » ; prochain entraînement ; encadrement), **Planning** (celui de l'équipe), **Effectif** (badge Coach ; « Lien actif » / « Sans lien » pour coach / admin seulement). Pas un CRM.
+- API : `GET …/team-life/teams/{id}/overview` (deux espaces) ; planning public filtrable par équipe.
+- Rapport complet des Lots 1 à 4 : [`docs/VIE_EQUIPE_RAPPORT.md`](VIE_EQUIPE_RAPPORT.md).
+
 ### 3.10 Espace public et accueil personnel
 - Sans compte : matchs, résultats, classements, fiches joueurs, classement des tables.
 - Identification : la personne tape son **prénom et son nom** (ordre libre, fautes tolérées : « ansi abde meriuam » retrouve Anis) ; l'API propose au plus 5 fiches au format « Anis A. », jamais la liste du club. Puis **lien personnel** par email (adresse masquée affichée, rappel « regarde dans tes indésirables »).
@@ -193,6 +199,8 @@ Appels faits **au chargement** de la page (côté serveur). Les actions (boutons
 | `/derogations`, `/nouvelle`, `/{id}` | coach, coordinateur, admin | `derogationRequests.context`, `.list`, `.get` |
 | `/planning` | membre | `clubs.teams` ; puis `teamLife.planning` (navigateur) |
 | `/entrainements` | coach, admin | `clubs.teams` ; puis `teamLife.listSeries/listTrainings`, `derogationRequests.context` (gymnases) |
+| `/equipes` | membre | `clubs.teams` |
+| `/equipes/{id}` | membre | puis `teamLife.teamOverview`, `teamLife.planning` (navigateur) |
 | `/admin/integrations` | admin | `integrations.get`, `clubs.capabilities` |
 | `/admin/integrations/fbi` | admin | `integrations.get` |
 | `/admin/sync` | admin | `integrations.syncRuns`, `matches.list` |
@@ -217,6 +225,7 @@ Appels faits **au chargement** de la page (côté serveur). Les actions (boutons
 | `/public/{club}/tables` | `…` puis, avec lien personnel, `…/table-assignments` |
 | `/public/{club}/tables/classement` | `…/table-leaderboard` |
 | `/public/{club}/accueil` | avec lien personnel : `…/me`, `…/home` |
+| `/public/{club}/equipes/{id}` | avec lien personnel : `…/team-life/teams/{id}/overview`, `…/team-life/planning?teamId=` |
 | `/public/{club}/derogations…` | avec lien personnel : `…/derogation-requests…`, `…/derogations` |
 
 ### Actions (côté navigateur)
@@ -329,6 +338,7 @@ Le chantier de migration front → back et ses lots (LOT-02 à LOT-13) sont suiv
 Les plus récentes d'abord. Historique complet : `git log` des deux dépôts et [`docs/migration/CHANGELOG.md`](migration/CHANGELOG.md).
 
 **2026-10-10**
+- Vie d'équipe, Lot 4 : page Équipe (vue d'ensemble, planning, effectif) dans les deux espaces ; menu « Équipes » ; badges de l'accueil cliquables. Rapport final : `docs/VIE_EQUIPE_RAPPORT.md`.
 - Vie d'équipe, Lot 3 : lavage des maillots (suggestions équitables, le coach décide, « J'ai vu » côté famille, ligne dans la convocation).
 - Vie d'équipe : le coach qui joue dans l'équipe qu'il coache n'est plus interrogé (ni entraînement, ni disponibilité / convocation de match) et ne compte plus dans les « sans réponse ».
 - Entraînements : « Dernières séances » (les 2 dernières) pour noter les retards et les absents (présence réelle, distincte de la réponse prévue).

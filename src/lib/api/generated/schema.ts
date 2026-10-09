@@ -10582,6 +10582,140 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/clubs/{clubId}/team-life/teams/{teamId}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                    teamId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Vue d'ensemble de l'équipe (prochain match, entraînement, effectif) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamOverviewDto"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/clubs/{clubSlug}/team-life/teams/{teamId}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    token: string;
+                };
+                header?: never;
+                path: {
+                    /** @description Slug du club (flux public sans compte) */
+                    clubSlug: string;
+                    teamId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Vue d'ensemble (joueurs de l'équipe, coach / admin) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamOverviewDto"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/clubs/{clubId}/team-life/matches/{matchId}/laundry/suggestions": {
         parameters: {
             query?: never;
@@ -13146,6 +13280,42 @@ export interface components {
             }[];
             unavailableSelected: string[];
             blockers: string[];
+        };
+        TeamOverviewDto: {
+            team: {
+                id: string;
+                name: string;
+            };
+            canManage: boolean;
+            nextMatch: {
+                id: string;
+                startsAt: string | null;
+                isHome: boolean | null;
+                opponent: string | null;
+                venueName: string | null;
+                convocation: {
+                    sent: boolean;
+                    convoked: number;
+                    confirmed: number;
+                    declined: number;
+                    pending: number;
+                } | null;
+                availability: {
+                    open: boolean;
+                    noResponse: number;
+                } | null;
+            } | null;
+            nextTraining: components["schemas"]["TrainingOccurrenceDto"] & unknown;
+            roster: {
+                licencie: {
+                    id: string;
+                    firstName: string;
+                    lastName: string;
+                    photoUrl: string | null;
+                };
+                isCoach: boolean;
+                hasPersonalLink: boolean | null;
+            }[];
         };
         LaundrySuggestionsDto: {
             candidates: components["schemas"]["LaundryCandidateDto"][];
