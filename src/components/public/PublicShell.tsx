@@ -4,6 +4,8 @@ import { BrandMark } from "@/components/brand/BrandMark";
 import { PLATFORM_NAME } from "@/config/site";
 import { clubAccentStyle } from "@/lib/ui/accent";
 import { PublicIdentityProvider } from "@/features/public/PublicIdentityProvider";
+import { InstallAppButton } from "@/features/pwa/InstallAppButton";
+import { PwaReconnectNotice } from "@/features/pwa/PwaReconnectNotice";
 import { PublicAccountChip } from "./PublicAccountChip";
 import { PublicBottomNav, PublicTopTabs } from "./PublicNav";
 
@@ -31,10 +33,12 @@ export function PublicShell({ clubSlug, club, children }: { clubSlug: string; cl
             </div>
             <PublicTopTabs clubSlug={clubSlug} />
             <div className="flex items-center gap-2 lg:ml-auto">
+              <InstallAppButton />
               <PublicAccountChip />
             </div>
           </div>
         </header>
+        <PwaReconnectNotice />
         <main id="main" tabIndex={-1} className="pb-safe-nav flex flex-1 flex-col outline-none lg:pb-0">
           {children}
         </main>

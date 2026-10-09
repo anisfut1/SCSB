@@ -30,6 +30,9 @@ const nextConfig: NextConfig = {
   // (src/config/security-headers.ts, docs/migration/12-csp-report-only.md).
   async headers() {
     return [
+      // PWA : le Service Worker et le manifeste ne doivent jamais rester en cache HTTP (sinon une mise à jour n'arrive pas).
+      { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }, { key: "Service-Worker-Allowed", value: "/" }, { key: "Content-Type", value: "text/javascript; charset=utf-8" }] },
+      { source: "/offline.html", headers: [{ key: "Cache-Control", value: "no-cache" }] },
       {
         source: "/(.*)",
         headers: securityHeaders({

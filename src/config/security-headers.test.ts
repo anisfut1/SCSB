@@ -81,10 +81,12 @@ describe("securityHeaders", () => {
 
 describe("next.config.ts : headers() réellement exposés par Next", () => {
   it("applique les en-têtes à toutes les routes ; la CSP appliquée se limite à frame-ancestors", async () => {
-    const rules = await nextConfig.headers!();
+    const all = await nextConfig.headers!();
+    // Hors règles PWA (/sw.js, /offline.html : cache), il reste UNE règle globale.
+    const rules = all.filter((r) => r.source === "/(.*)");
 
     expect(rules).toHaveLength(1);
-    expect(rules[0]!.source).toBe("/(.*)");
+    expect(all.map((r) => r.source)).toEqual(expect.arrayContaining(["/sw.js", "/offline.html"]));
     const keys = rules[0]!.headers.map((h) => h.key.toLowerCase());
     expect(keys).toContain("content-security-policy-report-only");
     expect(keys).toContain("x-frame-options");
@@ -93,7 +95,7 @@ describe("next.config.ts : headers() réellement exposés par Next", () => {
   });
 
   it("les origines de connect-src viennent des variables NEXT_PUBLIC_* (valeurs factices de vitest.setup.ts)", async () => {
-    const rules = await nextConfig.headers!();
+    const rules = (await nextConfig.headers!()).filter((r) => r.source === "/(.*)");
     const csp = rules[0]!.headers.find((h) => h.key === "Content-Security-Policy-Report-Only")!.value;
 
     expect(csp).toContain("https://test-project.supabase.co");

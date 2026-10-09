@@ -58,6 +58,6 @@ export const config = {
      * publics et les endpoints internes (aucun `/api/internal` en Phase 0,
      * réservé pour la synchronisation FFBB en Phase 1).
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw\\.js$|offline\\.html$|manifest\\.webmanifest$|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

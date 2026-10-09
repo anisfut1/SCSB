@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { getPublicClub, type PublicClubDto } from "@/lib/api/publicTables";
 import { ApiError } from "@/lib/api/client";
 import { PublicShell } from "@/components/public/PublicShell";
+
+/** Manifeste PWA du club : l'application installée s'ouvre directement sur l'accueil de CE club. */
+export async function generateMetadata({ params }: { params: Promise<{ clubSlug: string }> }): Promise<Metadata> {
+  const { clubSlug } = await params;
+  return { manifest: `/public/${encodeURIComponent(clubSlug)}/manifest.webmanifest` };
+}
 
 /**
  * Layout commun de l'espace public sans compte : résout le club une fois
