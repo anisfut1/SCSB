@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, CalendarCheck2, Megaphone, Pencil, Send, Users } from "lucide-react";
+import { AlertTriangle, CalendarCheck2, Megaphone, Pencil, Send, Shirt, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
@@ -12,6 +12,7 @@ import { Toast } from "@/components/ui/Toast";
 import { ApiError } from "@/lib/api/client";
 import type { MatchTeamLifeDto } from "@/lib/api/teamLife";
 import { ConvocationSheet } from "./ConvocationSheet";
+import { LaundrySheet } from "./LaundrySheet";
 import type { TeamLifeClient } from "./team-life-client";
 
 const CHANGE_LABEL: Record<string, string> = { DATE: "la date ou l'heure", VENUE: "le lieu", STATUS: "le statut (annulé / reporté)" };
@@ -30,6 +31,7 @@ export function MatchTeamLifePanel({ client, matchId, timezone }: { client: Team
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<null | "select" | "preview">(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [laundryOpen, setLaundryOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +85,7 @@ export function MatchTeamLifePanel({ client, matchId, timezone }: { client: Team
 
   return (
     <section id="vie-equipe" aria-labelledby="vie-equipe-title" className="flex scroll-mt-24 flex-col gap-4">
-      <SectionHeader id="vie-equipe-title" title="Disponibilités et convocation" description="Disponible, convoqué et confirmé sont trois étapes distinctes. Rien n'est envoyé aux familles avant « Envoyer la convocation »." />
+      <SectionHeader id="vie-equipe-title" title="Disponibilités, convocation et maillots" description="Disponible, convoqué et confirmé sont trois étapes distinctes. Rien n'est envoyé aux familles avant « Envoyer la convocation »." />
       {data.matchClosed ? <Notice tone="info">Match passé, annulé ou reporté : plus de demande ni de confirmation possible.</Notice> : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}
 
@@ -197,6 +199,30 @@ export function MatchTeamLifePanel({ client, matchId, timezone }: { client: Team
         )}
       </Card>
 
+      <Card className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="flex items-center gap-2 text-[15px] font-semibold text-foreground [&_svg]:size-[18px] [&_svg]:text-accent-text">
+            <Shirt aria-hidden /> 3. Maillots
+          </h3>
+          {!data.matchClosed ? (
+            <Button variant={data.laundry.assignee ? "secondary" : "primary"} size="sm" icon={data.laundry.assignee ? <Pencil /> : <Shirt />} onClick={() => setLaundryOpen(true)}>
+              {data.laundry.assignee ? "Modifier" : "Choisir"}
+            </Button>
+          ) : null}
+        </div>
+        {data.laundry.assignee ? (
+          <div className="rounded-[12px] bg-surface-muted px-3.5 py-3">
+            <p className="text-[14.5px] font-medium text-foreground">{data.laundry.assignee.label}</p>
+            <p className="type-meta">
+              {data.laundry.assignee.seasonCount <= 1 ? "1er lavage cette saison" : `${data.laundry.assignee.seasonCount}e lavage cette saison`}
+              {data.laundry.assignee.seenAt ? " · a vu l'information" : ""}
+            </p>
+          </div>
+        ) : (
+          <p className="type-meta">À attribuer. La personne désignée le voit sur son accueil (et dans sa convocation si elle n&apos;est pas encore envoyée).</p>
+        )}
+      </Card>
+
       {sheet ? (
         <ConvocationSheet
           client={client}
@@ -207,6 +233,18 @@ export function MatchTeamLifePanel({ client, matchId, timezone }: { client: Team
           onSent={(dto) => {
             setData(dto);
             flash(dto.convocation && dto.convocation.revision > 1 ? "Mise à jour envoyée." : "Convocation envoyée : elle apparaît sur l'accueil de chaque famille.");
+          }}
+        />
+      ) : null}
+      {laundryOpen ? (
+        <LaundrySheet
+          client={client}
+          matchId={matchId}
+          currentLicencieId={data.laundry.assignee?.licencie.id ?? null}
+          onClose={() => setLaundryOpen(false)}
+          onAssigned={(laundry) => {
+            setData({ ...data, laundry });
+            flash(`Maillots : ${laundry.assignee?.label ?? ""}.`);
           }}
         />
       ) : null}

@@ -13,12 +13,14 @@ const actionCenter = vi.fn();
 const respond = vi.fn();
 const respondAvailability = vi.fn();
 const respondConvocation = vi.fn();
+const markLaundrySeen = vi.fn();
 vi.mock("@/lib/api/teamLife", () => ({
   publicTeamLife: {
     actionCenter: (...a: unknown[]) => actionCenter(...a),
     respond: (...a: unknown[]) => respond(...a),
     respondAvailability: (...a: unknown[]) => respondAvailability(...a),
     respondConvocation: (...a: unknown[]) => respondConvocation(...a),
+    markLaundrySeen: (...a: unknown[]) => markLaundrySeen(...a),
   },
 }));
 
@@ -168,6 +170,7 @@ describe("Home « À faire » — coach : tables de marque (retour du club, 2026
     convocationCounts: { convoked: 10, confirmed: 10, declined: 0, pending: 0 },
     matchChanged: false,
     tables: { filled, total: 4 },
+    laundryAssigned: true,
   });
 
   it("table incomplète = à faire (1/4) ; table complète et convocation envoyée = « Fait », en dernier", async () => {
@@ -180,5 +183,17 @@ describe("Home « À faire » — coach : tables de marque (retour du club, 2026
     expect(items[0]?.textContent).not.toContain("Fait");
     expect(items[items.length - 1]?.textContent).toContain("Fait");
     expect(screen.queryByText("Tout est à jour")).toBeNull();
+  });
+});
+
+describe("Home « À faire » — maillots (Lot 3)", () => {
+  it("la famille désignée voit « Vous êtes en charge du lavage » ; « J'ai vu » avec SON lien → « Fait »", async () => {
+    markLaundrySeen.mockResolvedValue({});
+    actionCenter.mockResolvedValue({ ...DTO, actions: [{ type: "LAUNDRY_DUTY", licencieId: "tom", firstName: "Tom", match: MATCH, seenAt: null }] });
+    render(<Home />);
+    expect(await screen.findByText("Vous êtes en charge du lavage des maillots après le match.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /J'ai vu/ }));
+    await waitFor(() => expect(markLaundrySeen).toHaveBeenCalledWith("sete", "lien-tom", "m1"));
+    expect(await screen.findByText("Fait")).toBeTruthy();
   });
 });

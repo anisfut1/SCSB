@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, Ban, Check, ClipboardList, Megaphone, MapPin, Trophy, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, Ban, Check, ClipboardList, Eye, MapPin, Megaphone, Shirt, Trophy, X } from "lucide-react";
 import { StatusBadge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import type { ActionCenterActionDto, ConvocationResponseValue, MatchAvailabilityValue, TeamLifeMatchDto } from "@/lib/api/teamLife";
 import { availabilitySummary, convocationSummary, matchTitle, shortDateTime, timeOf } from "./labels";
@@ -195,6 +196,55 @@ export function TablesCard({ action, timezone, href }: { action: CoachMatchActio
         <span className="inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-accent-text [&_svg]:size-4">
           <span className="sm:hidden">Tables</span>
           <span className="hidden sm:inline">Voir les tables</span> <ArrowRight aria-hidden />
+        </span>
+      </Card>
+    </Link>
+  );
+}
+
+export type LaundryDutyAction = Extract<ActionCenterActionDto, { type: "LAUNDRY_DUTY" }>;
+
+/** Famille / joueur désigné : « Vous êtes en charge du lavage des maillots après le match » + « J'ai vu ». */
+export function LaundryDutyCard({ action, timezone, seen, saving, onSeen }: { action: LaundryDutyAction; timezone: string; seen: boolean; saving: boolean; onSeen: () => void }) {
+  return (
+    <Card className="flex flex-col gap-3">
+      <div className="flex items-start gap-3">
+        <Icon tone="accent">
+          <Shirt />
+        </Icon>
+        <div className="min-w-0 flex-1">
+          <p className="type-eyebrow">Maillots{action.firstName ? ` · ${action.firstName}` : ""}</p>
+          <p className="text-reflow text-[15.5px] font-semibold leading-snug text-foreground">{matchTitle(action.match)}</p>
+          <p className="type-meta type-numeric mt-0.5">{shortDateTime(action.match.startsAt, timezone)}</p>
+          <p className="mt-2 text-[14px] font-medium text-foreground">Vous êtes en charge du lavage des maillots après le match.</p>
+        </div>
+      </div>
+      {seen ? null : (
+        <Button variant="secondary" icon={<Eye />} loading={saving} onClick={onSeen} className="sm:self-start">
+          J&apos;ai vu
+        </Button>
+      )}
+    </Card>
+  );
+}
+
+/** Coach : maillots à attribuer pour ce match (bouton vers la fiche match). */
+export function CoachLaundryCard({ action, timezone, href }: { action: CoachMatchAction; timezone: string; href: string }) {
+  return (
+    <Link href={href} className="block rounded-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40">
+      <Card variant="interactive" className="flex items-center gap-3">
+        <Icon tone={action.laundryAssigned ? "info" : "warning"}>
+          <Shirt />
+        </Icon>
+        <div className="min-w-0 flex-1">
+          <p className="type-eyebrow">Maillots</p>
+          <p className="text-reflow text-[15px] font-semibold text-foreground">{matchTitle(action.match)}</p>
+          <p className="type-meta mt-0.5">
+            <span className="type-numeric">{shortDateTime(action.match.startsAt, timezone)}</span> · {action.laundryAssigned ? "Lavage attribué" : "Lavage à attribuer"}
+          </p>
+        </div>
+        <span className="inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-accent-text [&_svg]:size-4">
+          Choisir <ArrowRight aria-hidden />
         </span>
       </Card>
     </Link>

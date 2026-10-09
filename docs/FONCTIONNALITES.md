@@ -157,6 +157,14 @@ Deux circuits distincts :
 - Écrans : bloc « Disponibilités et convocation » des fiches match `/c/{club}/matchs/{id}` et `/public/{club}/matchs/{id}` (coach / admin) ; accueil public.
 - API (préfixe `…/team-life`) : `GET /matches/{id}`, `POST …/availability/open`, `PUT …/convocation/draft`, `POST …/convocation/preview|send` (deux espaces) ; public : `PUT …/availability/response`, `PUT …/convocation/response`.
 
+### 3.13 Vie d'équipe — lavage des maillots (Lot 3)
+- Seule tâche gérée, matchs officiels uniquement. **Le logiciel suggère, le coach décide** (rien n'est attribué automatiquement).
+- Fiche match (coach / admin) : bloc « 3. Maillots » → « Choisir » : SUGGÉRÉS (convocation confirmée, convoqués, ou disponibles), puis AUTRES (non convoqués, refus, indisponibles en dernier) ; à situation égale, moins de lavages cette saison d'abord, et on évite la personne du match précédent.
+- Libellé : « Parent de Lina Martin » (mineur) ou « Anis Abed » (majeur), jamais de nom de famille inventé. Compteur « 1er lavage cette saison ».
+- Famille désignée : carte « Maillots — Vous êtes en charge du lavage des maillots après le match » sur l'accueil, bouton « J'ai vu » ; ligne ajoutée à SA convocation si l'attribution est faite avant l'envoi.
+- Coach : « Maillots à attribuer » dans « À faire » pour chaque match des 14 prochains jours (« Fait » une fois attribué).
+- API (préfixe `…/team-life`) : `GET /matches/{id}/laundry/suggestions` (lecture seule), `PUT|DELETE /matches/{id}/laundry`, public `POST /matches/{id}/laundry/seen`.
+
 ### 3.10 Espace public et accueil personnel
 - Sans compte : matchs, résultats, classements, fiches joueurs, classement des tables.
 - Identification : la personne tape son **prénom et son nom** (ordre libre, fautes tolérées : « ansi abde meriuam » retrouve Anis) ; l'API propose au plus 5 fiches au format « Anis A. », jamais la liste du club. Puis **lien personnel** par email (adresse masquée affichée, rappel « regarde dans tes indésirables »).
@@ -321,6 +329,7 @@ Le chantier de migration front → back et ses lots (LOT-02 à LOT-13) sont suiv
 Les plus récentes d'abord. Historique complet : `git log` des deux dépôts et [`docs/migration/CHANGELOG.md`](migration/CHANGELOG.md).
 
 **2026-10-10**
+- Vie d'équipe, Lot 3 : lavage des maillots (suggestions équitables, le coach décide, « J'ai vu » côté famille, ligne dans la convocation).
 - Vie d'équipe : le coach qui joue dans l'équipe qu'il coache n'est plus interrogé (ni entraînement, ni disponibilité / convocation de match) et ne compte plus dans les « sans réponse ».
 - Entraînements : « Dernières séances » (les 2 dernières) pour noter les retards et les absents (présence réelle, distincte de la réponse prévue).
 - Vie d'équipe, Lot 2 : disponibilités des matchs, convocations personnalisées (aperçu, envoi dans l'application, confirmations en un clic, mise à jour explicite, alerte si la FFBB modifie le match).

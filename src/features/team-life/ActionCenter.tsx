@@ -13,7 +13,7 @@ import { Toast } from "@/components/ui/Toast";
 import { publicTeamLife, type ActionCenterActionDto, type ActionCenterDto, type ConvocationResponseValue, type MatchAvailabilityValue, type TrainingResponseValue } from "@/lib/api/teamLife";
 import { getDeviceTokens, removeDeviceTokens } from "@/lib/publicToken";
 import { countsSummary, locationLabel, relativeDay, timeOf } from "./labels";
-import { AvailabilityCard, CoachMatchCard, ConvocationCard, TablesCard, type AvailabilityAction, type ConvocationAction } from "./MatchActionCards";
+import { AvailabilityCard, CoachLaundryCard, CoachMatchCard, ConvocationCard, LaundryDutyCard, TablesCard, type LaundryDutyAction, type AvailabilityAction, type ConvocationAction } from "./MatchActionCards";
 import { ResponseButtons } from "./ResponseButtons";
 
 type ResponseAction = Extract<ActionCenterActionDto, { type: "TRAINING_RESPONSE" }>;
@@ -99,6 +99,24 @@ export function ActionCenter({ clubSlug, timezone, data, tokens, failed, onAddPe
     [answers, data, showToast, tokens],
   );
 
+  /** « J'ai vu » (maillots) : optimiste, retour en arrière si l'envoi échoue. */
+  const markSeen = async (key: string, action: LaundryDutyAction) => {
+    if (!data) return;
+    const person = data.people.find((p) => p.licencieId === action.licencieId);
+    const token = person ? tokens[person.tokenIndex] : undefined;
+    if (!token) return;
+    setAnswers((a) => ({ ...a, [key]: "SEEN" }));
+    setSaving((s) => ({ ...s, [key]: true }));
+    try {
+      await publicTeamLife.markLaundrySeen(clubSlug, token, action.match.id);
+    } catch {
+      setAnswers((a) => ({ ...a, [key]: null }));
+      showToast({ tone: "danger", message: "Impossible d'enregistrer la réponse." });
+    } finally {
+      setSaving((s) => ({ ...s, [key]: false }));
+    }
+  };
+
   if (failed) return null; // La Home reste utilisable : le reste de l'accueil s'affiche normalement.
   if (!data) {
     return (
@@ -124,9 +142,14 @@ export function ActionCenter({ clubSlug, timezone, data, tokens, failed, onAddPe
       items.push({ key: `coach-m-${a.match.id}`, kind: "coach-match", action: a, doneAtLoad: coachMatchDone(a) });
       // Table de marque de ses matchs à domicile : à faire tant qu'elle n'est pas complète.
       if (a.tables) items.push({ key: `tables-${a.match.id}`, kind: "tables", action: a, doneAtLoad: a.tables.filled >= a.tables.total });
+      // Maillots (Lot 3) : à attribuer par le coach, « Fait » une fois attribués.
+      items.push({ key: `laundry-c-${a.match.id}`, kind: "coach-laundry", action: a, doneAtLoad: a.laundryAssigned });
+    } else if (a.type === "LAUNDRY_DUTY") {
+      items.push({ key: `laundry-${a.match.id}:${a.licencieId}`, kind: "laundry", action: a, doneAtLoad: a.seenAt !== null });
     } else if (a.type === "COACH_TRAINING_SUMMARY") items.push({ key: `coach-${a.training.id}`, kind: "coach-training", action: a, doneAtLoad: false });
   }
   const isDone = (item: HomeItem): boolean => {
+    if (item.kind === "laundry") return item.doneAtLoad || answers[item.key] === "SEEN";
     if (item.kind !== "answer") return item.doneAtLoad;
     const value = current(item.action);
     return value !== null && value !== "PENDING";
@@ -141,6 +164,11 @@ export function ActionCenter({ clubSlug, timezone, data, tokens, failed, onAddPe
     }
     if (item.kind === "coach-match") return <CoachMatchCard action={item.action} timezone={timezone} href={`/public/${clubSlug}/matchs/${item.action.match.id}#vie-equipe`} />;
     if (item.kind === "tables") return <TablesCard action={item.action} timezone={timezone} href={`/public/${clubSlug}/tables`} />;
+    if (item.kind === "coach-laundry") return <CoachLaundryCard action={item.action} timezone={timezone} href={`/public/${clubSlug}/matchs/${item.action.match.id}#vie-equipe`} />;
+    if (item.kind === "laundry") {
+      const a = item.action;
+      return <LaundryDutyCard action={a} timezone={timezone} seen={isDone(item)} saving={saving[item.key] === true} onSeen={() => void markSeen(item.key, a)} />;
+    }
     return renderAnswer(item.key, item.action);
   };
 
@@ -213,6 +241,8 @@ type HomeItem =
   | { key: string; kind: "answer"; action: AnswerableAction; doneAtLoad: boolean }
   | { key: string; kind: "coach-match"; action: CoachMatchAction; doneAtLoad: boolean }
   | { key: string; kind: "tables"; action: CoachMatchAction; doneAtLoad: boolean }
+  | { key: string; kind: "coach-laundry"; action: CoachMatchAction; doneAtLoad: boolean }
+  | { key: string; kind: "laundry"; action: LaundryDutyAction; doneAtLoad: boolean }
   | { key: string; kind: "coach-training"; action: CoachAction; doneAtLoad: boolean };
 
 /** Convocation envoyée, match inchangé, aucun refus à gérer : rien à faire pour le coach. */
