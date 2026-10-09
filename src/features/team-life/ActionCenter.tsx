@@ -2,17 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CalendarCheck2, CheckCircle2, ClipboardCheck, Dumbbell, MapPin, UserPlus } from "lucide-react";
+import { ArrowRight, CheckCircle2, ClipboardCheck, Dumbbell, MapPin, UserPlus } from "lucide-react";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { cn } from "@/components/ui/cn";
 import { SectionHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Toast } from "@/components/ui/Toast";
 import { publicTeamLife, type ActionCenterActionDto, type ActionCenterDto, type ConvocationResponseValue, type MatchAvailabilityValue, type TrainingResponseValue } from "@/lib/api/teamLife";
 import { getDeviceTokens, removeDeviceTokens } from "@/lib/publicToken";
 import { countsSummary, locationLabel, relativeDay, timeOf } from "./labels";
-import { AvailabilityCard, CoachMatchCard, ConvocationCard, type AvailabilityAction, type ConvocationAction } from "./MatchActionCards";
+import { AvailabilityCard, CoachMatchCard, ConvocationCard, TablesCard, type AvailabilityAction, type ConvocationAction } from "./MatchActionCards";
 import { ResponseButtons } from "./ResponseButtons";
 
 type ResponseAction = Extract<ActionCenterActionDto, { type: "TRAINING_RESPONSE" }>;
@@ -112,23 +113,44 @@ export function ActionCenter({ clubSlug, timezone, data, tokens, failed, onAddPe
     const key = keyOf(a);
     return key in answers ? answers[key]! : a.currentResponse;
   };
-  // Ordre de l'API (réponses attendues, convocations, coach, le reste). « À faire » = sans réponse au
-  // chargement : une réponse donnée ici reste en place, cochée, jusqu'au prochain passage.
-  const answerable = data.actions.filter(isAnswerable);
-  const todo = answerable.filter(isTodo);
-  const answered = answerable.filter((a) => !isTodo(a));
-  const coach = data.actions.filter((a) => a.type === "COACH_TRAINING_SUMMARY" || a.type === "COACH_MATCH");
-  const remaining = todo.filter((a) => current(a) === null || current(a) === "PENDING").length;
+  // Une seule liste (retour du club, 2026-10-10) : ce qui reste à faire d'abord (ordre de l'API :
+  // réponses attendues, convocations, coach), puis ce qui est fait — en vert grisé, toujours modifiable.
+  // Un élément fait sur place passe en vert tout de suite, sans changer de place avant le prochain passage.
   const several = data.people.length > 1;
+  const items: HomeItem[] = [];
+  for (const a of data.actions) {
+    if (isAnswerable(a)) items.push({ key: keyOf(a), kind: "answer", action: a, doneAtLoad: !isTodo(a) });
+    else if (a.type === "COACH_MATCH") {
+      items.push({ key: `coach-m-${a.match.id}`, kind: "coach-match", action: a, doneAtLoad: coachMatchDone(a) });
+      // Table de marque de ses matchs à domicile : à faire tant qu'elle n'est pas complète.
+      if (a.tables) items.push({ key: `tables-${a.match.id}`, kind: "tables", action: a, doneAtLoad: a.tables.filled >= a.tables.total });
+    } else if (a.type === "COACH_TRAINING_SUMMARY") items.push({ key: `coach-${a.training.id}`, kind: "coach-training", action: a, doneAtLoad: false });
+  }
+  const isDone = (item: HomeItem): boolean => {
+    if (item.kind !== "answer") return item.doneAtLoad;
+    const value = current(item.action);
+    return value !== null && value !== "PENDING";
+  };
+  const ordered = [...items.filter((i) => !i.doneAtLoad), ...items.filter((i) => i.doneAtLoad)];
+  const remaining = items.filter((i) => !isDone(i) && i.kind !== "coach-training").length;
 
-  const renderAction = (a: AnswerableAction, compact = false) => {
-    const key = keyOf(a);
+  const renderItem = (item: HomeItem) => {
+    if (item.kind === "coach-training") {
+      const a = item.action;
+      return <CoachSummaryCard action={a} timezone={timezone} href={`/public/${clubSlug}/entrainements?equipe=${a.training.team.id}&seance=${a.training.id}`} />;
+    }
+    if (item.kind === "coach-match") return <CoachMatchCard action={item.action} timezone={timezone} href={`/public/${clubSlug}/matchs/${item.action.match.id}#vie-equipe`} />;
+    if (item.kind === "tables") return <TablesCard action={item.action} timezone={timezone} href={`/public/${clubSlug}/tables`} />;
+    return renderAnswer(item.key, item.action);
+  };
+
+  const renderAnswer = (key: string, a: AnswerableAction) => {
     const busy = saving[key] === true;
     if (a.type === "TRAINING_RESPONSE") {
-      return <TrainingResponseCard action={a} timezone={timezone} value={current(a) as TrainingResponseValue | null} saving={busy} showTeam={several} compact={compact} onRespond={(v) => void respond(a, v, (token) => publicTeamLife.respond(clubSlug, token, a.training.id, v))} />;
+      return <TrainingResponseCard action={a} timezone={timezone} value={current(a) as TrainingResponseValue | null} saving={busy} showTeam={several} onRespond={(v) => void respond(a, v, (token) => publicTeamLife.respond(clubSlug, token, a.training.id, v))} />;
     }
     if (a.type === "MATCH_AVAILABILITY") {
-      return <AvailabilityCard action={a} timezone={timezone} value={current(a) as MatchAvailabilityValue | null} saving={busy} compact={compact} onRespond={(v) => void respond(a, v, (token) => publicTeamLife.respondAvailability(clubSlug, token, a.match.id, v))} />;
+      return <AvailabilityCard action={a} timezone={timezone} value={current(a) as MatchAvailabilityValue | null} saving={busy} onRespond={(v) => void respond(a, v, (token) => publicTeamLife.respondAvailability(clubSlug, token, a.match.id, v))} />;
     }
     return <ConvocationCard action={a} timezone={timezone} value={(current(a) ?? "PENDING") as ConvocationResponseValue} saving={busy} onRespond={(v) => void respond(a, v, (token) => publicTeamLife.respondConvocation(clubSlug, token, a.match.id, v))} />;
   };
@@ -148,62 +170,26 @@ export function ActionCenter({ clubSlug, timezone, data, tokens, failed, onAddPe
         }
       />
 
-      {todo.length === 0 && coach.length === 0 ? (
+      {remaining === 0 ? (
         <Card className="flex items-center gap-3">
           <span aria-hidden className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-success-soft text-success [&_svg]:size-5">
             <CheckCircle2 />
           </span>
           <div className="min-w-0">
             <p className="text-[15px] font-semibold text-foreground">Tout est à jour</p>
-            <p className="type-meta">{answerable.length ? "Tu as répondu à tout ce qui était demandé." : "Aucune réponse attendue pour le moment."}</p>
+            <p className="type-meta">{items.length ? "Tout ce qui était demandé est fait." : "Aucune réponse attendue pour le moment."}</p>
           </div>
         </Card>
       ) : null}
 
-      {todo.length ? (
+      {ordered.length ? (
         <ul className="flex flex-col gap-3">
-          {todo.map((a) => (
-            <li key={keyOf(a)}>{renderAction(a)}</li>
+          {ordered.map((item) => (
+            <li key={item.key}>
+              <DoneShell done={isDone(item)}>{renderItem(item)}</DoneShell>
+            </li>
           ))}
         </ul>
-      ) : null}
-      {todo.length > 0 && remaining === 0 ? (
-        <p role="status" className="flex items-center gap-2 text-[14px] font-medium text-success [&_svg]:size-4">
-          <CheckCircle2 aria-hidden /> Merci, tout est à jour.
-        </p>
-      ) : null}
-
-      {coach.length ? (
-        <ul className="flex flex-col gap-3">
-          {coach.map((a) =>
-            a.type === "COACH_TRAINING_SUMMARY" ? (
-              <li key={`coach-${a.training.id}`}>
-                <CoachSummaryCard action={a} timezone={timezone} href={`/public/${clubSlug}/entrainements?equipe=${a.training.team.id}&seance=${a.training.id}`} />
-              </li>
-            ) : a.type === "COACH_MATCH" ? (
-              <li key={`coach-m-${a.match.id}`}>
-                <CoachMatchCard action={a} timezone={timezone} href={`/public/${clubSlug}/matchs/${a.match.id}#vie-equipe`} />
-              </li>
-            ) : null,
-          )}
-        </ul>
-      ) : null}
-
-      {answered.length ? (
-        <details className="group rounded-[16px] border border-border bg-surface-raised">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 text-[14px] font-medium text-foreground">
-            <span className="flex items-center gap-2 [&_svg]:size-4 [&_svg]:text-success">
-              <CalendarCheck2 aria-hidden />
-              Déjà répondu ({answered.length})
-            </span>
-            <span className="type-meta group-open:hidden">Modifier</span>
-          </summary>
-          <ul className="flex flex-col gap-3 border-t border-border p-3">
-            {answered.map((a) => (
-              <li key={keyOf(a)}>{renderAction(a, true)}</li>
-            ))}
-          </ul>
-        </details>
       ) : null}
 
       {toast ? <Toast tone={toast.tone} message={toast.message} /> : null}
@@ -220,6 +206,38 @@ function isAnswerable(a: ActionCenterActionDto): a is AnswerableAction {
 function isTodo(a: AnswerableAction): boolean {
   if (a.type === "CONVOCATION_RESPONSE") return a.currentResponse === "PENDING" && !a.matchClosed;
   return a.currentResponse === null;
+}
+
+type CoachMatchAction = Extract<ActionCenterActionDto, { type: "COACH_MATCH" }>;
+type HomeItem =
+  | { key: string; kind: "answer"; action: AnswerableAction; doneAtLoad: boolean }
+  | { key: string; kind: "coach-match"; action: CoachMatchAction; doneAtLoad: boolean }
+  | { key: string; kind: "tables"; action: CoachMatchAction; doneAtLoad: boolean }
+  | { key: string; kind: "coach-training"; action: CoachAction; doneAtLoad: boolean };
+
+/** Convocation envoyée, match inchangé, aucun refus à gérer : rien à faire pour le coach. */
+function coachMatchDone(a: CoachMatchAction): boolean {
+  return a.stage === "CONVOCATION_SENT" && !a.matchChanged && (a.convocationCounts?.declined ?? 0) === 0;
+}
+
+/** Fait : bulle verte grisée avec « Fait », le contenu reste utilisable (changer d'avis). */
+function DoneShell({ done, children }: { done: boolean; children: React.ReactNode }) {
+  // Toujours le même conteneur (seul le style change) : la carte n'est jamais remontée, le focus reste en place.
+  return (
+    <div
+      className={cn(
+        "relative rounded-[18px] transition-[opacity,outline-color] duration-200",
+        done && "opacity-70 outline outline-2 outline-[color-mix(in_oklab,var(--success)_45%,transparent)] hover:opacity-100 focus-within:opacity-100 [&_.surface-card]:bg-success-soft",
+      )}
+    >
+      {done ? (
+        <span className="pointer-events-none absolute -top-2.5 right-4 z-10 inline-flex items-center gap-1 rounded-full bg-success px-2 py-0.5 text-[11.5px] shadow-1 font-semibold text-white [&_svg]:size-3.5">
+          <CheckCircle2 aria-hidden /> Fait
+        </span>
+      ) : null}
+      {children}
+    </div>
+  );
 }
 
 function keyOf(a: AnswerableAction): string {

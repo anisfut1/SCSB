@@ -12768,6 +12768,10 @@ export interface components {
             availabilityCounts: components["schemas"]["AvailabilityCountsDto"] & unknown;
             convocationCounts: components["schemas"]["ConvocationCountsDto"] & unknown;
             matchChanged: boolean;
+            tables: {
+                filled: number;
+                total: number;
+            } | null;
         };
         ActionCenterRequestDto: {
             tokens: string[];

@@ -164,3 +164,39 @@ export function CoachMatchCard({ action, timezone, href }: { action: CoachMatchA
     </Link>
   );
 }
+
+/**
+ * Table de marque d'un match à domicile coaché (retour du club, 2026-10-10) :
+ * « 1/4 postes définis » tant que ce n'est pas complet, avec un bouton vers
+ * l'écran Tables.
+ */
+export function TablesCard({ action, timezone, href }: { action: CoachMatchAction; timezone: string; href: string }) {
+  const t = action.tables!;
+  const complete = t.filled >= t.total;
+  return (
+    <Link href={href} className="block rounded-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40">
+      <Card variant="interactive" className="flex items-center gap-3">
+        <Icon tone={complete ? "info" : "warning"}>
+          <ClipboardList />
+        </Icon>
+        <div className="min-w-0 flex-1">
+          <p className="type-eyebrow">Table de marque</p>
+          <p className="text-reflow text-[15px] font-semibold text-foreground">{matchTitle(action.match)}</p>
+          <p className="type-meta mt-0.5">
+            <span className="type-numeric">{shortDateTime(action.match.startsAt, timezone)}</span> ·{" "}
+            <span className={complete ? "font-medium text-success" : "font-medium text-warning"}>
+              <span className="type-numeric">
+                {t.filled}/{t.total}
+              </span>{" "}
+              postes définis
+            </span>
+          </p>
+        </div>
+        <span className="inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-accent-text [&_svg]:size-4">
+          <span className="sm:hidden">Tables</span>
+          <span className="hidden sm:inline">Voir les tables</span> <ArrowRight aria-hidden />
+        </span>
+      </Card>
+    </Link>
+  );
+}

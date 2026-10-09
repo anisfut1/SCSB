@@ -157,3 +157,28 @@ describe("Home « À faire » — matchs (Lot 2)", () => {
     expect(screen.queryByRole("button", { name: /Je confirme/ })).toBeNull();
   });
 });
+
+describe("Home « À faire » — coach : tables de marque (retour du club, 2026-10-10)", () => {
+  const coachMatch = (id: string, filled: number) => ({
+    type: "COACH_MATCH",
+    coachLicencieId: "lina",
+    match: { ...MATCH, id, isHome: true, opponent: `Adversaire ${id}` },
+    stage: "CONVOCATION_SENT",
+    availabilityCounts: null,
+    convocationCounts: { convoked: 10, confirmed: 10, declined: 0, pending: 0 },
+    matchChanged: false,
+    tables: { filled, total: 4 },
+  });
+
+  it("table incomplète = à faire (1/4) ; table complète et convocation envoyée = « Fait », en dernier", async () => {
+    actionCenter.mockResolvedValue({ ...DTO, actions: [coachMatch("m-full", 4), coachMatch("m-todo", 1)] });
+    render(<Home />);
+    expect(await screen.findByText("Table de marque", { selector: "p" }).catch(() => screen.findAllByText("Table de marque"))).toBeTruthy();
+    expect(screen.getByText(/1\/4/)).toBeTruthy();
+    const items = screen.getAllByRole("listitem");
+    // La table incomplète reste à faire (pas de « Fait ») et passe avant les éléments faits.
+    expect(items[0]?.textContent).not.toContain("Fait");
+    expect(items[items.length - 1]?.textContent).toContain("Fait");
+    expect(screen.queryByText("Tout est à jour")).toBeNull();
+  });
+});
