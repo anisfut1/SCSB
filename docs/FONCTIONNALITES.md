@@ -296,6 +296,9 @@ Le chantier de migration front → back et ses lots (LOT-02 à LOT-13) sont suiv
 
 Les plus récentes d'abord. Historique complet : `git log` des deux dépôts et [`docs/migration/CHANGELOG.md`](migration/CHANGELOG.md).
 
+**2026-10-09**
+- Dérogations : emails au coordinateur (lien vers l'espace public) quand un coach fait ou repropose une demande, quand un club adverse demande une dérogation sur FBI, et quand une dérogation reçoit une réponse (une seule fois par événement).
+
 **2026-10-08**
 - Joueurs : licenciés importés automatiquement depuis FBI chaque jour (licences validées) + bouton « Mettre à jour depuis FBI » + dépôt du fichier Excel ; fin du copier-coller.
 - Espace public : une fiche sans email ne reçoit plus de lien automatiquement ; l'admin approuve ou refuse la demande (R-018, anti-troll).
