@@ -2,7 +2,8 @@
 
 import { useCallback } from "react";
 import { browserApi } from "@/lib/api/browserClient";
-import { TeamPageView, type TeamTab } from "./TeamPageView";
+import { TeamPageView } from "./TeamPageView";
+import type { TeamTab } from "./team-tab";
 
 /** Page Équipe de l'espace club (tout membre ; le serveur filtre ce qui est réservé aux coachs / admins). */
 export function ClubTeamPageApp({ clubId, clubSlug, teamId, timezone, tab, canManageTrainings }: { clubId: string; clubSlug: string; teamId: string; timezone: string; tab: TeamTab; canManageTrainings: boolean }) {

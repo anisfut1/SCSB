@@ -3,7 +3,7 @@ import { requireClubContext } from "@/lib/tenancy/club-context";
 import { hasAnyRole } from "@/lib/permissions/roles";
 import { PageContainer } from "@/components/ui/PageHeader";
 import { ClubTeamPageApp } from "@/features/team-life/ClubTeamPageApp";
-import { teamTabOf } from "@/features/team-life/TeamPageView";
+import { teamTabOf } from "@/features/team-life/team-tab";
 import { TEAM_LIFE_MANAGER_ROLES } from "@/features/team-life/roles";
 
 export const metadata: Metadata = { title: "Équipe" };

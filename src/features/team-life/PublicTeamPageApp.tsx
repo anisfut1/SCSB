@@ -7,7 +7,8 @@ import { usePublicIdentity } from "@/features/public/PublicIdentityProvider";
 import { ApiError } from "@/lib/api/errors";
 import { publicTeamLife } from "@/lib/api/teamLife";
 import { getDeviceTokens } from "@/lib/publicToken";
-import { TeamPageView, type TeamTab } from "./TeamPageView";
+import { TeamPageView } from "./TeamPageView";
+import type { TeamTab } from "./team-tab";
 
 /**
  * Page Équipe de l'espace public : réservée aux joueurs de l'équipe et à

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getPublicClub } from "@/lib/api/publicTables";
 import { PageContainer } from "@/components/ui/PageHeader";
 import { PublicTeamPageApp } from "@/features/team-life/PublicTeamPageApp";
-import { teamTabOf } from "@/features/team-life/TeamPageView";
+import { teamTabOf } from "@/features/team-life/team-tab";
 
 export const metadata: Metadata = { title: "Équipe" };
 

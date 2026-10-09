@@ -2,7 +2,8 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TeamOverviewDto } from "@/lib/api/teamLife";
-import { TeamPageView, teamTabOf } from "./TeamPageView";
+import { TeamPageView } from "./TeamPageView";
+import { teamTabOf } from "./team-tab";
 
 afterEach(cleanup);
 

@@ -13,11 +13,7 @@ import type { PlanningDto, PlanningEventDto, TeamOverviewDto } from "@/lib/api/t
 import { convocationSummary, locationLabel, relativeDay, shortDateTime, timeOf } from "./labels";
 import { PlanningView } from "./PlanningView";
 
-export type TeamTab = "apercu" | "planning" | "effectif";
-
-export function teamTabOf(value: string | string[] | undefined): TeamTab {
-  return value === "planning" || value === "effectif" ? value : "apercu";
-}
+import type { TeamTab } from "./team-tab";
 
 /**
  * Page Équipe (Vie d'équipe, Lot 4) : Vue d'ensemble / Planning / Effectif.
