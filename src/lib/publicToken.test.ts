@@ -136,3 +136,33 @@ describe("persistance localStorage (vrai storage jsdom)", () => {
     expect(() => clearStoredPublicToken("sete")).not.toThrow();
   });
 });
+
+describe("plusieurs liens sur le même appareil (un par enfant)", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("mémorise chaque lien validé, l'actif en premier, sans doublon", async () => {
+    const { addDeviceToken, getDeviceTokens } = await import("./publicToken");
+    addDeviceToken("sete", "lien-lina");
+    setStoredPublicToken("sete", "lien-lina");
+    addDeviceToken("sete", "lien-tom");
+    setStoredPublicToken("sete", "lien-tom");
+    expect(getDeviceTokens("sete")).toEqual(["lien-tom", "lien-lina"]);
+    addDeviceToken("sete", "lien-lina");
+    setStoredPublicToken("sete", "lien-lina");
+    expect(getDeviceTokens("sete")).toEqual(["lien-lina", "lien-tom"]);
+    expect(getDeviceTokens("autre-club")).toEqual([]);
+  });
+
+  it("oublie un lien révoqué, ou tous", async () => {
+    const { addDeviceToken, clearDeviceTokens, getDeviceTokens, removeDeviceTokens } = await import("./publicToken");
+    addDeviceToken("sete", "a");
+    addDeviceToken("sete", "b");
+    removeDeviceTokens("sete", ["a"]);
+    expect(getDeviceTokens("sete")).toEqual(["b"]);
+    clearDeviceTokens("sete");
+    clearStoredPublicToken("sete");
+    expect(getDeviceTokens("sete")).toEqual([]);
+  });
+});

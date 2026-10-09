@@ -100,3 +100,58 @@ export function consumePublicTokenFromUrl(): string | null {
 export function resetConsumedPublicToken(): void {
   consumedUrlToken = null;
 }
+
+/**
+ * Plusieurs liens sur le même appareil (Vie d'équipe, 2026-10-09) : un
+ * parent avec deux enfants reçoit un lien par enfant ; la Home « À faire »
+ * les fusionne. Le lien « actif » (ci-dessus) reste celui de l'identité
+ * courante (Tables, Dérogations…) ; cette liste mémorise TOUS les liens
+ * reconnus sur cet appareil, actif compris. Jamais envoyée dans une URL.
+ */
+const MAX_DEVICE_TOKENS = 8;
+
+function deviceKey(clubSlug: string): string {
+  return `scsb:public-tokens:${clubSlug}`;
+}
+
+function readDeviceList(clubSlug: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(deviceKey(clubSlug)) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((t): t is string => typeof t === "string" && t.length > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeDeviceList(clubSlug: string, tokens: string[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (tokens.length) window.localStorage.setItem(deviceKey(clubSlug), JSON.stringify(tokens));
+    else window.localStorage.removeItem(deviceKey(clubSlug));
+  } catch {
+    // Rien à faire : seul le lien actif reste connu.
+  }
+}
+
+/** Liens de l'appareil, le lien actif en premier (sans doublon). */
+export function getDeviceTokens(clubSlug: string): string[] {
+  const active = getStoredPublicToken(clubSlug);
+  const all = active ? [active, ...readDeviceList(clubSlug)] : readDeviceList(clubSlug);
+  return [...new Set(all)].slice(0, MAX_DEVICE_TOKENS);
+}
+
+/** Ajoute un lien validé (le plus récent d'abord). */
+export function addDeviceToken(clubSlug: string, token: string): void {
+  writeDeviceList(clubSlug, [token, ...readDeviceList(clubSlug).filter((t) => t !== token)].slice(0, MAX_DEVICE_TOKENS));
+}
+
+/** Oublie certains liens (révoqués, ou retirés par la personne). */
+export function removeDeviceTokens(clubSlug: string, tokens: readonly string[]): void {
+  const drop = new Set(tokens);
+  writeDeviceList(clubSlug, readDeviceList(clubSlug).filter((t) => !drop.has(t)));
+}
+
+export function clearDeviceTokens(clubSlug: string): void {
+  writeDeviceList(clubSlug, []);
+}

@@ -1,5 +1,6 @@
 import type { ClubRole } from "@/lib/permissions/roles";
 import { DEROGATION_REQUEST_ROLES, hasAnyRole, isClubAdmin } from "@/lib/permissions/roles";
+import { TEAM_LIFE_MANAGER_ROLES } from "@/features/team-life/roles";
 
 /**
  * Configuration de navigation (sérialisable : passée des Server Components
@@ -11,6 +12,8 @@ export type NavIcon =
   | "home"
   | "matches"
   | "results"
+  | "planning"
+  | "trainings"
   | "players"
   | "tables"
   | "integrations"
@@ -46,7 +49,12 @@ export function buildClubNav(slug: string, roles: readonly ClubRole[]): NavSecti
     // Retour du club, 2026-10-01 : « ici aussi dans le menu me faut le classement, c'est pas only public ».
     { href: `${base}/resultats`, label: "Résultats", icon: "results" },
     { href: `${base}/joueurs`, label: "Joueurs", icon: "players", prefix: true },
+    // Vie d'équipe (Lot 1, 2026-10-09) : matchs + entraînements de toutes les équipes.
+    { href: `${base}/planning`, label: "Planning", icon: "planning" },
   ];
+  if (hasAnyRole(roles, TEAM_LIFE_MANAGER_ROLES)) {
+    main.push({ href: `${base}/entrainements`, label: "Entraînements", icon: "trainings", prefix: true });
+  }
   if (hasAnyRole(roles, ["club_admin", "responsable_tables"])) {
     main.push({ href: `${base}/tables`, label: "Tables de marque", icon: "tables", prefix: true });
   }

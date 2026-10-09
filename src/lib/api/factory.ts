@@ -13,6 +13,8 @@ import * as tables from "./tables";
 import * as standings from "./standings";
 import * as derogationRequests from "./derogationRequests";
 import * as members from "./members";
+import { clubTeamLife } from "./teamLife";
+import type * as teamLife from "./teamLife";
 
 /**
  * Fonctions ergonomiques (§40 de la demande) : un composant appelle
@@ -68,6 +70,18 @@ export function createApi(fetcher: ApiFetcher) {
       official: (clubId: string, requestId: string, body: derogationRequests.OfficialDerogationDto) => derogationRequests.submitOfficialDerogation(fetcher, clubId, requestId, body),
       availability: (clubId: string, matchId: string, date: string) => derogationRequests.getDerogationAvailability(fetcher, clubId, matchId, date),
       checkSlot: (clubId: string, matchId: string, startAt: string, venueId: string | null) => derogationRequests.checkDerogationSlot(fetcher, clubId, matchId, startAt, venueId),
+    },
+    teamLife: {
+      listSeries: (clubId: string, teamId: string) => clubTeamLife.listSeries(fetcher, clubId, teamId),
+      createSeries: (clubId: string, teamId: string, body: teamLife.CreateTrainingSeriesDto) => clubTeamLife.createSeries(fetcher, clubId, teamId, body),
+      updateSeries: (clubId: string, seriesId: string, body: teamLife.UpdateTrainingSeriesDto) => clubTeamLife.updateSeries(fetcher, clubId, seriesId, body),
+      stopSeries: (clubId: string, seriesId: string, from?: string) => clubTeamLife.stopSeries(fetcher, clubId, seriesId, from),
+      listTrainings: (clubId: string, teamId: string, period?: teamLife.PeriodQuery) => clubTeamLife.listTrainings(fetcher, clubId, teamId, period),
+      detail: (clubId: string, occurrenceId: string) => clubTeamLife.detail(fetcher, clubId, occurrenceId),
+      updateOccurrence: (clubId: string, occurrenceId: string, body: teamLife.UpdateTrainingOccurrenceDto) => clubTeamLife.updateOccurrence(fetcher, clubId, occurrenceId, body),
+      cancel: (clubId: string, occurrenceId: string, reason: string | null) => clubTeamLife.cancel(fetcher, clubId, occurrenceId, reason),
+      restore: (clubId: string, occurrenceId: string) => clubTeamLife.restore(fetcher, clubId, occurrenceId),
+      planning: (clubId: string, params?: teamLife.PeriodQuery & { teamId?: string; kind?: "MATCH" | "TRAINING" }) => clubTeamLife.planning(fetcher, clubId, params),
     },
     members: {
       venues: (clubId: string) => members.listClubVenues(fetcher, clubId),

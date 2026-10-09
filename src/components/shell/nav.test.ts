@@ -24,3 +24,12 @@ describe("navigation — demandes de dérogation internes", () => {
     expect(buildMobilePrimary(sections).map((i) => i.href)).toContain("/c/demo/derogations");
   });
 });
+
+describe("Vie d'équipe", () => {
+  it("Planning pour tous, Entraînements pour admin et coach", () => {
+    expect(hrefs(["joueur"])).toContain("/c/demo/planning");
+    expect(hrefs(["joueur"])).not.toContain("/c/demo/entrainements");
+    expect(hrefs(["coach"])).toContain("/c/demo/entrainements");
+    expect(hrefs(["club_admin"])).toContain("/c/demo/entrainements");
+  });
+});

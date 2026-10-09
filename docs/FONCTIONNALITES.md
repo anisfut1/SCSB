@@ -48,7 +48,8 @@ Sources externes : **FFBB** (API publique : calendrier, résultats, classements,
 
 | Rôle | Ce qu'il voit en plus |
 |---|---|
-| Tout membre | Accueil, Matchs, Résultats, Joueurs, classement des tables |
+| Tout membre | Accueil, Matchs, Résultats, Joueurs, Planning, classement des tables |
+| `coach`, `club_admin` | Entraînements (créneaux, séances, réponses) |
 | `responsable_tables` | Tables de marque |
 | `coach`, `correspondant_club` (« Coordinateur ») | Dérogations internes (demandes, réponses) |
 | `club_admin` | Administration : Intégrations, Équipes, Synchronisation, Suivi des stats, Anomalies, Gymnases, Dérogations FBI, Réglages, Accès publics |
@@ -135,6 +136,15 @@ Deux circuits distincts :
 - Écrans : `/admin/integrations`, `/admin/integrations/fbi`, `/admin/sync`, `/admin/stats`, `/admin/issues`.
 - API : `/clubs/{id}/integrations…` (FBI, FFBB, sync-runs, process-jobs, parse-documents, reconcile-schedule), `GET …/emarque-tracking`, `POST …/emarque-tracking/{mid}/relaunch`, `GET|POST …/issues…`, `GET /jobs/{jobId}`.
 
+### 3.11 Vie d'équipe — entraînements, planning, réponses (Lot 1)
+- **Entraînements** : le coach (ou l'admin) indique les créneaux de la semaine en un écran (« Planifier les entraînements », un créneau par ligne, « + Ajouter un créneau ») ; les séances de toute la période sont créées à l'heure locale du club. Modifier un créneau **à partir d'une date** (le passé ne bouge jamais), l'arrêter, annuler ou modifier **une seule séance** (une séance annulée reste visible).
+- **Réponses** : Présent·e / Absent·e / Incertain·e en un clic depuis l'accueil public, modifiable jusqu'au début de la séance. Le coach voit les compteurs et la liste nominative ; un parent ne voit jamais les réponses des autres.
+- **Accueil « À faire »** (espace public) : en tête de l'accueil, les prochains entraînements à répondre pour chaque enfant / le joueur, le résumé des réponses pour les équipes coachées, « Tout est à jour » sinon. Réponse optimiste, retour en arrière + message si l'envoi échoue.
+- **Plusieurs enfants** : un lien personnel par enfant, tous mémorisés sur le téléphone (« Ajouter un enfant » depuis l'accueil) ; l'accueil et le planning les fusionnent.
+- **Planning** : matchs FFBB + entraînements, semaine par semaine, filtres Tout / Matchs / Entraînements (et équipe dans l'espace club).
+- Écrans : `/c/{club}/planning`, `/c/{club}/entrainements`, `/public/{club}/planning`, `/public/{club}/entrainements` (coach / admin), bloc « À faire » de `/public/{club}/accueil`.
+- API (préfixe `…/team-life`) : `GET|POST /teams/{teamId}/training-series`, `PATCH|DELETE /training-series/{id}`, `GET /trainings`, `GET|PATCH /trainings/{id}`, `POST /trainings/{id}/cancel|restore`, `GET /planning` ; public : mêmes routes `?token=`, `GET /teams/{teamId}/trainings`, `PUT /trainings/{id}/response`, `POST /action-center`, `POST /planning`. Détail : `club-manager-api/docs/TEAM_LIFE.md`.
+
 ### 3.10 Espace public et accueil personnel
 - Sans compte : matchs, résultats, classements, fiches joueurs, classement des tables.
 - Identification : la personne tape son **prénom et son nom** (ordre libre, fautes tolérées : « ansi abde meriuam » retrouve Anis) ; l'API propose au plus 5 fiches au format « Anis A. », jamais la liste du club. Puis **lien personnel** par email (adresse masquée affichée, rappel « regarde dans tes indésirables »).
@@ -161,6 +171,8 @@ Appels faits **au chargement** de la page (côté serveur). Les actions (boutons
 | `/tables/classement` | membre | `GET /public/clubs/{slug}/table-leaderboard` |
 | `/tables/public-access` | admin | `tables.listPublicAccess`, `tables.claimRequests`, `tables.decideClaimRequest` |
 | `/derogations`, `/nouvelle`, `/{id}` | coach, coordinateur, admin | `derogationRequests.context`, `.list`, `.get` |
+| `/planning` | membre | `clubs.teams` ; puis `teamLife.planning` (navigateur) |
+| `/entrainements` | coach, admin | `clubs.teams` ; puis `teamLife.listSeries/listTrainings`, `derogationRequests.context` (gymnases) |
 | `/admin/integrations` | admin | `integrations.get`, `clubs.capabilities` |
 | `/admin/integrations/fbi` | admin | `integrations.get` |
 | `/admin/sync` | admin | `integrations.syncRuns`, `matches.list` |
@@ -297,6 +309,7 @@ Le chantier de migration front → back et ses lots (LOT-02 à LOT-13) sont suiv
 Les plus récentes d'abord. Historique complet : `git log` des deux dépôts et [`docs/migration/CHANGELOG.md`](migration/CHANGELOG.md).
 
 **2026-10-09**
+- Vie d'équipe, Lot 1 : entraînements (créneaux de la semaine, séances, annuler / modifier), réponses Présent / Absent / Incertain, accueil public « À faire » (plusieurs enfants sur le même téléphone), planning matchs + entraînements dans les deux espaces.
 - Dérogations : emails au coordinateur (lien vers l'espace public) quand un coach fait ou repropose une demande, quand un club adverse demande une dérogation sur FBI, et quand une dérogation reçoit une réponse (une seule fois par événement).
 
 **2026-10-08**

@@ -2,19 +2,22 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CalendarClock, CalendarDays, CalendarPlus, ClipboardList, Megaphone, Shirt, Trophy } from "lucide-react";
+import { ArrowRight, CalendarClock, CalendarDays, CalendarPlus, CalendarRange, ClipboardList, Dumbbell, Megaphone, Shirt, Trophy } from "lucide-react";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader, SectionHeader } from "@/components/ui/PageHeader";
+import { Sheet } from "@/components/ui/Sheet";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/States";
 import { formatShortDateTime } from "@/features/derogation-requests/labels";
 import { MatchCard } from "@/features/matches/MatchCard";
+import { IdentifyView } from "@/features/public/IdentifyView";
 import { PublicLoginPanel } from "@/features/public/PublicLoginApp";
 import { usePublicIdentity, type PublicIdentity } from "@/features/public/PublicIdentityProvider";
 import { TABLE_ROLE_LABELS } from "@/features/tables/role-labels";
+import { ActionCenter } from "@/features/team-life/ActionCenter";
 import { ApiError } from "@/lib/api/client";
 import { getPublicHome, type HomeRelation, type PublicHomeDto } from "@/lib/api/publicHome";
 import { groupByDay } from "./group-by-day";
@@ -44,6 +47,7 @@ export function PublicHomeApp({ clubSlug, club }: { clubSlug: string; club: Home
 function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string; club: HomeClub; identity: PublicIdentity; onForget: () => void }) {
   const [home, setHome] = useState<PublicHomeDto | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const [addingPerson, setAddingPerson] = useState(false);
   const base = `/public/${clubSlug}`;
 
   useEffect(() => {
@@ -89,8 +93,17 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
           </>
         }
         actions={
-          home.roles.coach || home.roles.coordinator || home.roles.admin ? (
-            <>
+          <>
+            <ButtonLink href={`${base}/planning`} variant="secondary" icon={<CalendarRange />}>
+              Planning
+            </ButtonLink>
+            {home.roles.coach || home.roles.admin ? (
+              <ButtonLink href={`${base}/entrainements`} variant="secondary" icon={<Dumbbell />}>
+                Entraînements
+              </ButtonLink>
+            ) : null}
+            {home.roles.coach || home.roles.coordinator || home.roles.admin ? (
+              <>
               {home.roles.coach ? (
                 <ButtonLink href={`${base}/derogations/nouvelle`} variant="secondary" icon={<CalendarPlus />}>
                   Demander une dérogation
@@ -99,10 +112,22 @@ function PersonalHome({ clubSlug, club, identity, onForget }: { clubSlug: string
               <ButtonLink href={`${base}/derogations`} variant="ghost" icon={<CalendarClock />}>
                 Dérogations
               </ButtonLink>
-            </>
-          ) : null
+              </>
+            ) : null}
+          </>
         }
       />
+
+      <ActionCenter clubSlug={clubSlug} timezone={club.timezone} activeToken={identity.token} onAddPerson={() => setAddingPerson(true)} />
+      <Sheet
+        open={addingPerson}
+        onClose={() => setAddingPerson(false)}
+        title="Ajouter un enfant"
+        description="Un parent avec plusieurs enfants au club : retrouve le nom de l'autre enfant et ouvre son lien sur ce téléphone. Les entraînements de chacun s'afficheront ensemble ici."
+        side="bottom"
+      >
+        <IdentifyView clubSlug={clubSlug} clubName={club.name} returnTo="accueil" searchFirst header={<span />} />
+      </Sheet>
 
       {home.teams.length === 0 ? (
         <Notice tone="info">
