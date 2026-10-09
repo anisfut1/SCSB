@@ -184,7 +184,7 @@ export function IdentifyView({
             <div className="text-reflow">
               <h1 className="type-title text-foreground">Demande transmise, {step.licencie.firstName}</h1>
               <p className="mt-2 text-[15px] leading-relaxed text-muted">
-                Ta fiche n&apos;a pas encore d&apos;adresse email. Pour protéger ton profil, l&apos;administrateur de {clubName} vérifie que <span className="font-medium text-foreground">{step.email}</span> est bien la tienne.
+                Cette adresse est différente de celle enregistrée sur ta fiche. Pour protéger ton profil, l&apos;administrateur de {clubName} vérifie que <span className="font-medium text-foreground">{step.email}</span> est bien la tienne.
               </p>
               <p className="mt-2 text-[15px] leading-relaxed text-muted">Dès qu&apos;il valide, ton lien personnel arrive par email. Rien d&apos;autre à faire d&apos;ici là.</p>
               <p className="type-meta mt-3">Sans réponse sous 14 jours, la demande expire : contacte directement le club.</p>
@@ -216,7 +216,7 @@ export function IdentifyView({
             </div>
 
             {needsEmail ? (
-              <Field label="Ton adresse email" required hint="Ta fiche n'a pas encore d'adresse : l'administrateur du club la vérifie, puis ton lien personnel y est envoyé." error={feedback?.tone === "danger" ? feedback.message : undefined}>
+              <Field label="Ton adresse email" required hint="Ton lien personnel y sera envoyé. Elle est enregistrée sur ta fiche licencié." error={feedback?.tone === "danger" ? feedback.message : undefined}>
                 {(props) => <Input {...props} type="email" inputMode="email" autoComplete="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} placeholder="prenom.nom@exemple.fr" />}
               </Field>
             ) : (
@@ -232,7 +232,7 @@ export function IdentifyView({
             ) : null}
 
             <Button type="submit" variant="primary" size="lg" loading={sending} disabled={needsEmail && !email.trim()} icon={<Mail />}>
-              {needsEmail ? "Demander mon lien" : "Recevoir mon lien par email"}
+              {needsEmail ? "Envoyer mon lien" : "Recevoir mon lien par email"}
             </Button>
           </form>
         </Card>

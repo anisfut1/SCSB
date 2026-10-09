@@ -34,7 +34,7 @@ export function ClaimRequestsPanel({ clubId, requests }: { clubId: string; reque
       decision === "approve"
         ? {
             title: `Envoyer le lien de ${name} ?`,
-            description: `Le lien personnel part à ${request.requestedEmail ?? "l'adresse demandée"}, qui devient l'adresse de sa fiche. Fais-le seulement si tu es sûr·e que c'est la sienne.`,
+            description: `Le lien personnel part à ${request.requestedEmail ?? "l'adresse demandée"}, qui remplace l'adresse de sa fiche. Fais-le seulement si tu es sûr·e que c'est la sienne.`,
             confirmLabel: "Approuver et envoyer",
           }
         : {
@@ -62,7 +62,7 @@ export function ClaimRequestsPanel({ clubId, requests }: { clubId: string; reque
     <section className="flex flex-col gap-3">
       <SectionHeader
         title="Demandes à valider"
-        description={`${requests.length} demande${requests.length > 1 ? "s" : ""} de lien pour une fiche sans email. Rien n'est envoyé avant ta décision.`}
+        description={`${requests.length} demande${requests.length > 1 ? "s" : ""} de lien vers une adresse différente de celle de la fiche. Rien n'est envoyé avant ta décision.`}
       />
       {error ? <FormMessage tone="danger">{error}</FormMessage> : null}
       <ul className="surface-card divide-y divide-border overflow-hidden">
