@@ -6,9 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Notice } from "@/components/ui/Notice";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { Sheet } from "@/components/ui/Sheet";
-import { Textarea } from "@/components/ui/Field";
 import { IdentifyView } from "@/features/public/IdentifyView";
-import { deviceAuth } from "@/lib/api/deviceAuth";
 import { logout, removePerson, setActiveClub, setActivePerson } from "../auth/auth-service";
 import { useSessions } from "../auth/SessionContext";
 import { activePerson } from "../auth/session-store";
@@ -17,9 +15,9 @@ import { disablePushFor, enablePush, pushPermission, type PushPermission } from 
 
 /**
  * Compte : personnes de cet iPhone, notifications (permission demandée ICI,
- * après explication — jamais au lancement), autres clubs, déconnexion et
- * « Supprimer mon compte » (initiée dans l'app, traitée par le club : voir
- * docs/APP_STORE.md § Suppression de compte).
+ * après explication — jamais au lancement), autres clubs, déconnexion.
+ * Pas de « Supprimer mon compte » : l'app ne crée aucun compte (accès par
+ * lien personnel émis par le club).
  */
 export function AccountScreen() {
   const { clubSlug = "" } = useParams<{ clubSlug: string }>();
@@ -29,8 +27,6 @@ export function AccountScreen() {
   const [push, setPush] = useState<PushPermission | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [comment, setComment] = useState("");
   const [message, setMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
 
   useEffect(() => {
@@ -120,9 +116,6 @@ export function AccountScreen() {
         <Button variant="secondary" icon={<LogOut />} loading={busy === "logout"} onClick={() => void run("logout", () => logout(clubSlug, disablePushFor).then(() => navigate("/", { replace: true })))}>
           Se déconnecter de {session.clubName}
         </Button>
-        <Button variant="danger-ghost" icon={<Trash2 />} onClick={() => setDeleting(true)}>
-          Supprimer mon compte
-        </Button>
         <div className="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-[13px] text-muted">
           <button type="button" onClick={() => openExternal("https://www.ball-manager.fr/confidentialite")}>Confidentialité</button>
           <button type="button" onClick={() => openExternal("https://www.ball-manager.fr/support")}>Aide</button>
@@ -134,28 +127,6 @@ export function AccountScreen() {
         <IdentifyView clubSlug={clubSlug} clubName={session.clubName} returnTo="accueil" searchFirst header={<span />} />
       </Sheet>
 
-      <Sheet open={deleting} onClose={() => setDeleting(false)} side="bottom" title="Supprimer mon compte" description="Ta demande est transmise au club, et cet iPhone est déconnecté tout de suite.">
-        <div className="flex flex-col gap-4">
-          <Notice tone="warning">
-            Ton lien personnel est désactivé et tes appareils sont déconnectés. Le club supprime ensuite tes données personnelles ; il conserve uniquement ce qu&apos;il est tenu de garder (licence FFBB, feuilles de match officielles).
-          </Notice>
-          <Textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Message au club (facultatif)" rows={3} />
-          <Button
-            variant="danger"
-            icon={<Trash2 />}
-            loading={busy === "delete"}
-            onClick={() =>
-              void run("delete", async () => {
-                await deviceAuth.requestAccountDeletion(clubSlug, session.secret, { licencieIds: session.people.map((p) => p.licencieId), comment: comment.trim() || undefined });
-                await logout(clubSlug);
-                navigate("/", { replace: true });
-              })
-            }
-          >
-            Confirmer la suppression
-          </Button>
-        </div>
-      </Sheet>
     </PageContainer>
   );
 }
