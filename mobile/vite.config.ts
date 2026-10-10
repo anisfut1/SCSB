@@ -17,7 +17,7 @@ const root = path.resolve(dirname, "..");
 
 export default defineConfig(({ mode }) => {
   const apiUrl = process.env.BM_API_URL ?? (mode === "production" ? "" : "http://localhost:3001");
-  if (!apiUrl) throw new Error("BM_API_URL manquant : URL de club-manager-api (même valeur que NEXT_PUBLIC_CLUB_MANAGER_API_URL sur Vercel).");
+  if (!apiUrl) throw new Error("BM_API_URL manquant : URL de ball-manager-back (même valeur que NEXT_PUBLIC_CLUB_MANAGER_API_URL sur Vercel).");
   const define: Record<string, string> = {
     "process.env.NEXT_PUBLIC_CLUB_MANAGER_API_URL": JSON.stringify(apiUrl),
     // L'app n'utilise pas Supabase directement (tout passe par l'API) : valeurs neutres pour la validation partagée.
