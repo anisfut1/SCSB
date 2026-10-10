@@ -14,7 +14,8 @@
     "test": "../node_modules/.bin/vitest run --config vitest.config.ts",
     "ios:sync": "npm run build && cap sync ios",
     "ios:open": "cap open ios",
-    "ios:live": "CAP_SERVER_URL=http://localhost:5173 cap sync ios"
+    "ios:live": "CAP_SERVER_URL=http://localhost:5173 cap sync ios",
+    "ios:sync:debug": "BM_APNS_ENV=development npm run ios:sync"
   },
   "dependencies": {
     "@capacitor/app": "8.1.2",

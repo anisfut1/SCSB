@@ -31,6 +31,9 @@ export default defineConfig(({ mode }) => {
     "process.env.APPLE_TEAM_ID": JSON.stringify(""),
     "process.env.NODE_ENV": JSON.stringify(mode === "production" ? "production" : "development"),
     "import.meta.env.BM_APP_VERSION": JSON.stringify(process.env.npm_package_version ?? "1.0.0"),
+    // Environnement APNs des jetons de CETTE build : `development` pour une build Xcode Debug
+    // (sandbox), `production` (défaut) pour TestFlight / App Store. Voir docs/IOS_PUSH.md.
+    "import.meta.env.BM_APNS_ENV": JSON.stringify(process.env.BM_APNS_ENV === "development" ? "development" : "production"),
   };
   return {
     root: dirname,
