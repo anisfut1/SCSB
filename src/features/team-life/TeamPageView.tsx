@@ -6,6 +6,7 @@ import { ArrowRight, Dumbbell, Link2, MapPin, Megaphone, Trophy } from "lucide-r
 import { PersonAvatar } from "@/components/ui/Avatar";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { cn } from "@/components/ui/cn";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/States";
@@ -196,9 +197,17 @@ function OverviewTab({ team, timezone, matchHref, effectifHref, manageTrainingsH
   );
 }
 
+/** « 2 absences · 1 retard » ; « Toujours là » si rien n'a été noté sur les séances relevées. */
+export function attendanceLabel(a: { absent: number; late: number }): string {
+  const parts = [a.absent ? `${a.absent} absence${a.absent > 1 ? "s" : ""}` : null, a.late ? `${a.late} retard${a.late > 1 ? "s" : ""}` : null].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "Toujours là";
+}
+
 function RosterTab({ team }: { team: TeamOverviewDto }) {
   if (!team.roster.length) return <EmptyState title="Effectif vide" description="Aucun licencié actif n'est rattaché à cette équipe (liste des joueurs)." />;
   const linked = team.canManage ? team.roster.filter((r) => r.hasPersonalLink).length : null;
+  // Assiduité (coach / admin) : séances où le coach a relevé la présence, les plus récentes.
+  const sessions = team.roster.find((r) => r.attendance)?.attendance?.sessions ?? null;
   return (
     <div className="flex flex-col gap-3">
       {linked !== null ? (
@@ -206,13 +215,25 @@ function RosterTab({ team }: { team: TeamOverviewDto }) {
           {linked} / {team.roster.length} avec un lien personnel actif
         </p>
       ) : null}
+      {sessions !== null ? (
+        <p className="type-meta">
+          {sessions === 0
+            ? "Assiduité : aucune séance relevée pour l'instant (page Entraînements → Dernières séances)."
+            : `Assiduité sur ${sessions === 1 ? "la dernière séance relevée" : `les ${sessions} dernières séances relevées`}.`}
+        </p>
+      ) : null}
       <ul className="flex flex-col divide-y divide-border rounded-[14px] border border-border bg-surface-raised">
         {team.roster.map((r) => (
           <li key={r.licencie.id} className="flex min-h-14 items-center gap-3 px-3.5 py-2.5">
             <PersonAvatar name={`${r.licencie.firstName} ${r.licencie.lastName}`} src={r.licencie.photoUrl} />
-            <p className="min-w-0 flex-1 truncate text-[14.5px] font-medium text-foreground">
-              {r.licencie.firstName} {r.licencie.lastName}
-            </p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[14.5px] font-medium text-foreground">
+                {r.licencie.firstName} {r.licencie.lastName}
+              </p>
+              {r.attendance && r.attendance.sessions > 0 && !r.isCoach ? (
+                <p className={cn("type-meta type-numeric", r.attendance.absent >= 3 ? "text-danger" : "")}>{attendanceLabel(r.attendance)}</p>
+              ) : null}
+            </div>
             {r.isCoach ? (
               <StatusBadge size="sm" tone="info" icon={<Megaphone />}>
                 Coach

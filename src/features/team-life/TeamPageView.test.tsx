@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TeamOverviewDto } from "@/lib/api/teamLife";
-import { TeamPageView } from "./TeamPageView";
+import { attendanceLabel, TeamPageView } from "./TeamPageView";
 import { teamTabOf } from "./team-tab";
 
 afterEach(cleanup);
@@ -22,8 +22,8 @@ const overview = (canManage: boolean): TeamOverviewDto => ({
   },
   nextTraining: null,
   roster: [
-    { licencie: lic("c1", "Coach", "Un"), isCoach: true, hasPersonalLink: canManage ? true : null },
-    { licencie: lic("p1", "Joueuse", "Deux"), isCoach: false, hasPersonalLink: canManage ? false : null },
+    { licencie: lic("c1", "Coach", "Un"), isCoach: true, hasPersonalLink: canManage ? true : null, attendance: canManage ? { sessions: 8, absent: 0, late: 0 } : null },
+    { licencie: lic("p1", "Joueuse", "Deux"), isCoach: false, hasPersonalLink: canManage ? false : null, attendance: canManage ? { sessions: 8, absent: 2, late: 1 } : null },
   ],
 });
 
@@ -67,9 +67,19 @@ describe("Page Équipe (Lot 4)", () => {
     expect(await screen.findByText("1 / 2 avec un lien personnel actif")).toBeTruthy();
     expect(screen.getByText("Lien actif")).toBeTruthy();
     expect(screen.getByText("Sans lien")).toBeTruthy();
+    // Assiduité (coach / admin) : « Joueuse : 2 absences · 1 retard sur les 8 dernières séances ».
+    expect(screen.getByText("Assiduité sur les 8 dernières séances relevées.")).toBeTruthy();
+    expect(screen.getByText("2 absences · 1 retard")).toBeTruthy();
     cleanup();
     renderPage("effectif", false);
     expect(await screen.findByText("Coach")).toBeTruthy();
     expect(screen.queryByText("Sans lien")).toBeNull();
+    expect(screen.queryByText(/Assiduité/)).toBeNull();
+  });
+
+  it("libellé d'assiduité", () => {
+    expect(attendanceLabel({ absent: 0, late: 0 })).toBe("Toujours là");
+    expect(attendanceLabel({ absent: 1, late: 0 })).toBe("1 absence");
+    expect(attendanceLabel({ absent: 0, late: 3 })).toBe("3 retards");
   });
 });

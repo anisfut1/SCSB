@@ -13,6 +13,7 @@ import { ApiError } from "@/lib/api/client";
 import type { MatchTeamLifeDto } from "@/lib/api/teamLife";
 import { ConvocationSheet } from "./ConvocationSheet";
 import { LaundrySheet } from "./LaundrySheet";
+import { RemindBlock } from "./RemindBlock";
 import type { TeamLifeClient } from "./team-life-client";
 
 const CHANGE_LABEL: Record<string, string> = { DATE: "la date ou l'heure", VENUE: "le lieu", STATUS: "le statut (annulé / reporté)" };
@@ -71,6 +72,16 @@ export function MatchTeamLifePanel({ client, matchId, timezone }: { client: Team
     }
   }
 
+  async function remind() {
+    setError(null);
+    try {
+      setData(await client.remind(matchId));
+      flash("Relance enregistrée : « Le coach attend ta réponse » s'affiche sur leur accueil.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Relance impossible.");
+    }
+  }
+
   function flash(message: string) {
     setToast(message);
     setTimeout(() => setToast(null), 3500);
@@ -124,6 +135,9 @@ export function MatchTeamLifePanel({ client, matchId, timezone }: { client: Team
                 );
               })}
             </div>
+            {!sent && !data.matchClosed ? (
+              <RemindBlock kind="availability" match={data.match} firstNames={a.roster.filter((x) => x.response === null).map((x) => x.licencie.firstName)} remindedAt={a.remindedAt} timezone={timezone} onRemind={remind} />
+            ) : null}
           </>
         )}
       </Card>
@@ -195,6 +209,9 @@ export function MatchTeamLifePanel({ client, matchId, timezone }: { client: Team
               <CalendarCheck2 aria-hidden />
               Envoyée{sent.revision > 1 ? ` (mise à jour n° ${sent.revision - 1})` : ""}.
             </p>
+            {!data.matchClosed ? (
+              <RemindBlock kind="convocation" match={data.match} firstNames={sent.recipients.filter((x) => x.response === "PENDING").map((x) => x.licencie.firstName)} remindedAt={sent.remindedAt} timezone={timezone} onRemind={remind} />
+            ) : null}
           </>
         )}
       </Card>

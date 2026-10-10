@@ -26,6 +26,8 @@ export interface TeamLifeClient {
   // Lot 2 : disponibilités et convocation d'un match.
   match(matchId: string): Promise<MatchTeamLifeDto>;
   openAvailability(matchId: string): Promise<MatchTeamLifeDto>;
+  /** Relance les sans réponse (Home des familles concernées) — aucun email / push en V1. */
+  remind(matchId: string): Promise<MatchTeamLifeDto>;
   saveDraft(matchId: string, body: PutConvocationDraftDto): Promise<MatchTeamLifeDto>;
   preview(matchId: string): Promise<ConvocationPreviewDto>;
   send(matchId: string): Promise<MatchTeamLifeDto>;
@@ -49,6 +51,7 @@ export function clubTeamLifeClient(clubId: string): TeamLifeClient {
     removeLaundry: (matchId) => api.removeLaundry(clubId, matchId),
     match: (matchId) => api.match(clubId, matchId),
     openAvailability: (matchId) => api.openAvailability(clubId, matchId),
+    remind: (matchId) => api.remind(clubId, matchId),
     saveDraft: (matchId, body) => api.saveDraft(clubId, matchId, body),
     preview: (matchId) => api.preview(clubId, matchId),
     send: (matchId) => api.send(clubId, matchId),
@@ -73,6 +76,7 @@ export function publicTeamLifeClient(clubSlug: string, token: string): TeamLifeC
     removeLaundry: (matchId) => api.removeLaundry(clubSlug, token, matchId),
     match: (matchId) => api.match(clubSlug, token, matchId),
     openAvailability: (matchId) => api.openAvailability(clubSlug, token, matchId),
+    remind: (matchId) => api.remind(clubSlug, token, matchId),
     saveDraft: (matchId, body) => api.saveDraft(clubSlug, token, matchId, body),
     preview: (matchId) => api.preview(clubSlug, token, matchId),
     send: (matchId) => api.send(clubSlug, token, matchId),

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, Ban, Check, ClipboardList, Eye, MapPin, Megaphone, Shirt, Trophy, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, BellRing, Ban, Check, ClipboardList, Eye, MapPin, Megaphone, Shirt, Trophy, X } from "lucide-react";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -38,6 +38,15 @@ function Icon({ tone, children }: { tone: "accent" | "info" | "warning"; childre
 }
 
 /** « Lina est-elle disponible ? » — Disponible / Indisponible / Incertain·e (ce n'est pas une convocation). */
+/** Le coach a relancé les sans réponse (retour du club, 2026-10-10). */
+function ReminderBadge() {
+  return (
+    <StatusBadge size="sm" tone="warning" icon={<BellRing />} className="my-1">
+      Le coach attend ta réponse
+    </StatusBadge>
+  );
+}
+
 export function AvailabilityCard({ action, timezone, value, saving, onRespond, compact }: { action: AvailabilityAction; timezone: string; value: MatchAvailabilityValue | null; saving: boolean; onRespond: (v: MatchAvailabilityValue) => void; compact?: boolean }) {
   const Wrapper = compact ? "div" : Card;
   return (
@@ -48,6 +57,7 @@ export function AvailabilityCard({ action, timezone, value, saving, onRespond, c
         </Icon>
         <div className="min-w-0 flex-1">
           <p className="type-eyebrow">Match · disponibilité</p>
+          {action.reminded && value === null ? <ReminderBadge /> : null}
           <p className="text-reflow text-[15.5px] font-semibold leading-snug text-foreground">{matchTitle(action.match)}</p>
           <MatchLine match={action.match} timezone={timezone} />
           <p className="mt-2 text-[14px] font-medium text-foreground">{action.firstName} est disponible pour ce match ?</p>
@@ -77,6 +87,7 @@ export function ConvocationCard({ action, timezone, value, saving, onRespond }: 
         </Icon>
         <div className="min-w-0 flex-1">
           <p className="type-eyebrow text-accent-text">Convocation{adult ? "" : ` · ${action.firstName}`}</p>
+          {action.reminded && value === "PENDING" && !action.matchClosed ? <ReminderBadge /> : null}
           <p className="text-reflow text-[15.5px] font-semibold leading-snug text-foreground">{snap.opponent ? `${snap.teamName} contre ${snap.opponent}` : snap.teamName}</p>
           <p className="type-meta type-numeric mt-0.5">{shortDateTime(snap.startsAt, timezone)}</p>
         </div>

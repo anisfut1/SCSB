@@ -9946,6 +9946,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/clubs/{clubId}/team-life/matches/{matchId}/remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description UUID ou slug du club */
+                    clubId: string;
+                    matchId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Relance des sans réponse (affichée sur la Home des familles concernées) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchTeamLifeDto"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/clubs/{clubId}/team-life/matches/{matchId}/convocation/draft": {
         parameters: {
             query?: never;
@@ -10323,6 +10389,74 @@ export interface paths {
                 };
                 /** @description Conflit métier */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/clubs/{clubSlug}/team-life/matches/{matchId}/remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query: {
+                    token: string;
+                };
+                header?: never;
+                path: {
+                    /** @description Slug du club (flux public sans compte) */
+                    clubSlug: string;
+                    matchId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Relance des sans réponse (affichée sur la Home des familles concernées) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchTeamLifeDto"];
+                    };
+                };
+                /** @description Non authentifié */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Accès refusé */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Introuvable */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -13164,6 +13298,7 @@ export interface components {
             matchClosed: boolean;
             availability: {
                 openedAt: string | null;
+                remindedAt: string | null;
                 counts: components["schemas"]["AvailabilityCountsDto"];
                 roster: {
                     licencie: {
@@ -13189,6 +13324,7 @@ export interface components {
                     matchSnapshot: components["schemas"]["MatchSnapshotDto"];
                 } | null;
                 hasUnsentChanges: boolean;
+                remindedAt: string | null;
                 matchChanges: ("DATE" | "VENUE" | "STATUS")[];
                 counts: components["schemas"]["ConvocationCountsDto"];
                 recipients: {
@@ -13315,6 +13451,11 @@ export interface components {
                 };
                 isCoach: boolean;
                 hasPersonalLink: boolean | null;
+                attendance: {
+                    sessions: number;
+                    absent: number;
+                    late: number;
+                } | null;
             }[];
         };
         LaundrySuggestionsDto: {
@@ -13432,6 +13573,7 @@ export interface components {
             firstName: string;
             match: components["schemas"]["TeamLifeMatchDto"];
             currentResponse: components["schemas"]["MatchAvailabilityValue"];
+            reminded: boolean;
         } | {
             /** @enum {string} */
             type: "CONVOCATION_RESPONSE";
@@ -13448,6 +13590,7 @@ export interface components {
             };
             currentResponse: components["schemas"]["ConvocationResponseValue"];
             matchClosed: boolean;
+            reminded: boolean;
         } | {
             /** @enum {string} */
             type: "COACH_MATCH";

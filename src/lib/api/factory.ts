@@ -89,6 +89,7 @@ export function createApi(fetcher: ApiFetcher) {
       removeLaundry: (clubId: string, matchId: string) => clubTeamLife.removeLaundry(fetcher, clubId, matchId),
       match: (clubId: string, matchId: string) => clubTeamLife.match(fetcher, clubId, matchId),
       openAvailability: (clubId: string, matchId: string) => clubTeamLife.openAvailability(fetcher, clubId, matchId),
+      remind: (clubId: string, matchId: string) => clubTeamLife.remind(fetcher, clubId, matchId),
       saveDraft: (clubId: string, matchId: string, body: teamLife.PutConvocationDraftDto) => clubTeamLife.saveDraft(fetcher, clubId, matchId, body),
       preview: (clubId: string, matchId: string) => clubTeamLife.preview(fetcher, clubId, matchId),
       send: (clubId: string, matchId: string) => clubTeamLife.send(fetcher, clubId, matchId),
