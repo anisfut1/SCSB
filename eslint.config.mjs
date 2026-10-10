@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // App iOS : projet Vite séparé (mobile/), vérifié par son propre `npm run typecheck`.
+    "mobile/**",
   ]),
 ]);
 

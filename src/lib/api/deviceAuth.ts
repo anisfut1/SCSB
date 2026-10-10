@@ -30,6 +30,13 @@ export const deviceAuth = {
   /** App : code (Safari + PKCE, ou lien de connexion) → session d'appareil. */
   exchangeForApp: (clubSlug: string, code: string, codeVerifier?: string, meta: { appVersion?: string; deviceLabel?: string } = {}) =>
     apiFetch<DeviceSessionDto>(`${base(clubSlug)}/token`, { method: "POST", body: { code, codeVerifier, platform: "ios", ...meta } }),
+  /** Notifications (APNs) : jeton de l'iPhone rattaché à CETTE session d'appareil (jamais à un club en double). */
+  registerPushToken: (clubSlug: string, secret: string, body: { token: string; environment: "development" | "production"; appVersion?: string }) =>
+    apiFetch<void>(`${base(clubSlug)}/session/push-token`, { method: "PUT", headers: bearer(secret), body }),
+  removePushToken: (clubSlug: string, secret: string) => apiFetch<void>(`${base(clubSlug)}/session/push-token`, { method: "DELETE", headers: bearer(secret) }),
+  /** « Supprimer mon compte » : demande transmise au club, accès de l'appareil coupé immédiatement. */
+  requestAccountDeletion: (clubSlug: string, secret: string, body: { licencieIds: string[]; comment?: string }) =>
+    apiFetch<{ requested: number }>(`${base(clubSlug)}/session/account-deletion`, { method: "POST", headers: bearer(secret), body }),
   /** Web : lien de connexion par email → lien personnel pour la session web existante. */
   exchangeForWeb: (clubSlug: string, code: string) => apiFetch<{ tokens: string[]; redirectPath: string | null }>(`${base(clubSlug)}/token`, { method: "POST", body: { code, platform: "web" } }),
 };
