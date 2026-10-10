@@ -2,7 +2,7 @@ import { apiFetch } from "./client";
 import type { components } from "./generated/schema";
 
 /**
- * Authentification de l'app iOS (club-manager-api/docs/MOBILE_AUTH.md).
+ * Authentification de l'app iOS (ball-manager-back/docs/MOBILE_AUTH.md).
  * Utilisé par l'app (mobile/) et par deux pages web : `/public/{slug}/auth/app`
  * (connexion depuis Safari) et `/public/{slug}/connexion/code/{code}`.
  */

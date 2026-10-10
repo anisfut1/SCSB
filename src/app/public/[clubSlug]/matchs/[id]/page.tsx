@@ -14,7 +14,7 @@ import { PublicMatchFamilyBlock, PublicMatchTeamLifeBlock } from "@/features/tea
  * Fiche match PUBLIQUE (retour du club, 2026-09-29 : "toutes les infos en
  * vue directe... sans les fonctions admin, et sans compte"). Mêmes onglets
  * que la vue authentifiée (MatchDetailView en `mode="public"`) : aucun
- * bouton d'action pour un simple visiteur — voir club-manager-api/docs/PUBLIC_MATCHES.md.
+ * bouton d'action pour un simple visiteur — voir ball-manager-back/docs/PUBLIC_MATCHES.md.
  * Seule exception : un coach reconnu par son lien personnel peut demander une
  * dérogation (`PublicMatchRequestBlock`, retour du club 2026-10-01).
  */

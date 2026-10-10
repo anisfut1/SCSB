@@ -1,8 +1,8 @@
 # Ball Manager iOS — audit et décision d'architecture
 
 Audit réalisé sur le code réel le 2026-10-10 :
-- **SCSB** : branche `claude/ios-app`, issue de `8fd9f52` ;
-- **club-manager-api** : branche `claude/ios-app`, issue de `8168a94`.
+- **ball-manager-web** : branche `claude/ios-app`, issue de `8fd9f52` ;
+- **ball-manager-back** : branche `claude/ios-app`, issue de `8168a94`.
 
 Aucune supposition non vérifiée : chaque point cite le fichier lu.
 
@@ -12,7 +12,7 @@ Environnement de ce travail : Linux, **sans Xcode, sans simulateur iOS, sans iPh
 
 ## 1. Architecture actuelle
 
-### Frontend : SCSB (Next.js 16.3.6, React 19, Vercel)
+### Frontend : ball-manager-web (Next.js 16.3.6, React 19, Vercel)
 
 #### Deux espaces distincts
 
@@ -42,12 +42,12 @@ Fonctions concernées : entraînements, convocations, maillots, tables, dérogat
 #### Le reste du front
 
 - **Client API central** : `src/lib/api/client.ts` (`apiFetch`, délai de 20 s, `no-store`).
-- **Transport du jeton public** : `src/lib/api/publicTokenTransport.ts` (`publicFetch`). Le jeton part par défaut dans la query `?token=`. Un mode en-tête `X-Personal-Link-Token` est prévu derrière `NEXT_PUBLIC_PUBLIC_TOKEN_HEADER=1`, mais **l'API ne lit pas encore cet en-tête et ne l'autorise pas en CORS** (`allowHeaders: ["Content-Type", "Authorization"]` dans `club-manager-api/src/app.ts`).
+- **Transport du jeton public** : `src/lib/api/publicTokenTransport.ts` (`publicFetch`). Le jeton part par défaut dans la query `?token=`. Un mode en-tête `X-Personal-Link-Token` est prévu derrière `NEXT_PUBLIC_PUBLIC_TOKEN_HEADER=1`, mais **l'API ne lit pas encore cet en-tête et ne l'autorise pas en CORS** (`allowHeaders: ["Content-Type", "Authorization"]` dans `ball-manager-back/src/app.ts`).
 - **PWA** (`src/lib/pwa`, `public/sw.js`, `offline.html`) : présente.
 - **Web Push** (`src/lib/push/client.ts`, `docs/PWA_PUSH.md`) : préparé mais **inactif**. Pas de clé VAPID, pas d'endpoint, pas d'envoi.
 - **En-têtes de sécurité** : `src/config/security-headers.ts`. On y trouve déjà `Referrer-Policy: strict-origin-when-cross-origin` ; la CSP est en Report-Only.
 
-### Backend : club-manager-api (Hono, Vercel, région dub1)
+### Backend : ball-manager-back (Hono, Vercel, région dub1)
 
 - **Comptes** : JWT Supabase vérifié (`src/auth/jwt.ts`, `src/auth/middleware.ts`), pour `/v1/clubs/{clubId}/…`.
 - **Espace public** (`/v1/public/clubs/{slug}/…`) : identité = lien personnel.
@@ -71,7 +71,7 @@ Fonctions concernées : entraînements, convocations, maillots, tables, dérogat
 
 ### A. Comptes Supabase (espace club, admins avec compte)
 
-- Invitation par email : `src/auth/account-invites.ts`. Le lien `…/bienvenue?token_hash=…&type=…&next=…` est un jeton OTP Supabase, à usage unique, consommé par `verifyOtp` côté SCSB après action de l'utilisateur.
+- Invitation par email : `src/auth/account-invites.ts`. Le lien `…/bienvenue?token_hash=…&type=…&next=…` est un jeton OTP Supabase, à usage unique, consommé par `verifyOtp` côté ball-manager-web après action de l'utilisateur.
 - Mot de passe, ou lien de réinitialisation.
 
 ### B. Lien personnel (espace public, sans compte), utilisé par les parents, joueurs, coachs et admins « par lien »
@@ -101,7 +101,7 @@ Fonctions concernées : entraînements, convocations, maillots, tables, dérogat
 
 | Lien | Généré par | Format | Sensible |
 |---|---|---|---|
-| Lien personnel (email « ton lien ») | `issuePersonalLink` (`public-tables/routes.ts`), `personalLinkUrl` (`personal-link.ts`), réaffichage admin (SCSB) | `/public/{slug}/{cible}?token=…` | **Oui** (jeton permanent) |
+| Lien personnel (email « ton lien ») | `issuePersonalLink` (`public-tables/routes.ts`), `personalLinkUrl` (`personal-link.ts`), réaffichage admin (ball-manager-web) | `/public/{slug}/{cible}?token=…` | **Oui** (jeton permanent) |
 | Invitation de compte | `account-invites.ts` → `welcomeLink` | `/bienvenue?token_hash=…` (OTP Supabase, usage unique) | Oui (usage unique) |
 | Demande de dérogation (au coordinateur) | `derogation-requests/notify.ts` | `/public/{slug}/derogations/{requestId}` | Non (identification requise) |
 | Digest des dérogations FBI | `notify.ts` | `/public/{slug}/derogations` | Non |
@@ -227,14 +227,14 @@ Ce que fait cette branche :
 - **Domaines** :
   - `applinks:www.ball-manager.fr` et `applinks:ball-manager.fr` ;
   - `open.ball-manager.fr` est **préparé mais pas activé** : à valider sur iPhone (§15, §58). Il demande en plus un domaine Vercel et un fichier AASA.
-- **AASA** : servi par SCSB en route dynamique (`/.well-known/apple-app-site-association`, JSON, sans redirection). Le Team ID est lu dans `APPLE_TEAM_ID`. **Tant qu'il est absent, la route répond 404** : aucune valeur Apple fictive n'est publiée.
+- **AASA** : servi par ball-manager-web en route dynamique (`/.well-known/apple-app-site-association`, JSON, sans redirection). Le Team ID est lu dans `APPLE_TEAM_ID`. **Tant qu'il est absent, la route répond 404** : aucune valeur Apple fictive n'est publiée.
 - **Chemins capturés** : `/public/*`, `/open/*`. Sont **exclus** : `/c/*`, `/platform/*`, `/login`, `/bienvenue`, `/api/*`, `/auth/*` et `/public/*/session`.
 
 ---
 
 ## 8. Push
 
-- **APNs en direct** depuis club-manager-api : HTTP/2 natif de Node et JWT ES256 signé avec la clé `.p8`. Pas de OneSignal, pas de Firebase.
+- **APNs en direct** depuis ball-manager-back : HTTP/2 natif de Node et JWT ES256 signé avec la clé `.p8`. Pas de OneSignal, pas de Firebase.
 - **Tables** :
   - `device_push_tokens`, rattachée à la **session d'appareil** et non à un compte, puisque parents et joueurs n'ont pas de compte. Un jeton par appareil, quel que soit le nombre de clubs ou d'enfants.
   - `notification_outbox` : déduplication, nouvelles tentatives, statut, erreurs APNs.

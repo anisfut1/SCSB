@@ -1,6 +1,6 @@
 # Sécurité de l'app iOS
 
-L'architecture et la décision sont dans `docs/IOS_AUDIT.md`, les routes dans `club-manager-api/docs/MOBILE_AUTH.md`, les notifications dans `docs/IOS_PUSH.md`.
+L'architecture et la décision sont dans `docs/IOS_AUDIT.md`, les routes dans `ball-manager-back/docs/MOBILE_AUTH.md`, les notifications dans `docs/IOS_PUSH.md`.
 
 ## Une seule identité, aucun compte
 
@@ -78,4 +78,4 @@ Elles s'appliquent par IP sur toutes les routes d'émission (sessions, codes, é
 
 ## Journaux
 
-Aucune donnée personnelle ni secret dans les journaux, côté API comme côté app : erreurs génériques seulement. Le dépôt `club-manager-api` est public.
+Aucune donnée personnelle ni secret dans les journaux, côté API comme côté app : erreurs génériques seulement. Le dépôt `ball-manager-back` est public.

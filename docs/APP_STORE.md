@@ -51,7 +51,7 @@ Mots-clés (100 car.) : `basket,club,convocation,entraînement,match,FFBB,équip
 >
 > Les notifications se testent depuis Mon compte → Activer les notifications.
 
-Club de démonstration : `club-manager-api/supabase/seed/demo_review_club.sql`. Il est **préparé et non appliqué**. La procédure se trouve en tête du fichier.
+Club de démonstration : `ball-manager-back/supabase/seed/demo_review_club.sql`. Il est **préparé et non appliqué**. La procédure se trouve en tête du fichier.
 
 ## Suppression de compte (Guideline 5.1.1(v))
 
@@ -99,4 +99,4 @@ Le **suivi des clics** de Resend réécrit chaque lien vers un domaine de redire
 
 ## Bannière Safari (Smart App Banner)
 
-Définir `NEXT_PUBLIC_APP_STORE_ID` (SCSB, Vercel) une fois l'app publiée. La bannière apparaît alors sur l'espace public, et le bouton « Installer » (PWA) disparaît sur iPhone.
+Définir `NEXT_PUBLIC_APP_STORE_ID` (ball-manager-web, Vercel) une fois l'app publiée. La bannière apparaît alors sur l'espace public, et le bouton « Installer » (PWA) disparaît sur iPhone.

@@ -9,8 +9,8 @@ Ne jamais coller de clé ni de lien personnel dans le dépôt ou dans le chat.
 ## A. Avant la première build
 
 1. **Fusionner et déployer** les branches `claude/ios-app` :
-   - `club-manager-api` sur Vercel ;
-   - `SCSB` sur Vercel.
+   - `ball-manager-back` sur Vercel ;
+   - `ball-manager-web` sur Vercel.
 
    Les migrations `device_sessions` et `push_notifications` sont **déjà appliquées** sur la base.
 2. **Vérifier l'AASA en production.** `https://www.ball-manager.fr/.well-known/apple-app-site-association` doit répondre **200**, en `application/json`, **sans redirection**.
@@ -19,13 +19,13 @@ Ne jamais coller de clé ni de lien personnel dans le dépôt ou dans le chat.
    - ou me demander de retirer `applinks:ball-manager.fr` des entitlements.
 4. **Resend** : désactiver le suivi des clics (Domains → votre domaine → Click tracking : off). Sinon, les liens des emails n'ouvrent pas l'app.
 5. **Icône** : fournir une icône **1024 × 1024 PNG, sans transparence ni coins arrondis**. L'actuelle est un agrandissement provisoire de l'icône 512 du site.
-6. **Adresse de support** : définir `NEXT_PUBLIC_SUPPORT_EMAIL` (SCSB, Vercel) avec une boîte réellement lue. Elle est affichée sur `/confidentialite` et `/support`.
+6. **Adresse de support** : définir `NEXT_PUBLIC_SUPPORT_EMAIL` (ball-manager-web, Vercel) avec une boîte réellement lue. Elle est affichée sur `/confidentialite` et `/support`.
 7. **Pages légales** : faire relire `/confidentialite` (titulaire, contact, durées), puis renseigner le titulaire du copyright.
 
 ## B. Compte Apple Developer
 
 8. **Clé APNs** : Certificates, Identifiers & Profiles → **Keys** → « + » → cocher *Apple Push Notifications service (APNs)* → télécharger le `.p8`. Il n'est téléchargeable qu'une seule fois : le conserver en lieu sûr.
-9. **Variables Vercel** de `club-manager-api`, à saisir vous-même :
+9. **Variables Vercel** de `ball-manager-back`, à saisir vous-même :
    - `APNS_TEAM_ID` = `YFZ72KY47V` ;
    - `APNS_KEY_ID` = l'identifiant de la clé ;
    - `APNS_PRIVATE_KEY` = le contenu du `.p8`.
@@ -35,11 +35,11 @@ Ne jamais coller de clé ni de lien personnel dans le dépôt ou dans le chat.
 
 ## C. Build sur un Mac (Xcode récent)
 
-11. Depuis `SCSB/mobile` :
+11. Depuis `ball-manager-web/mobile` :
 
     ```sh
     npm install
-    BM_API_URL=<URL de club-manager-api> npm run ios:sync
+    BM_API_URL=<URL de ball-manager-back> npm run ios:sync
     npm run ios:open
     ```
 
@@ -65,11 +65,11 @@ Ne jamais coller de clé ni de lien personnel dans le dépôt ou dans le chat.
 ## E. Publication sur l'App Store
 
 17. **Club de démonstration** :
-    - appliquer `club-manager-api/supabase/seed/demo_review_club.sql` (SQL Editor) ;
+    - appliquer `ball-manager-back/supabase/seed/demo_review_club.sql` (SQL Editor) ;
     - suivre la procédure en tête du fichier pour obtenir le lien de « Camille DEMO » ;
     - tester ce lien dans l'app.
 18. **Fiche App Store** : reprendre `docs/APP_STORE.md` (description, mots-clés, catégorie, âge, URLs, questionnaire « Confidentialité de l'app », suivi : **Non**).
 19. **Captures** en 6,9 pouces, sur le club de démo : liste dans `docs/APP_STORE.md`.
 20. **Notes pour la revue** : le modèle est dans `docs/APP_STORE.md`. Y coller le lien de démo. Préciser qu'il n'y a **pas de création de compte**, donc pas de suppression de compte dans l'app.
 21. Soumettre pour la revue.
-22. Après publication : définir `NEXT_PUBLIC_APP_STORE_ID` (SCSB, Vercel) avec l'identifiant numérique de l'app. Cela active la bannière Safari.
+22. Après publication : définir `NEXT_PUBLIC_APP_STORE_ID` (ball-manager-web, Vercel) avec l'identifiant numérique de l'app. Cela active la bannière Safari.

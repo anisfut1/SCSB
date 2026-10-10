@@ -1,6 +1,6 @@
 # Notifications push de l'app iOS
 
-APNs direct : pas de OneSignal, pas de Firebase. Le code serveur est dans `club-manager-api/src/modules/push/`, le code de l'app dans `mobile/src/push/push.ts`.
+APNs direct : pas de OneSignal, pas de Firebase. Le code serveur est dans `ball-manager-back/src/modules/push/`, le code de l'app dans `mobile/src/push/push.ts`.
 
 ## Parcours
 

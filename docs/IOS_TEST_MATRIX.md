@@ -8,7 +8,7 @@ Aucun test sur iPhone, aucune build Xcode, aucun envoi APNs réel ni TestFlight 
 
 | Domaine | Où | État |
 |---|---|---|
-| Sessions d'appareil, PKCE, codes à usage unique, isolation entre clubs, `X-BM-As` | `club-manager-api/src/modules/device-auth/device-auth.test.ts` (18) | ✅ |
+| Sessions d'appareil, PKCE, codes à usage unique, isolation entre clubs, `X-BM-As` | `ball-manager-back/src/modules/device-auth/device-auth.test.ts` (18) | ✅ |
 | « Lien perdu ? » garde la session de l'app ; `AUTH_LINK_CODES` | `public-tables/routes.test.ts` | ✅ |
 | Push : jeton, destinataires, déduplication, révocations, réessais, expiration, déclencheurs, JWT ES256, payload | `src/modules/push/push.test.ts` (15) | ✅ |
 | Générateur de liens (`links.ts`) | `src/links/links.test.ts` | ✅ |
@@ -48,5 +48,5 @@ Aucun test sur iPhone, aucune build Xcode, aucun envoi APNs réel ni TestFlight 
 | Point | État |
 |---|---|
 | Liens `?token=` inchangés (`AUTH_LINK_CODES` absent) | ✅ (tests API) |
-| Build et tests SCSB | ✅ (voir le rapport final) |
+| Build et tests ball-manager-web | ✅ (voir le rapport final) |
 | Pages `/confidentialite` et `/support` accessibles sans session | ✅ (`PUBLIC_PATHS`) |
