@@ -38,7 +38,7 @@ export interface PublicClubInfo {
   logoUrl: string | null;
 }
 
-interface PublicIdentityContextValue {
+export interface PublicIdentityContextValue {
   clubSlug: string;
   club: PublicClubInfo;
   identity: PublicIdentityState;
@@ -53,7 +53,8 @@ interface PublicIdentityContextValue {
   forgetToken: (token: string) => void;
 }
 
-const PublicIdentityContext = createContext<PublicIdentityContextValue | null>(null);
+/** Exporté pour l'app iOS (mobile/), qui fournit la même identité à partir de sa session d'appareil. */
+export const PublicIdentityContext = createContext<PublicIdentityContextValue | null>(null);
 
 /**
  * Identité de l'espace public sans compte, partagée par tous les onglets
